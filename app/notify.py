@@ -72,7 +72,8 @@ def _send(chat_id, text, section=None):
             payload["reply_markup"] = _keyboard()
             _call("sendMessage", payload)
         else:
-            raise urllib.error.HTTPError(ex.url, ex.code, body, ex.headers, None)
+            # тело ответа Telegram объясняет причину (например, «бот не может писать первым»): оно должно попасть в журнал
+            raise RuntimeError(f"Telegram {ex.code}: {body}") from None
 
 
 def to_characters(char_ids, text, section=None):

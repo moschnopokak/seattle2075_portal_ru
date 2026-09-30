@@ -66,6 +66,14 @@ def store(item_id, packed, raw_bytes):
     return token
 
 
+def rotate(item_id):
+    """Новый токен для файла раздатки: прежняя ссылка перестаёт открываться. None, если файла нет."""
+    token = secrets.token_hex(16)
+    with db.tx() as c:
+        changed = c.execute("UPDATE handout_files SET token=? WHERE item_id=?", (token, item_id)).rowcount
+    return token if changed else None
+
+
 def remove(item_id):
     with db.tx() as c:
         c.execute("DELETE FROM handout_files WHERE item_id=?", (item_id,))

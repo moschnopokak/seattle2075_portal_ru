@@ -139,6 +139,14 @@ def store(card_id, full, thumb):
     return token
 
 
+def rotate(card_id):
+    """Новый токен для картинок карточки: прежние ссылки перестают открываться. None, если картинки нет."""
+    token = secrets.token_hex(16)
+    with db.tx() as c:
+        changed = c.execute("UPDATE portraits SET token=? WHERE card_id=?", (token, card_id)).rowcount
+    return token if changed else None
+
+
 def remove(card_id):
     with db.tx() as c:
         c.execute("DELETE FROM portraits WHERE card_id=?", (card_id,))

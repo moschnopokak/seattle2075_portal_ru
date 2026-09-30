@@ -24,9 +24,15 @@ async def lifespan(_app):
         log.info("Добавлены разделы из config/campaign.json: %s", ", ".join(added))
     for note in seed.migrate():
         log.info("Обновление данных: %s", note)
-    config.people()  # ошибка в players.toml видна сразу при запуске
+    try:
+        config.people()  # ошибка в players.toml видна сразу при запуске
+    except FileNotFoundError as ex:
+        log.error("%s", ex)
+        raise
     if not config.BOT_TOKEN:
         log.warning("BOT_TOKEN не задан: вход через Telegram работать не будет")
+    if config.DEV_LOGIN_REQUESTED and not config.DEV_LOGIN:
+        log.error("DEV_LOGIN=1 проигнорирован: задан BOT_TOKEN, это рабочий сервер. Уберите DEV_LOGIN из .env")
     if config.DEV_LOGIN:
         log.warning("DEV_LOGIN включён: вход без Telegram. На рабочем сервере выключите")
     yield
@@ -34,6 +40,13 @@ async def lifespan(_app):
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
+
+
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, exc: Exception):
+    """Непредвиденный сбой: в журнал с подробностями, наружу короткий JSON (без внутренностей)."""
+    log.error("Необработанная ошибка: %s %s", request.method, request.url.path, exc_info=exc)
+    return JSONResponse({"detail": "Внутренняя ошибка сервера. Попробуйте ещё раз."}, status_code=500)
 
 
 @app.middleware("http")

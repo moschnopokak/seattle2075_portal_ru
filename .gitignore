@@ -5,3 +5,4 @@ __pycache__/
 .venv/
 # заметки мастера: в публичный репозиторий не попадают, заготовка в config/campaign.example.json
 config/campaign.json
+.pytest_cache/

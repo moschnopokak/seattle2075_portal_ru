@@ -22,7 +22,9 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "").strip().lstrip("@")
 SITE_URL = os.getenv("SITE_URL", "").strip().rstrip("/")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID", "").strip()
 NOTIFY_DM = os.getenv("NOTIFY_DM", "1") == "1"
-DEV_LOGIN = os.getenv("DEV_LOGIN", "0") == "1"
+DEV_LOGIN_REQUESTED = os.getenv("DEV_LOGIN", "0") == "1"
+# Вход без Telegram только для проверки у себя. Если задан токен бота, это рабочий сервер: режим выключен.
+DEV_LOGIN = DEV_LOGIN_REQUESTED and not BOT_TOKEN
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "1") == "1"
 SESSION_DAYS = int(os.getenv("SESSION_DAYS", "30"))
 PORTRAIT_QUOTA_MB = float(os.getenv("PORTRAIT_QUOTA_MB", "40"))
@@ -39,15 +41,17 @@ def _secret_key() -> bytes:
     if env:
         return env.encode()
     path = DATA_DIR / "secret.key"
-    if path.exists():
-        return path.read_text().strip().encode()
-    key = secrets.token_hex(32)
-    path.write_text(key)
-    try:
-        path.chmod(0o600)
-    except OSError:
-        pass
-    return key.encode()
+    if not path.exists():
+        key = secrets.token_hex(32)
+        try:
+            # Сразу с правами 0600: ключ не должен хоть на миг оказаться читаемым для всех.
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write(key)
+            return key.encode()
+        except FileExistsError:  # параллельный запуск успел раньше
+            pass
+    return path.read_text().strip().encode()
 
 
 SECRET_KEY = _secret_key()
@@ -94,7 +98,14 @@ def people() -> dict:
     """Список игроков. Файл перечитывается при изменении, перезапуск не нужен."""
     global _people, _people_mtime
     path = CONFIG_DIR / "players.toml"
-    mtime = path.stat().st_mtime
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        if _people is not None:  # файл пропал на ходу: работаем по прежнему списку
+            log.error("players.toml не найден, остаётся прежняя версия")
+            return _people
+        raise FileNotFoundError(
+            f"Нет файла {path}. Скопируйте config/players.example.toml в config/players.toml и впишите игроков.") from None
     with _people_lock:
         if _people is None or mtime != _people_mtime:
             try:

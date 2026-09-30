@@ -56,6 +56,28 @@ def clean(value, limit, multiline=False):
     return text.strip()[:limit]
 
 
+def listed(value, allowed):
+    """Уникальные строки из списка value, которые есть в allowed. Всё остальное (не список, вложенные списки, числа) отбрасывается."""
+    if not isinstance(value, list):
+        return []
+    return [c for c in dict.fromkeys(x for x in value if isinstance(x, str)) if c in allowed]
+
+
+def one_of(value, allowed, default):
+    """value, если это строка из allowed, иначе default. Безопасно для любых типов (списки и словари не хешируются)."""
+    return value if isinstance(value, str) and value in allowed else default
+
+
+def to_int(value, message):
+    """Целое число из запроса; на мусоре отвечает 400, а не падает."""
+    if isinstance(value, bool):
+        bad(message)
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        bad(message)
+
+
 class Viewer:
     def __init__(self, role, obj, tg_id, username):
         self.gm = role == "gm"
@@ -111,6 +133,9 @@ def window_of(day):
     return None
 
 
+PAST_PUBLIC = ("id", "from", "to", "title", "note", "session")  # поля хроники, которые видят игроки
+
+
 def state_for(v):
     today, tod = now()
     cs, ce = cal()
@@ -129,7 +154,7 @@ def state_for(v):
         "calEnd": ce,
         "windows": windows,
         "rhythm": rhythm,
-        "past": db.items("past") if v.gm else [{k: p[k] for k in p if k not in ("gm_note", "plan_id")} for p in db.items("past")],
+        "past": db.items("past") if v.gm else [{k: x[k] for k in PAST_PUBLIC if k in x} for x in db.items("past")],
         "plan": db.items("plan") if v.gm else [],
         "blocks": [] if v.gm else [b for b in cover_blocks() if not b["who"] or set(b["who"]) & set(v.chars)],
         "places": places_for(v),
@@ -206,6 +231,13 @@ def handout_audience(h):
     if not h or not h.get("file") or h.get("vis") == "мастер":
         return set()
     return set(char_map()) if h.get("vis") == "стол" else set(h.get("known", []))
+
+
+def card_audience(c):
+    """Кому из персонажей открыта карточка досье (те же правила, что в dossier_for)."""
+    if c.get("vis") == "мастер":
+        return set()
+    return set(c.get("known", [])) if c.get("vis") == "знают" else set(char_map())
 
 
 def handout_notify(old, new):
@@ -376,7 +408,7 @@ def _entry_fields(b, typ, author):
     if tod and tod not in TOD:
         bad("Неизвестное время суток.")
     chars = char_map()
-    who = [c for c in dict.fromkeys(b.get("who") or []) if c in chars]
+    who = listed(b.get("who"), chars)
     if author != "gm" and author not in who:
         who.insert(0, author)
     is_open = bool(b.get("open")) and typ != "grow"
@@ -408,7 +440,7 @@ def create_entry(v, b):
     with db.lock:
         char = v.acting(b.get("char"))
         typ = b.get("type")
-        if typ not in TYPES:
+        if not isinstance(typ, str) or typ not in TYPES:
             bad("Неизвестный тип записи.")
         fields = _entry_fields(b, typ, char)
         e = {"id": uuid.uuid4().hex[:12], "type": typ, "author": char,
@@ -554,7 +586,9 @@ def entry_action(v, entry_id, b):
             e["talk"] = "closed" if e.get("talk", "open") == "open" else "open"
             msg = "Обсуждение завершено" if e["talk"] == "closed" else "Обсуждение возобновлено"
         elif act in ("approve", "reject"):
-            if not v.gm or e["status"] != "gm":
+            if not v.gm:
+                bad("Развитие подтверждает только мастер.", 403)
+            if e["status"] != "gm":
                 bad("Эта заявка уже рассмотрена.")
             e["status"] = "ok" if act == "approve" else "rejected"
             msg = "Развитие подтверждено" if act == "approve" else "Развитие отклонено"
@@ -609,7 +643,7 @@ def gm_time(v, b):
         if b.get("date"):
             db.meta_set("now_date", check_date(b["date"], "Дата"))
         elif "shift" in b:
-            n = int(b["shift"])
+            n = to_int(b["shift"], "Сдвиг времени: нужно число дней.")
             if abs(n) > 400:
                 bad("Слишком большой сдвиг.")
             d = add_days(today, n)
@@ -696,15 +730,16 @@ def _normalize(kind, b):
         if b.get("mode") == "monthly":
             try:
                 day = int(b.get("monthDay"))
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 day = 0
             if not 1 <= day <= 31:
                 bad("Число месяца должно быть от 1 до 31.")
             item["monthDay"] = day
         else:
+            wd = b.get("wd")
             try:
-                days = sorted({int(x) for x in b.get("wd") or [] if 0 <= int(x) <= 6})
-            except (TypeError, ValueError):
+                days = sorted({int(x) for x in (wd if isinstance(wd, list) else []) if not isinstance(x, bool) and 0 <= int(x) <= 6})
+            except (TypeError, ValueError, OverflowError):
                 days = []
             if not days:
                 bad("Отметьте хотя бы один день недели.")
@@ -717,7 +752,7 @@ def _normalize(kind, b):
             item["from"] = start
         if end:
             item["to"] = end
-        if b.get("who") in chars:
+        if isinstance(b.get("who"), str) and b["who"] in chars:
             item["who"] = b["who"]
         return item
     if kind == "clocks":
@@ -728,7 +763,7 @@ def _normalize(kind, b):
         return item
     if kind == "handouts":
         vis = b.get("vis") if b.get("vis") in ("стол", "знают", "мастер") else "мастер"
-        known = [c for c in dict.fromkeys(b.get("known") or []) if c in chars]
+        known = listed(b.get("known"), chars)
         if vis == "знают" and not known:
             bad("Отметьте, кто из персонажей получил раздатку.")
         place = str(b.get("place") or "")
@@ -739,7 +774,7 @@ def _normalize(kind, b):
                 "note": clean(b.get("note"), 3000, True), "gm_note": clean(b.get("gm_note"), 3000, True), "place": place}
     if kind == "dossier":
         vis = b.get("vis") if b.get("vis") in ("стол", "знают", "мастер") else "мастер"
-        known = [c for c in dict.fromkeys(b.get("known") or []) if c in chars]
+        known = listed(b.get("known"), chars)
         if vis == "знают" and not known:
             bad("Отметьте, кому из персонажей открыта карточка.")
         last_date = _opt_date(b.get("last_date"), "Дата последней встречи")
@@ -757,7 +792,7 @@ def _normalize(kind, b):
             if not text:
                 bad("В карточке есть пустое сведение.")
             fvis = f.get("vis") if f.get("vis") in ("стол", "знают", "мастер") else "мастер"
-            fknown = [c for c in dict.fromkeys(f.get("known") or []) if c in chars]
+            fknown = listed(f.get("known"), chars)
             if fvis == "знают" and not fknown:
                 bad("У сведения выбрано «только знающие», но не отмечены персонажи.")
             fid = str(f.get("id") or "")
@@ -772,22 +807,19 @@ def _normalize(kind, b):
             facts.append(fact)
         return {"name": _title(b, "name", 80, "Укажите имя или название."), "alias": clean(b.get("alias"), 80),
                 "type": "org" if b.get("type") == "org" else "person", "role": clean(b.get("role"), 140),
-                "stance": b.get("stance") if b.get("stance") in STANCES else "unknown",
+                "stance": one_of(b.get("stance"), STANCES, "unknown"),
                 "org": clean(b.get("org"), 120), "vis": vis, "known": known if vis == "знают" else [],
-                "met": [c for c in dict.fromkeys(b.get("met") or []) if c in chars],
+                "met": listed(b.get("met"), chars),
                 "last_date": last_date, "last_place": last_place, "last_note": clean(b.get("last_note"), 200),
                 "facts": facts, "gm_note": clean(b.get("gm_note"), 4000, True)}
     if kind == "places":
-        try:
-            x, y = int(b.get("x")), int(b.get("y"))
-        except (TypeError, ValueError):
-            bad("Не указано место на карте.")
+        x, y = to_int(b.get("x"), "Не указано место на карте."), to_int(b.get("y"), "Не указано место на карте.")
         mw, mh = map_size()
         if not (0 <= x <= mw and 0 <= y <= mh):
             bad("Точка за краем карты. Поставьте место внутри карты.")
-        typ = b.get("type") if b.get("type") in PLACE_TYPES else "other"
+        typ = one_of(b.get("type"), PLACE_TYPES, "other")
         vis = b.get("vis") if b.get("vis") in ("стол", "знают", "мастер") else "стол"
-        known = [c for c in dict.fromkeys(b.get("known") or []) if c in chars]
+        known = listed(b.get("known"), chars)
         if vis == "знают" and not known:
             bad("Отметьте, кто из персонажей знает об этом месте.")
         return {"name": _title(b, "name", 80, "Укажите название места."), "type": typ, "x": x, "y": y, "vis": vis,
@@ -803,7 +835,7 @@ def _normalize(kind, b):
         if isinstance(cover, dict) and clean(cover.get("title"), 120):
             item["cover"] = {"title": clean(cover.get("title"), 120),
                              "note": clean(cover.get("note"), 1000, True),
-                             "who": [c for c in dict.fromkeys(cover.get("who") or []) if c in chars]}
+                             "who": listed(cover.get("who"), chars)}
         return item
     bad("Неизвестный раздел.")
 
@@ -823,10 +855,15 @@ def save_item(v, kind, b):
         item["id"] = old["id"] if old else KINDS[kind] + uuid.uuid4().hex[:8]
         if kind == "dossier":
             item["img"] = (old or {}).get("img", "")
+            # Кто потерял доступ к карточке, не должен открывать картинку по старой ссылке: токен меняется.
+            if old and item["img"] and card_audience(old) - card_audience(item):
+                item["img"] = portraits.rotate(item["id"]) or item["img"]
         if kind == "handouts":
             for k in ("file", "size", "fname", "uploaded"):
                 if old and k in old:
                     item[k] = old[k]
+            if old and item.get("file") and handout_audience(old) - handout_audience(item):
+                item["file"] = handouts.rotate(item["id"]) or item["file"]
         if kind == "past" and old and old.get("plan_id"):
             item["plan_id"] = old["plan_id"]
         if kind == "windows":

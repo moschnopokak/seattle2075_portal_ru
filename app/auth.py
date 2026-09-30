@@ -15,6 +15,14 @@ class AuthError(Exception):
     pass
 
 
+def _fresh(fields: dict) -> bool:
+    """auth_date не старше суток. Нечисловое значение считается устаревшим, а не ошибкой сервера."""
+    try:
+        return time.time() - int(fields.get("auth_date", "0")) <= MAX_AUTH_AGE
+    except (TypeError, ValueError):
+        return False
+
+
 def _data_check_string(fields: dict) -> str:
     return "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
 
@@ -27,11 +35,15 @@ def check_widget(data: dict) -> dict:
     fields = {k: str(v) for k, v in data.items() if k != "hash" and v is not None}
     secret = hashlib.sha256(BOT_TOKEN.encode()).digest()
     calc = hmac.new(secret, _data_check_string(fields).encode(), hashlib.sha256).hexdigest()
-    if not received or not hmac.compare_digest(calc, received):
+    if not received or not hmac.compare_digest(calc.encode(), received.encode()):
         raise AuthError("Подпись Telegram не сошлась.")
-    if time.time() - int(fields.get("auth_date", "0")) > MAX_AUTH_AGE:
+    if not _fresh(fields):
         raise AuthError("Данные входа устарели, войдите ещё раз.")
-    return {"id": int(fields["id"]), "username": fields.get("username", ""), "first_name": fields.get("first_name", "")}
+    try:
+        tg_id = int(fields["id"])
+    except (KeyError, ValueError):
+        raise AuthError("В данных входа нет Telegram ID.")
+    return {"id": tg_id, "username": fields.get("username", ""), "first_name": fields.get("first_name", "")}
 
 
 def check_webapp(init_data: str) -> dict:
@@ -45,15 +57,16 @@ def check_webapp(init_data: str) -> dict:
     received = fields.pop("hash", "")
     secret = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
     calc = hmac.new(secret, _data_check_string(fields).encode(), hashlib.sha256).hexdigest()
-    if not received or not hmac.compare_digest(calc, received):
+    if not received or not hmac.compare_digest(calc.encode(), received.encode()):
         raise AuthError("Подпись Telegram не сошлась.")
-    if time.time() - int(fields.get("auth_date", "0")) > MAX_AUTH_AGE:
+    if not _fresh(fields):
         raise AuthError("Данные входа устарели, откройте приложение заново.")
     try:
         user = json.loads(fields["user"])
-    except (KeyError, ValueError):
+        tg_id = int(user["id"])
+    except (KeyError, ValueError, TypeError):
         raise AuthError("В данных Mini App нет пользователя.")
-    return {"id": int(user["id"]), "username": user.get("username", ""), "first_name": user.get("first_name", "")}
+    return {"id": tg_id, "username": user.get("username", ""), "first_name": user.get("first_name", "")}
 
 
 def make_token(tg_id: int, username: str) -> str:
