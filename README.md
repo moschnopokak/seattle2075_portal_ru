@@ -93,13 +93,15 @@ sudo certbot --nginx -d ваш-домен
 
 **Видимость этапов.** Игроки видят название этапа с его первого дня. Поле `name` показывается игрокам, поле `gm` только мастеру. Регулярные события с `"vis": "мастер"` игрокам не видны.
 
-**Резервные копии.** Команда `python -m app.backup` кладёт копию базы в `data/backups` и хранит последние 14. Для ежедневной копии в 5 утра добавьте в `crontab -e`:
+**Резервные копии.** `python -m app.backup` кладёт проверенную копию базы в `data/backups` и хранит последние 14. Ежедневная копия в 5 утра:
 
 ```
 0 5 * * * cd /opt/seattle2075-portal && docker compose exec -T app python -m app.backup
 ```
 
-Без Docker: `0 5 * * * cd /opt/seattle2075-portal && sudo -u portal .venv/bin/python -m app.backup`.
+Без Docker: `0 5 * * * cd /opt/seattle2075-portal && set -a && . ./.env && set +a && sudo -E -u portal .venv/bin/python -m app.backup`.
+
+Чтобы копии были не только на сервере, поставьте в `.env` `BACKUP_TELEGRAM=1`: каждая копия уйдёт мастеру в личные сообщения от бота (сжатая, до 50 МБ). Можно также забирать папку `data/backups` через `scp` или `rclone` (см. `ЗАПУСК.md`, раздел 13). `python -m app.backup --verify` проверяет копию и показывает, что в ней лежит; `python -m app.backup --restore ФАЙЛ` восстанавливает базу (портал на это время останавливается, прежняя база сохраняется как `before-restore-….db`). Коды возврата: 0 всё хорошо, 1 ошибка, 2 копия сделана, но в Telegram не ушла.
 
 **Обновление кода.** Замените папки `app/` и `static/`, затем `docker compose up -d --build` или `sudo systemctl restart seattle2075-portal`. Данные в `data/` сохраняются.
 

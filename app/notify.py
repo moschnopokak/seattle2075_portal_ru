@@ -4,6 +4,7 @@
 """
 import json
 import logging
+import secrets
 import threading
 import urllib.error
 import urllib.request
@@ -23,6 +24,30 @@ def _call(method, payload):
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.load(resp)
+
+
+def send_document(chat_id, filename, data, caption=""):
+    """Отправляет файл (до 50 МБ) в чат. Вызов синхронный: нужен для резервных копий из командной строки."""
+    boundary = "----portal" + secrets.token_hex(12)
+    parts = []
+    for name, value in (("chat_id", str(chat_id)), ("caption", caption)):
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
+    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="document"; filename="{filename}"\r\n'
+                 "Content-Type: application/octet-stream\r\n\r\n".encode() + data + b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument", data=b"".join(parts),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as ex:
+        raise RuntimeError(f"Telegram {ex.code}: {ex.read().decode(errors='replace')}") from None
+
+
+def gm_chat_ids(people_data):
+    """Telegram ID мастера: из players.toml и те, кто входил в портал под его именем пользователя."""
+    return _ids(people_data["gm"])
 
 
 def _background(fn, *args):
