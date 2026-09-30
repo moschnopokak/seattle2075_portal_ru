@@ -280,6 +280,21 @@ async def upload_handout(item_id: str, request: Request):
     return _answer(v, msg)
 
 
+def _accepts_gzip(header):
+    """Принимает ли клиент gzip. «gzip;q=0» означает запрет."""
+    for part in header.lower().split(","):
+        name, _, params = part.partition(";")
+        if name.strip() in ("gzip", "x-gzip"):
+            params = params.replace(" ", "")
+            if params.startswith("q="):
+                try:
+                    return float(params[2:]) > 0
+                except ValueError:
+                    return True
+            return True
+    return False
+
+
 @app.get("/handout/{token}/view")
 def view_handout(token: str, request: Request):
     """Раздатка по секретному токену. Заголовок sandbox изолирует её от портала даже при прямом открытии."""
@@ -290,7 +305,7 @@ def view_handout(token: str, request: Request):
         raise HTTPException(404)
     headers = {"Content-Security-Policy": handouts.SANDBOX, "Cache-Control": "private, max-age=31536000, immutable",
                "Referrer-Policy": "no-referrer", "Vary": "Accept-Encoding"}
-    if "gzip" in request.headers.get("accept-encoding", "").lower():
+    if _accepts_gzip(request.headers.get("accept-encoding", "")):
         headers["Content-Encoding"] = "gzip"
         return Response(data, media_type="text/html; charset=utf-8", headers=headers)
     import gzip as _gzip

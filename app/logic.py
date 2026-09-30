@@ -640,21 +640,23 @@ def gm_time(v, b):
     with db.lock:
         today, _ = now()
         cs, ce = cal()
+        changes = {}  # сначала всё проверяется, потом пишется: ошибка в одном поле не оставляет половину изменений
         if b.get("date"):
-            db.meta_set("now_date", check_date(b["date"], "Дата"))
+            changes["now_date"] = check_date(b["date"], "Дата")
         elif "shift" in b:
             n = to_int(b["shift"], "Сдвиг времени: нужно число дней.")
             if abs(n) > 400:
                 bad("Слишком большой сдвиг.")
-            d = add_days(today, n)
-            db.meta_set("now_date", min(max(d, cs), ce))
+            changes["now_date"] = min(max(add_days(today, n), cs), ce)
         if "tod" in b:
             if b["tod"] not in TOD:
                 bad("Неизвестное время суток.")
-            db.meta_set("now_tod", b["tod"])
+            changes["now_tod"] = b["tod"]
         if "quiet" in b:
             q = b["quiet"] or ""
-            db.meta_set("quiet_until", check_date(q, "Свободное время") if q else "")
+            changes["quiet_until"] = check_date(q, "Свободное время") if q else ""
+        for key, value in changes.items():
+            db.meta_set(key, value)
         db.bump()
     notify.pin_status(status_text())
     return "Сохранено"

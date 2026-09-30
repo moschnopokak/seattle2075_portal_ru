@@ -149,3 +149,9 @@ def test_handout_link_revoked_when_access_is_narrowed(gm, anon):
 def test_handout_token_format_checked(anon):
     for token in ("z" * 32, "abc", "0" * 31, "../" + "0" * 29):
         assert anon.get(f"/handout/{token}/view").status_code == 404
+
+
+def test_accepts_gzip_honours_q_zero():
+    from app.main import _accepts_gzip
+    assert _accepts_gzip("gzip, deflate") and _accepts_gzip("br;q=1, gzip;q=0.5")
+    assert not _accepts_gzip("gzip;q=0") and not _accepts_gzip("identity") and not _accepts_gzip("")
