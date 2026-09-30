@@ -23,6 +23,7 @@ SITE_URL = os.getenv("SITE_URL", "").strip().rstrip("/")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID", "").strip()
 NOTIFY_DM = os.getenv("NOTIFY_DM", "1") == "1"
 BACKUP_TELEGRAM = os.getenv("BACKUP_TELEGRAM", "0") == "1"
+VERSION = os.getenv("PORTAL_VERSION", "dev").strip() or "dev"  # подставляется при сборке образа (хеш коммита)
 DEV_LOGIN_REQUESTED = os.getenv("DEV_LOGIN", "0") == "1"
 # Вход без Telegram только для проверки у себя. Если задан токен бота, это рабочий сервер: режим выключен.
 DEV_LOGIN = DEV_LOGIN_REQUESTED and not BOT_TOKEN

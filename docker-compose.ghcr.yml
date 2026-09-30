@@ -1,0 +1,45 @@
+# Вариант без сборки на сервере: готовый образ берётся из GitHub Container Registry.
+# Обновление:  docker compose -f docker-compose.ghcr.yml pull && docker compose -f docker-compose.ghcr.yml up -d
+# Нужная версия: PORTAL_TAG=1.2.0 docker compose -f docker-compose.ghcr.yml up -d   (по умолчанию latest)
+services:
+  app:
+    image: ghcr.io/moschnopokak/seattle2075_portal_ru:${PORTAL_TAG:-latest}
+    pull_policy: always
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: &logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    logging: *logs
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -89,3 +89,8 @@ def test_fonts_are_served_locally_and_cached(anon):
         assert r.status_code == 200 and r.content[:4] == b"wOF2", name
     # остальная статика проверяется при каждой загрузке
     assert anon.get("/static/index.html").headers["cache-control"] == "no-cache"
+
+
+def test_healthz_reports_version(anon):
+    r = anon.get("/healthz")
+    assert r.status_code == 200 and r.json()["ok"] is True and r.json()["version"]

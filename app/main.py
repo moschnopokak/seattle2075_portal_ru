@@ -16,6 +16,7 @@ log = logging.getLogger("portal")
 
 @asynccontextmanager
 async def lifespan(_app):
+    log.info("Портал, версия %s", config.VERSION)
     db.init()
     if seed.seed("auto"):
         log.info("База заполнена из config/campaign.json")
@@ -108,7 +109,7 @@ def index():
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True}
+    return {"ok": True, "version": config.VERSION}
 
 
 @app.get("/api/config")
