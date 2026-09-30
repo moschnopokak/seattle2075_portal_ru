@@ -56,6 +56,8 @@ async def security_headers(request: Request, call_next):
     response.headers.setdefault("Referrer-Policy", "same-origin")
     if request.url.path.startswith("/api/") or request.url.path == "/":
         response.headers["Cache-Control"] = "no-store"
+    elif request.url.path.startswith("/static/vendor/fonts/"):
+        response.headers["Cache-Control"] = "public, max-age=2592000"  # шрифты не меняются, страница грузится быстрее
     elif request.url.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-cache"
     return response

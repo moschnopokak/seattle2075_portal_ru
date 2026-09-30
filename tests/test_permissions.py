@@ -57,3 +57,18 @@ def test_security_headers(anon):
     assert r.headers["cache-control"] == "no-store"
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["referrer-policy"] == "same-origin"
+
+
+def test_fonts_are_served_locally_and_cached(anon):
+    page = anon.get("/").text
+    assert "fonts.googleapis.com" not in page and "fonts.gstatic.com" not in page
+    css = anon.get("/static/vendor/fonts/fonts.css")
+    assert css.status_code == 200 and "Jost" in css.text and "PT Serif" in css.text
+    assert css.headers["cache-control"] == "public, max-age=2592000"
+    names = set(__import__("re").findall(r"url\(\./([\w-]+\.woff2)\)", css.text))
+    assert len(names) == 18
+    for name in names:
+        r = anon.get(f"/static/vendor/fonts/{name}")
+        assert r.status_code == 200 and r.content[:4] == b"wOF2", name
+    # остальная статика проверяется при каждой загрузке
+    assert anon.get("/static/index.html").headers["cache-control"] == "no-cache"

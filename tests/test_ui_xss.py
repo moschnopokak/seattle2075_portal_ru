@@ -119,6 +119,8 @@ def open_page(browser, live_url, tg_id, problems):
     ctx.route("**/*", only_local)
     ctx.add_cookies([{"name": "session", "value": login(tg_id).cookies["session"], "url": live_url}])
     page = ctx.new_page()
+    page.recorded = []
+    page.on("request", lambda r: page.recorded.append(r.url))
     page.on("pageerror", lambda e: problems.append(f"pageerror: {e}"))
     page.on("console", lambda m: problems.append(f"console.{m.type}: {m.text}")
             if m.type == "error" and "blocked by CORS" not in m.text and "Failed to load resource" not in m.text else None)
@@ -212,4 +214,19 @@ def test_handout_runs_in_isolated_sandbox(browser, live_url, payloads):
     ctx.close()
     assert probe, "раздатка не прислала результат проверки"
     assert probe == 'HO:{"parentDoc":"blocked","ls":"blocked","cookie":"blocked","fetch":"blocked"}', probe
+    assert not problems, problems
+
+
+def test_fonts_come_from_our_server(browser, live_url):
+    problems = []
+    ctx, page = open_page(browser, live_url, 1, problems)
+    page.evaluate("()=>document.fonts.ready")
+    page.wait_for_timeout(300)
+    loaded = page.evaluate("()=>[...document.fonts].filter(f=>f.status==='loaded').map(f=>f.family.replace(/['\"]/g,'')+' '+f.weight+' '+f.style)")
+    assert "Jost 400 normal" in loaded and "Jost 300 normal" in loaded, loaded    # кириллица основного и крупного текста
+    assert page.evaluate("()=>document.fonts.check('400 16px Jost','Сегодня')")
+    outside = [u for u in page.recorded if not u.startswith(live_url)]
+    assert all("telegram.org" in u for u in outside), outside                      # наружу ходит только скрипт Telegram
+    assert not any("font" in u and not u.startswith(live_url) for u in page.recorded)
+    ctx.close()
     assert not problems, problems
