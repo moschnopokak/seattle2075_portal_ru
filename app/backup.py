@@ -91,7 +91,7 @@ def backup(keep=KEEP, source=None, target_dir=None) -> Path:
     except BackupError:
         target.unlink(missing_ok=True)
         raise
-    for old in sorted(target_dir.glob("portal-*.db"))[:-keep]:
+    for old in sorted(target_dir.glob("portal-*.db"))[:-max(keep, 1)]:
         old.unlink()
     return target
 

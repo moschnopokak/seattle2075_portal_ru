@@ -889,6 +889,21 @@ def save_item(v, kind, b):
     return "Сохранено" if old else "Добавлено"
 
 
+def _forget_place(place_id):
+    """Удалённое место не должно оставаться в записях, раздатках и карточках досье: иначе их потом не сохранить (проверка места на карте)."""
+    for e in db.entries():
+        if e.get("place") == place_id:
+            e["place"] = ""
+            db.save_entry(e)
+    for kind, key in (("handouts", "place"), ("dossier", "last_place")):
+        items = db.items(kind)
+        if any(x.get(key) == place_id for x in items):
+            for x in items:
+                if x.get(key) == place_id:
+                    x[key] = ""
+            db.set_items(kind, items)
+
+
 def delete_item(v, kind, item_id):
     if not v.gm:
         bad("Только для мастера.", 403)
@@ -904,5 +919,7 @@ def delete_item(v, kind, item_id):
             portraits.remove(item_id)
         if kind == "handouts":
             handouts.remove(item_id)
+        if kind == "places":
+            _forget_place(item_id)
         db.bump()
     return "Удалено"

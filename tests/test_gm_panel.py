@@ -93,3 +93,15 @@ def test_dossier_editing_keeps_image_and_fact_ids(gm):
         assert [f["id"] for f in again["facts"]] == [f["id"] for f in card["facts"]]
     finally:
         gm.post("/api/gm/items/dossier", json=dict(card))
+
+
+def test_deleting_place_clears_references(gm):
+    """Удалённое место не остаётся в записях: иначе их нельзя было бы сохранить снова."""
+    from helpers import create, find
+    data = ok(gm.post("/api/gm/items/places", json={"name": "Клуб-тест", "x": 100, "y": 100, "type": "other", "vis": "стол"}))
+    pid = next(p["id"] for p in data["state"]["places"] if p["name"] == "Клуб-тест")
+    e = create(gm, title="С местом", open=True, place=pid)
+    assert e["place"] == pid
+    state = ok(gm.post(f"/api/gm/items/places/{pid}/delete"))["state"]
+    assert find(state, e["id"])["place"] == ""
+    gm.post(f"/api/entries/{e['id']}/act", json={"act": "del"})
