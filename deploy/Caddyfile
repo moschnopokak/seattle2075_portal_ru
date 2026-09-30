@@ -1,5 +1,18 @@
 {$DOMAIN} {
 	encode zstd gzip
+
+	# Браузер целый год ходит на сайт только по https. Чтобы отменить, верните max-age=0 и подождите, пока браузеры обновятся.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# Самый большой файл, который принимает портал, это раздатка (HANDOUT_MAX_UPLOAD_MB, по умолчанию 15 МБ).
+	# Если увеличиваете лимит в .env, увеличьте и это число.
+	request_body {
+		max_size 16MB
+	}
+
 	reverse_proxy app:8000
 }
 

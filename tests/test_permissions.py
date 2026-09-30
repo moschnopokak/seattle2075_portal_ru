@@ -57,6 +57,23 @@ def test_security_headers(anon):
     assert r.headers["cache-control"] == "no-store"
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["referrer-policy"] == "same-origin"
+    # страницу нельзя встроить на чужой сайт, но веб-версии Telegram могут
+    csp = r.headers["content-security-policy"]
+    assert "frame-ancestors 'self'" in csp and "https://*.telegram.org" in csp
+    assert "x-frame-options" not in r.headers
+
+
+def test_handout_keeps_its_own_stricter_policy(gm, anon):
+    from helpers import ok
+    body = {"title": "Заголовки", "date": "2075-08-01", "vis": "стол"}
+    h = next(x for x in ok(gm.post("/api/gm/items/handouts", json=body))["state"]["handouts"] if x["title"] == "Заголовки")
+    try:
+        data = ok(gm.post(f"/api/gm/handouts/{h['id']}/file", content="<p>x</p>".encode()))
+        token = next(x for x in data["state"]["handouts"] if x["id"] == h["id"])["file"]
+        csp = anon.get(f"/handout/{token}/view").headers["content-security-policy"]
+        assert csp.startswith("sandbox") and "telegram.org" not in csp   # общий заголовок ему не подменяется
+    finally:
+        gm.post(f"/api/gm/items/handouts/{h['id']}/delete")
 
 
 def test_fonts_are_served_locally_and_cached(anon):

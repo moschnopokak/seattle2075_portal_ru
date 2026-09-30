@@ -46,6 +46,16 @@ jobs:
           curl -fsS -o /dev/null http://127.0.0.1:8000/static/map/map.json
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/state)" = "401"
 
+      - name: Служба systemd (проверка файла и оценка защищённости)
+        run: |
+          sed -e 's#/opt/seattle2075-portal/.venv/bin/uvicorn#/bin/true#' -e 's#^User=portal#User=root#' \
+            deploy/seattle2075-portal.service > /tmp/portal.service
+          systemd-analyze verify /tmp/portal.service
+          systemd-analyze security --offline=true /tmp/portal.service | tail -1
+          score=$(systemd-analyze security --offline=true /tmp/portal.service | sed -n 's/.*exposure level for .*: \([0-9.]*\).*/\1/p')
+          echo "оценка экспозиции: $score"
+          awk -v s="$score" 'BEGIN { exit !(s != "" && s + 0 < 5) }'
+
   tests:
     name: Автотесты
     runs-on: ubuntu-latest
@@ -103,21 +113,46 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Запуск контейнера и проверка
+      - name: Запуск усиленного контейнера и проверка
         run: |
           cp config/players.example.toml config/players.toml
           cp config/campaign.example.json config/campaign.json
           mkdir -p data && sudo chown 1000:1000 data
           docker run -d --name portal -p 8000:8000 \
+            --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+            --health-interval 3s --health-start-period 5s \
             -e DEV_LOGIN=1 -e COOKIE_SECURE=0 \
             -v "$PWD/data:/app/data" -v "$PWD/config:/app/config:ro" \
             seattle2075-portal:ci
-          for i in $(seq 1 20); do
-            curl -fs -o /dev/null http://127.0.0.1:8000/ && break
-            sleep 1
+          for i in $(seq 1 40); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' portal)
+            [ "$status" = healthy ] && break
+            sleep 2
           done
+          echo "состояние контейнера: $status"
+          test "$status" = healthy
           curl -fsS -o /dev/null http://127.0.0.1:8000/
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/state)" = "401"
+          curl -fsS -D - -o /dev/null http://127.0.0.1:8000/ | grep -i "frame-ancestors"
+          # в усиленном контейнере база и копии по-прежнему пишутся в data/
+          docker exec portal python -m app.backup
+          docker exec portal python -m app.backup --verify
+
+      - name: Проверка конфигурации Caddy
+        run: |
+          docker run --rm -e DOMAIN=portal.example.ru -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2 caddy validate --config /etc/caddy/Caddyfile
+
+      - name: Проверка конфигурации nginx
+        run: |
+          printf 'events {}\nhttp {\n  include /etc/nginx/conf.d/*.conf;\n}\n' > /tmp/nginx-test.conf
+          docker run --rm -v /tmp/nginx-test.conf:/etc/nginx/nginx.conf:ro \
+            -v "$PWD/deploy/nginx-portal.conf:/etc/nginx/conf.d/portal.conf:ro" nginx:stable nginx -t
+
+      - name: Проверка compose-файла
+        run: |
+          printf 'DOMAIN=portal.example.ru\n' > .env
+          docker compose config -q
 
       - name: Журнал контейнера при сбое
         if: failure()

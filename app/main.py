@@ -49,11 +49,18 @@ async def unexpected_error(request: Request, exc: Exception):
     return JSONResponse({"detail": "Внутренняя ошибка сервера. Попробуйте ещё раз."}, status_code=500)
 
 
+# Кто может встраивать страницу портала: сам портал и веб-версии Telegram (там Mini App открывается во фрейме).
+# Приложения Telegram на телефоне и компьютере открывают её не во фрейме, их это не касается.
+FRAME_POLICY = "frame-ancestors 'self' https://telegram.org https://*.telegram.org"
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
+    if request.url.path == "/":
+        response.headers.setdefault("Content-Security-Policy", FRAME_POLICY)
     if request.url.path.startswith("/api/") or request.url.path == "/":
         response.headers["Cache-Control"] = "no-store"
     elif request.url.path.startswith("/static/vendor/fonts/"):

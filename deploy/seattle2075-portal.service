@@ -7,9 +7,33 @@ After=network.target
 User=portal
 WorkingDirectory=/opt/seattle2075-portal
 EnvironmentFile=/opt/seattle2075-portal/.env
+Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/opt/seattle2075-portal/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers
 Restart=always
 RestartSec=3
+
+# Ограничения. Портал пишет только в папку data, ходит только по сети и ничего не может в остальной системе.
+# Папка data должна существовать до запуска (раздел 15.2 руководства).
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/seattle2075-portal/data
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

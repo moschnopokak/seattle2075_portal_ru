@@ -6,11 +6,26 @@ services:
       - ./data:/app/data
       - ./config:/app/config:ro
     restart: unless-stopped
+    # Портал пишет только в папку data: остальная файловая система контейнера только для чтения,
+    # лишних привилегий нет.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: &logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   caddy:
     image: caddy:2
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
@@ -21,6 +36,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
+    logging: *logs
 
 volumes:
   caddy_data:
