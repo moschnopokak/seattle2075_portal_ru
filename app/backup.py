@@ -91,6 +91,7 @@ def backup(keep=KEEP, source=None, target_dir=None) -> Path:
     except BackupError:
         target.unlink(missing_ok=True)
         raise
+    keep = max(int(keep), 1)  # 0 и отрицательные значения не должны ни стирать всё, ни отключать чистку
     for old in sorted(target_dir.glob("portal-*.db"))[:-keep]:
         old.unlink()
     return target

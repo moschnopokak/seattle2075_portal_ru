@@ -3,6 +3,7 @@ import logging
 import os
 import secrets
 import threading
+import time
 from pathlib import Path
 
 try:
@@ -53,7 +54,13 @@ def _secret_key() -> bytes:
             return key.encode()
         except FileExistsError:  # параллельный запуск успел раньше
             pass
-    return path.read_text().strip().encode()
+    # Файл мог быть создан, но ещё не записан другим процессом: пустой ключ делал бы подпись сессий подделываемой.
+    for _ in range(50):
+        key = path.read_text().strip()
+        if key:
+            return key.encode()
+        time.sleep(0.1)
+    raise RuntimeError(f"Файл {path} пуст. Удалите его: ключ создастся заново (все войдут повторно).")
 
 
 SECRET_KEY = _secret_key()

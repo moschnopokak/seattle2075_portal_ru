@@ -172,3 +172,8 @@ def test_cli_returns_2_when_telegram_fails_but_copy_exists(tmp_path):
 
 def test_config_flag_defaults_off():
     assert config.BACKUP_TELEGRAM is False
+
+
+def test_backup_keep_zero_still_keeps_the_newest(started, copy_dir):
+    made = [backup.backup(keep=0, target_dir=copy_dir) for _ in range(3)]
+    assert [p.name for p in copy_dir.glob("portal-*.db")] == [made[-1].name]
