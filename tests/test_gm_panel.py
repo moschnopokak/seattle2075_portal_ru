@@ -17,6 +17,17 @@ def test_time_controls(gm):
         gm.post("/api/gm/time", json={"date": d0, "tod": tod0, "quiet": quiet0})
 
 
+def test_time_change_is_all_or_nothing(gm):
+    """Если одно поле неверное, остальные не применяются."""
+    before = gm.get("/api/state").json()["now"]
+    try:
+        assert gm.post("/api/gm/time", json={"shift": 2, "tod": "полдень"}).status_code == 400
+        assert gm.post("/api/gm/time", json={"shift": 2, "tod": ["ночь"]}).status_code == 400
+        assert gm.get("/api/state").json()["now"] == before
+    finally:
+        gm.post("/api/gm/time", json={"date": before["date"], "tod": before["tod"]})
+
+
 def test_clock_crud(gm):
     data = ok(gm.post("/api/gm/items/clocks", json={"title": "Таймер", "when": "2075-09-01", "note": "n"}))
     cid = next(c["id"] for c in data["state"]["clocks"] if c["title"] == "Таймер")
