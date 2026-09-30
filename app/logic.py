@@ -558,6 +558,8 @@ def entry_action(v, entry_id, b):
                 bad("Убрать участника может только автор записи или мастер.", 403)
             if val == e["author"] or val not in e["who"]:
                 bad("Этого участника убрать нельзя.")
+            if len(e["who"]) == 1 and not e.get("open"):
+                bad("Это единственный участник. Удалите запись или отметьте «+», чтобы к ней могли напроситься.")
             e["who"].remove(val)
             e["answers"].pop(val, None)
             e["stars"] = [c for c in e["stars"] if c != val]

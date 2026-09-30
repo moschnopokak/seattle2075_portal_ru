@@ -124,3 +124,12 @@ def test_entry_text_is_cleaned(gm, gate):
         assert created["goal"] == "a\nb"
     finally:
         remove(gm, created["id"])
+
+
+def test_gm_cannot_kick_last_participant_of_closed_entry(gm):
+    e = create(gm, char="gm", title="Один участник", who=["gate"])
+    try:
+        assert gm.post(f"/api/entries/{e['id']}/act", json={"act": "kick", "v": "gate"}).status_code == 400
+        assert find(gm.get("/api/state").json(), e["id"])["who"] == ["gate"]
+    finally:
+        remove(gm, e["id"])
