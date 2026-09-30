@@ -1,0 +1,7 @@
+.env
+data/
+config/players.toml
+__pycache__/
+.venv/
+# заметки мастера: в публичный репозиторий не попадают, заготовка в config/campaign.example.json
+config/campaign.json

@@ -1,0 +1,14 @@
+{
+  "_comment": "Пустая заглушка структуры кампании. Скопируйте в campaign.json и заполните: cp config/campaign.example.json config/campaign.json. Настоящий campaign.json содержит заметки мастера и в репозиторий не попадает (см. .gitignore).",
+  "calendar": {"start": "2075-07-01", "end": "2075-12-31"},
+  "now": {"date": "2075-07-01", "tod": "вечер"},
+  "quietUntil": "",
+  "windows": [],
+  "rhythm": [],
+  "clocks": [],
+  "past": [],
+  "plan": [],
+  "places": [],
+  "dnotes": [],
+  "dossier": []
+}

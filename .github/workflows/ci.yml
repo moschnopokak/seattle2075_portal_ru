@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Проверка приложения
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Синтаксис
+        run: python -m compileall -q app add-id.py
+
+      - name: Заготовки конфигурации
+        run: |
+          cp config/players.example.toml config/players.toml
+          cp config/campaign.example.json config/campaign.json
+
+      - name: Запуск и проверка ответов
+        env:
+          DEV_LOGIN: "1"
+          COOKIE_SECURE: "0"
+          DATA_DIR: ${{ runner.temp }}/data
+        run: |
+          uvicorn app.main:app --port 8000 &
+          for i in $(seq 1 20); do
+            curl -fs -o /dev/null http://127.0.0.1:8000/ && break
+            sleep 1
+          done
+          curl -fsS -o /dev/null http://127.0.0.1:8000/
+          curl -fsS -o /dev/null http://127.0.0.1:8000/static/map/map.json
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/state)" = "401"
+
+  docker:
+    name: Сборка Docker-образа
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Сборка образа
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: seattle2075-portal:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Запуск контейнера и проверка
+        run: |
+          cp config/players.example.toml config/players.toml
+          cp config/campaign.example.json config/campaign.json
+          mkdir -p data && sudo chown 1000:1000 data
+          docker run -d --name portal -p 8000:8000 \
+            -e DEV_LOGIN=1 -e COOKIE_SECURE=0 \
+            -v "$PWD/data:/app/data" -v "$PWD/config:/app/config:ro" \
+            seattle2075-portal:ci
+          for i in $(seq 1 20); do
+            curl -fs -o /dev/null http://127.0.0.1:8000/ && break
+            sleep 1
+          done
+          curl -fsS -o /dev/null http://127.0.0.1:8000/
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/state)" = "401"
+
+      - name: Журнал контейнера при сбое
+        if: failure()
+        run: docker logs portal

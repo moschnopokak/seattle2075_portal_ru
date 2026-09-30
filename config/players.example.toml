@@ -1,0 +1,74 @@
+# Кто есть кто на портале. Скопируйте файл в players.toml и заполните.
+# Правки подхватываются на лету, перезапуск не нужен.
+#
+# Людей можно указать двумя способами:
+#   telegram_ids       — числовой Telegram ID, надёжный вариант: он не меняется;
+#   telegram_usernames — имя пользователя без @, удобно на старте, но его можно сменить.
+# Если человека нет в списке, страница входа покажет его Telegram ID:
+# перешлите число сюда, и доступ появится.
+
+[gm]
+name = "Мастер"
+telegram_ids = []
+telegram_usernames = []
+
+[[players]]
+name = "Максим"
+telegram_ids = []
+telegram_usernames = []
+characters = ["alice", "karu"]
+
+[[players]]
+name = "Игрок Гейта"
+telegram_ids = []
+telegram_usernames = []
+characters = ["gate"]
+
+[[players]]
+name = "Игрок Рига"
+telegram_ids = []
+telegram_usernames = []
+characters = ["rig"]
+
+[[players]]
+name = "Игрок Хаганэ"
+telegram_ids = []
+telegram_usernames = []
+characters = ["hagane"]
+
+[[players]]
+name = "Игрок Илайджи"
+telegram_ids = []
+telegram_usernames = []
+characters = ["elijah"]
+
+# Персонажи. gen — имя в родительном падеже: «приглашение от Рига».
+[[characters]]
+id = "alice"
+name = "Элис"
+gen = "Элис"
+
+[[characters]]
+id = "karu"
+name = "Кару"
+gen = "Кару"
+
+[[characters]]
+id = "gate"
+name = "Гейт"
+gen = "Гейта"
+
+[[characters]]
+id = "rig"
+name = "Риг"
+gen = "Рига"
+
+[[characters]]
+id = "hagane"
+name = "Хаганэ"
+gen = "Хаганэ"
+
+[[characters]]
+id = "elijah"
+name = "Илайджа"
+gen = "Илайджи"
