@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
-from . import audit, auth, config, db, handouts, logic, notify, outbox, portraits, scheduler, seed, telegram_bot, trash
+from . import audit, auth, config, db, diary, handouts, logic, notify, outbox, portraits, scheduler, seed, telegram_bot, trash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("portal")
@@ -288,6 +288,37 @@ def edit_entry(entry_id: str, request: Request, data: dict = Body(...)):
 def add_message(entry_id: str, request: Request, data: dict = Body(...)):
     v = viewer(request)
     return _answer(v, logic.add_message(v, entry_id, data))
+
+
+_diary_times = {}
+DIARIES_PER_MINUTE = 10
+
+
+@app.get("/api/me/diary")
+def my_diary(request: Request, format: str = "md", parts: str = "", char: str = ""):
+    """«Мой дневник»: всё, что знает персонаж, одним файлом (Markdown или PDF). Собирается из того, что портал и так отдаёт этому игроку."""
+    import time
+    from urllib.parse import quote
+    v = viewer(request)
+    now = time.time()
+    recent = [t for t in _diary_times.get(v.tg_id, []) if now - t < 60]
+    if len(recent) >= DIARIES_PER_MINUTE:
+        raise HTTPException(429, "Слишком часто. Подождите минуту.")
+    _diary_times[v.tg_id] = recent + [now]
+    if format not in ("md", "pdf"):
+        raise HTTPException(400, "Формат: md или pdf.")
+    try:
+        doc = diary.build(v, char, diary.parse_parts(parts))
+    except diary.DiaryError as ex:
+        raise HTTPException(ex.code, ex.message)
+    if format == "pdf":
+        data, media = diary.to_pdf(doc), "application/pdf"
+    else:
+        data, media = diary.to_markdown(doc).encode("utf-8"), "text/markdown; charset=utf-8"
+    name = diary.filename(doc, format)
+    return Response(data, media_type=media, headers={
+        "Content-Disposition": f"attachment; filename=\"diary.{format}\"; filename*=UTF-8''{quote(name)}",
+        "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
 
 @app.post("/api/entries/{entry_id}/roll")

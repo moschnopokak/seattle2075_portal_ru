@@ -430,7 +430,7 @@ body.hv-open #toast{z-index:1600}
 .plist{list-style:none;margin:0;padding:0}
 .plist li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line)}
 .plist li .muted{text-align:right}
-.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}
+.acts,.dl-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}      /* .dl-acts: кнопки скачивания, их не прячет предпросмотр мастера */
 fieldset{border:0;margin:12px 0;padding:0}
 legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .types{display:flex;flex-wrap:wrap;gap:6px}

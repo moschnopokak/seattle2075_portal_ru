@@ -102,7 +102,8 @@ function renderTop(){
   }else{
     who=`<span class="viewas">${esc(S.me.name)}${S.me.chars[0]?', '+esc(CN[S.me.chars[0]]||''):''}</span>`;
   }
-  document.getElementById('who-box').innerHTML=who+'<button type="button" class="btn plain" data-act="open-prefs">Уведомления</button><button type="button" class="btn plain" data-act="logout">Выйти</button>';
+  const diaryBtn=V!=='gm'&&(viewChars()||[]).length?'<button type="button" class="btn plain" data-act="open-diary">Мой дневник</button>':'';
+  document.getElementById('who-box').innerHTML=who+diaryBtn+'<button type="button" class="btn plain" data-act="open-prefs">Уведомления</button><button type="button" class="btn plain" data-act="logout">Выйти</button>';
   const banner=document.getElementById('banner');
   banner.hidden=!RO();
   banner.textContent=RO()?`Предпросмотр: так портал видит игрок, у которого есть ${CN[V]}. Действия отключены.`:'';
