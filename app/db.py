@@ -77,9 +77,17 @@ def _m3_outbox_and_prefs(c):
         chat_notify INTEGER NOT NULL DEFAULT 1, updated REAL)""")
 
 
+def _m4_invite_clock(c):
+    c.execute("""CREATE TABLE IF NOT EXISTS invite_clock (
+        entry_id TEXT NOT NULL, char TEXT NOT NULL, asked REAL NOT NULL, reminded INTEGER NOT NULL DEFAULT 0, last REAL NOT NULL,
+        PRIMARY KEY (entry_id, char))""")
+    c.execute("ALTER TABLE user_prefs ADD COLUMN remind INTEGER NOT NULL DEFAULT 1")
+
+
 MIGRATIONS = [
     (2, "журнал изменений и корзина", _m2_audit_and_trash),
     (3, "очередь уведомлений и настройки пользователей", _m3_outbox_and_prefs),
+    (4, "напоминания о неотвеченных приглашениях", _m4_invite_clock),
 ]
 LATEST = MIGRATIONS[-1][0]
 
@@ -205,6 +213,7 @@ def save_entry(e):
 def delete_entry(entry_id):
     with tx() as c:
         c.execute("DELETE FROM messages WHERE entry_id=?", (entry_id,))
+        c.execute("DELETE FROM invite_clock WHERE entry_id=?", (entry_id,))
         c.execute("DELETE FROM entries WHERE id=?", (entry_id,))
 
 

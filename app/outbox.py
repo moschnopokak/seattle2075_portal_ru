@@ -18,13 +18,13 @@ MAX_ATTEMPTS = 3
 TEXT_LIMIT = 3800          # у Telegram предел 4096 знаков
 MAX_BUTTON_ROWS = 8
 TZ_RE = re.compile(r"^[A-Za-z0-9_+\-/]{1,64}$")
-FIELDS = ("tz", "quiet_on", "quiet_from", "quiet_to", "digest_on", "digest_hour", "chat_notify")
+FIELDS = ("tz", "quiet_on", "quiet_from", "quiet_to", "digest_on", "digest_hour", "chat_notify", "remind")
 
 
 # ---------- настройки пользователя ----------
 
 def defaults() -> dict:
-    return {"tz": DEFAULT_TZ, "quiet_on": 0, "quiet_from": 23, "quiet_to": 8, "digest_on": 0, "digest_hour": 9, "chat_notify": 1}
+    return {"tz": DEFAULT_TZ, "quiet_on": 0, "quiet_from": 23, "quiet_to": 8, "digest_on": 0, "digest_hour": 9, "chat_notify": 1, "remind": 1}
 
 
 def zone(name):
@@ -71,12 +71,13 @@ def save_prefs(tg_id, data) -> dict:
     digest_on = 1 if data.get("digest_on") else 0
     digest_hour = _hour(data.get("digest_hour", 9), "Час сводки")
     chat_notify = 0 if data.get("chat_notify") is False or data.get("chat_notify") == 0 else 1
+    remind = 0 if data.get("remind") is False or data.get("remind") == 0 else 1
     with db.lock:
         db.conn().execute(
-            "INSERT INTO user_prefs(tg_id,tz,quiet_on,quiet_from,quiet_to,digest_on,digest_hour,chat_notify,updated) VALUES(?,?,?,?,?,?,?,?,?) "
+            "INSERT INTO user_prefs(tg_id,tz,quiet_on,quiet_from,quiet_to,digest_on,digest_hour,chat_notify,remind,updated) VALUES(?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT(tg_id) DO UPDATE SET tz=excluded.tz,quiet_on=excluded.quiet_on,quiet_from=excluded.quiet_from,quiet_to=excluded.quiet_to,"
-            "digest_on=excluded.digest_on,digest_hour=excluded.digest_hour,chat_notify=excluded.chat_notify,updated=excluded.updated",
-            (tg_id, tz, quiet_on, quiet_from, quiet_to, digest_on, digest_hour, chat_notify, time.time()))
+            "digest_on=excluded.digest_on,digest_hour=excluded.digest_hour,chat_notify=excluded.chat_notify,remind=excluded.remind,updated=excluded.updated",
+            (tg_id, tz, quiet_on, quiet_from, quiet_to, digest_on, digest_hour, chat_notify, remind, time.time()))
     return prefs(tg_id)
 
 
@@ -107,7 +108,7 @@ def enqueue(tg_id, kind, text="", section=None, buttons=None, key=None, meta=Non
     """Поставить уведомление в очередь. key склеивает однотипные: второе и следующие с тем же key только увеличивают счётчик."""
     now = time.time() if now is None else now
     p = prefs(tg_id)
-    if kind == "chat" and not p["chat_notify"]:
+    if (kind == "chat" and not p["chat_notify"]) or (kind == "remind" and not p["remind"]):
         return None
     send_after = max(now + delay, next_allowed(p, now))
     with db.lock:

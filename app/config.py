@@ -31,6 +31,10 @@ SCHEDULER = os.getenv("SCHEDULER", "1") == "1"
 CHAT_NOTIFY_DELAY = int(os.getenv("CHAT_NOTIFY_DELAY", "300"))
 # Часовой пояс по умолчанию для тихих часов и сводки, пока человек не выбрал свой (название из базы IANA, например Europe/Moscow)
 DEFAULT_TZ = os.getenv("DEFAULT_TZ", "UTC").strip() or "UTC"
+# Напоминание о неотвеченном приглашении: через сколько дней после приглашения (или прошлого напоминания) и сколько раз всего.
+# REMIND_DAYS=0 выключает напоминания
+REMIND_DAYS = int(os.getenv("REMIND_DAYS", "2"))
+REMIND_MAX = int(os.getenv("REMIND_MAX", "2"))
 # Сколько дней хранятся удалённые записи и карточки в корзине и записи журнала изменений
 TRASH_DAYS = int(os.getenv("TRASH_DAYS", "30"))
 AUDIT_DAYS = int(os.getenv("AUDIT_DAYS", "365"))

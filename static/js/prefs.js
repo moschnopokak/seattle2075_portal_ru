@@ -11,6 +11,7 @@ async function openPrefs(){
   ${j.dm?'<p class="note">Сообщения приходят от бота в Telegram. Если ничего не приходит, откройте бота и нажмите «Запустить», затем проверьте связь кнопкой ниже.</p>':'<p class="err">На этом портале личные уведомления выключены: не задан токен бота или NOTIFY_DM=0.</p>'}
   <form id="prefs-form" novalidate>
     <label class="check"><input type="checkbox" name="chat_notify" ${p.chat_notify?'checked':''}> Сообщения в обсуждениях записей (одним уведомлением, примерно через ${j.chat_minutes} мин. после первого)</label>
+    ${j.remind_days>0&&j.remind_max>0?`<label class="check"><input type="checkbox" name="remind" ${p.remind?'checked':''}> Напоминать о приглашениях, на которые я не ответил(а) (через ${j.remind_days} ${plural(j.remind_days,'день','дня','дней')}, не больше ${j.remind_max} ${plural(j.remind_max,'раза','раз','раз')})</label>`:''}
     <fieldset class="vis"><legend>Как получать уведомления</legend>
       <label><input type="radio" name="mode" value="now" ${p.digest_on?'':'checked'}> Сразу, как только что-то случилось</label>
       <label><input type="radio" name="mode" value="digest" ${p.digest_on?'checked':''}> Одной сводкой раз в день, в <select name="digest_hour" aria-label="Час сводки">${hourOpts(p.digest_hour)}</select></label>
@@ -25,7 +26,7 @@ async function openPrefs(){
 }
 async function submitPrefs(form){
   const F=n=>form.elements.namedItem(n),err=m=>{document.getElementById('form-err').textContent=m;};
-  const body={chat_notify:F('chat_notify').checked,digest_on:form.querySelector('input[name="mode"]:checked').value==='digest',digest_hour:+F('digest_hour').value,
+  const body={chat_notify:F('chat_notify').checked,remind:F('remind')?F('remind').checked:true,digest_on:form.querySelector('input[name="mode"]:checked').value==='digest',digest_hour:+F('digest_hour').value,
     quiet_on:F('quiet_on').checked,quiet_from:+F('quiet_from').value,quiet_to:+F('quiet_to').value,tz:F('tz').value.trim()};
   const j=await apiPost('/api/me/prefs',body,err);
   if(j){closePanel();toast('Настройки сохранены');}

@@ -377,7 +377,7 @@ def test_run_once_flushes_and_does_maintenance_hourly(started):
     outbox.enqueue(40, "event", "Из планировщика", "now", now=now)
     sender = Sender()
     done = scheduler.run_once(now, send=sender)
-    assert done == {"sent": 1, "maintenance": True} and sender.sent[0]["text"] == "Из планировщика"
+    assert done["sent"] == 1 and done["maintenance"] is True and sender.sent[0]["text"] == "Из планировщика"
     assert scheduler.run_once(now + 60, send=sender)["maintenance"] is False       # уборка не чаще раза в час
     assert scheduler.run_once(now + 3601, send=sender)["maintenance"] is True
 

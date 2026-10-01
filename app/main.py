@@ -301,7 +301,8 @@ def save_dnote(slug: str, request: Request, data: dict = Body(...)):
 def get_prefs(request: Request):
     v = viewer(request)
     return {"prefs": outbox.prefs(v.tg_id), "dm": bool(config.BOT_TOKEN and config.NOTIFY_DM),
-            "chat_minutes": max(1, round(config.CHAT_NOTIFY_DELAY / 60))}
+            "chat_minutes": max(1, round(config.CHAT_NOTIFY_DELAY / 60)),
+            "remind_days": config.REMIND_DAYS, "remind_max": config.REMIND_MAX}
 
 
 @app.post("/api/me/prefs")

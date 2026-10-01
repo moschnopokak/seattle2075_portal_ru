@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 from fastapi import HTTPException
 
-from . import audit, config, db, handouts, notify, portraits, trash
+from . import audit, config, db, handouts, notify, portraits, reminders, trash
 from .config import people
 
 TYPES = {"meet": "Встреча", "grow": "Развитие", "deal": "Дело", "vow": "Обещание"}
@@ -512,6 +512,7 @@ def create_entry(v, b):
         else:
             e["answers"] = {c: "да" for c in e["who"]}
         db.save_entry(e)
+        reminders.asked(e["id"], invited)
         audit.record(v, "create", "entry", e["id"], e["title"], after=_snap(e))
         db.bump()
     author = char_map().get(char, {}).get("name", "Мастер")
@@ -562,6 +563,7 @@ def edit_entry(v, entry_id, b):
         else:
             recompute(e)
         db.save_entry(e)
+        reminders.asked(e["id"], asked)
         audit.record(v, "edit", "entry", e["id"], e["title"], before=before, after=_snap(e))
         db.bump()
     if asked:
@@ -1031,6 +1033,7 @@ def restore_trash(v, trash_id):
             if db.entry(data["id"]):
                 bad("Запись с таким номером уже существует.", 409)
             db.save_entry(data)
+            reminders.asked(data["id"], [c for c, a in data.get("answers", {}).items() if a == "ждёт"])
             for m in (row["extra"] or {}).get("chat", []):
                 db.add_message(data["id"], m["author"], m["user_id"], m["text"], m["ts"])
         else:

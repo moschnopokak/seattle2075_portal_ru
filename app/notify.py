@@ -141,13 +141,13 @@ def _enabled():
     return bool(BOT_TOKEN and NOTIFY_DM)
 
 
-def to_characters(char_ids, text, section=None, kind="event", buttons=None, key=None, meta=None, exclude=()):
+def to_characters(char_ids, text, section=None, kind="event", buttons=None, key=None, meta=None, exclude=(), now=None):
     """Написать игрокам, за которыми закреплены эти персонажи. Сообщение встаёт в очередь (см. outbox):
     уйдёт с учётом тихих часов и сводки получателя. section: какой раздел портала открыть кнопкой. buttons: кнопки-ответы."""
     if not _enabled():
         return
     for uid in sorted(_recipients(char_ids) - set(exclude)):
-        outbox.enqueue(uid, kind, text, section, buttons, key, meta)
+        outbox.enqueue(uid, kind, text, section, buttons, key, meta, now=now)
 
 
 def to_gm(text, section=None, kind="event", buttons=None, exclude=()):

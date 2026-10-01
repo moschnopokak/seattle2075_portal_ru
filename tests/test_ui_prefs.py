@@ -39,6 +39,8 @@ def test_panel_opens_saves_and_remembers(page_of, gm):
     open_panel(page)
     assert page.is_checked('input[name="chat_notify"]')                             # по умолчанию обсуждения включены
     assert page.is_checked('input[name="mode"][value="now"]')
+    assert page.is_checked('input[name="remind"]') and "через 2 дня" in page.inner_text("#prefs-form")
+    page.uncheck('input[name="remind"]')
     page.check('input[name="mode"][value="digest"]')
     page.select_option('select[name="digest_hour"]', "8")
     page.check('input[name="quiet_on"]')
@@ -47,13 +49,16 @@ def test_panel_opens_saves_and_remembers(page_of, gm):
     page.wait_for_function("()=>document.getElementById('overlay').hidden", timeout=10000)
     saved = page.evaluate("async()=>(await (await fetch('/api/me/prefs',{credentials:'same-origin'})).json()).prefs")
     assert saved["digest_on"] and saved["digest_hour"] == 8 and saved["quiet_on"] and saved["tz"] == "Asia/Yekaterinburg"
+    assert saved["remind"] == 0
     open_panel(page)                                                                # при повторном открытии значения на месте
     assert page.is_checked('input[name="mode"][value="digest"]')
     assert page.input_value('select[name="digest_hour"]') == "8"
     assert page.input_value('input[name="tz"]') == "Asia/Yekaterinburg"
+    assert not page.is_checked('input[name="remind"]')
     page.check('input[name="mode"][value="now"]')                                   # вернуть как было, чтобы не влиять на другие тесты
     page.fill('input[name="tz"]', "Europe/Moscow")
     page.uncheck('input[name="quiet_on"]')
+    page.check('input[name="remind"]')
     page.click('#prefs-form button[type="submit"]')
     page.wait_for_function("()=>document.getElementById('overlay').hidden", timeout=10000)
     check_clean(page)
