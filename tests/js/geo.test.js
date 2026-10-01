@@ -134,6 +134,45 @@ test("форматирование расстояний и времени", () =
   assert.equal(geo.formatMinutes(Infinity), "—");
 });
 
+// Магистраль 0..20000 м разорвана посередине; в обход идёт длинная дорога (8 км вбок): так в настоящих данных выпадают куски дорог
+const withGap = (gap, mainClass = 0, otherClass = 0) => {
+  const main = [[[0, 0], [10000 - gap / 2, 0]], [[10000 + gap / 2, 0], [20000, 0]]];
+  const sets = [[], [], []];
+  sets[mainClass].push(main[0]);
+  sets[otherClass].push(main[1]);
+  sets[2].push([[0, 0], [0, -8000], [20000, -8000], [20000, 0]]);                                      // объезд
+  return geo.buildRoadGraph(roads(...sets));
+};
+
+test("шов: разрыв в дороге зашивается, и маршрут не делает крюк", () => {
+  const g = withGap(400);
+  assert.equal(g.seams, 1);
+  const r = geo.planTrip([[1000, 0], [19000, 0]], CAR, { graph: g });
+  assert.equal(r.fallback, false);
+  assert.ok(r.meters > 17999 && r.meters < 18500, `путь ${r.meters} м вместо 18 км по прямой дороге`);
+});
+
+test("шов: разрыв шире допуска не зашивается, маршрут идёт в объезд", () => {
+  const g = withGap(geo.GEO_SEAM + 100);
+  assert.equal(g.seams, 0);
+  const r = geo.planTrip([[1000, 0], [19000, 0]], CAR, { graph: g });
+  assert.ok(r.meters > 30000, `путь ${r.meters} м`);
+});
+
+test("шов не нужен, если концы уже связаны коротким объездом", () => {
+  const g = geo.buildRoadGraph(roads([[[0, 0], [9800, 0]], [[10200, 0], [20000, 0]], [[9800, 0], [10000, 300], [10200, 0]]]));
+  assert.equal(g.seams, 0);
+  const r = geo.planTrip([[1000, 0], [19000, 0]], CAR, { graph: g });
+  assert.ok(r.meters > 18000 && r.meters < 19000, `путь ${r.meters} м`);
+});
+
+test("шов считается по более медленному из двух классов дорог", () => {
+  const g = withGap(400, 0, 2);                                                                      // слева магистраль, справа основная дорога
+  assert.equal(g.seams, 1);
+  assert.equal(g.ecls[g.ea.length - 1], 2);                                                          // шов лежит последним ребром
+  near(g.elen[g.ea.length - 1], 400, 1);
+});
+
 // ---------- настоящая карта кампании ----------
 const graph = geo.buildRoadGraph(map.roads);
 const at = (slug) => map.labels.find((l) => l.slug === slug).xy;
@@ -192,4 +231,50 @@ test("карта: поиск ближайшей дороги и скорость
   const t0 = Date.now();
   for (let i = 0; i < 20; i++) trip("downtown", "tacoma", "car");
   assert.ok((Date.now() - t0) / 20 < 200, "один маршрут считается слишком долго");
+});
+
+test("карта: Сноухомиш → Беллвью не идёт крюком через Эверетт", () => {
+  const A = [53300, 22200], B = [45100, 60100];                                                      // по снимку мастера: квадраты Л-5 и К-13
+  const straight = geo.geoDist(A, B);
+  for (const name of ["walk", "car"]) {
+    const r = geo.planTrip([A, B], PROFILES[name], { graph, dogtown });
+    assert.equal(r.fallback, false);
+    assert.ok(r.meters < straight * 1.7, `${name}: ${Math.round(r.meters)} м при ${Math.round(straight)} м по прямой`);       // было 70 км при 39 км по прямой
+    const everett = at("everett");
+    assert.ok(Math.min(...r.path.map((q) => geo.geoDist(q, everett))) > 5000, `${name}: путь заходит в Эверетт`);
+  }
+});
+
+test("карта: Сноухомиш → Редмонд заметно короче прежних 73 км (при 16 км по прямой)", () => {
+  const r = trip("snohomish", "redmond", "car");
+  assert.ok(r.meters < 50000, `путь ${Math.round(r.meters)} м`);
+});
+
+test("карта: швы немногочисленны, коротки, не лежат над водой и не проходят сквозь стену Догтауна", () => {
+  const n = graph.seams, first = graph.ea.length - n;
+  assert.ok(n >= 40 && n <= 150, `швов ${n}`);
+  for (let e = first; e < graph.ea.length; e++) {
+    const a = graph.ea[e], b = graph.eb[e];
+    assert.ok(graph.elen[e] <= geo.GEO_SEAM + 1e-6);
+    const mid = [(graph.xs[a] + graph.xs[b]) / 2, (graph.ys[a] + graph.ys[b]) / 2];
+    assert.equal(geo.pip(mid[0], mid[1], map.water), false, `шов над водой у ${mid.map(Math.round)}`);
+    assert.equal(geo.pip(graph.xs[a], graph.ys[a], dogtown), geo.pip(graph.xs[b], graph.ys[b], dogtown), `шов проходит сквозь стену у ${mid.map(Math.round)}`);
+  }
+});
+
+test("карта: на сотнях пар мест путь по дорогам не короче прямой и редко длиннее её втрое", () => {
+  const poi = require("../../static/map/poi_seattle2072.json").items.filter((i) => i.rec);
+  let seed = 12345;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const ratios = [];
+  while (ratios.length < 300) {
+    const a = poi[Math.floor(rnd() * poi.length)], b = poi[Math.floor(rnd() * poi.length)];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (d < 3000) continue;
+    ratios.push(geo.planTrip([[a.x, a.y], [b.x, b.y]], PROFILES.car, { graph }).meters / d);
+  }
+  ratios.sort((x, y) => x - y);
+  assert.ok(ratios[0] >= 1 - 1e-9, "путь не может быть короче прямой");
+  assert.ok(ratios[Math.floor(ratios.length / 2)] < 1.5, `медиана коэффициента ${ratios[Math.floor(ratios.length / 2)].toFixed(2)}`);    // было 1,55
+  assert.ok(ratios.filter((x) => x > 3).length / ratios.length < 0.04, "слишком много крюков втрое длиннее прямой");                   // было 14%
 });

@@ -125,6 +125,7 @@ b884f4cd53fbf9bc  static/js/diary.js
 9d7f39fb34efa58f  static/js/dossier.js
 7235d8186a095330  static/js/free.js
 7a275346f87f0710  static/js/geo.js
+9658ba5b95bbf18c  static/js/geo.js
 52be1cda2e7be72f  static/js/handouts.js
 578d916ef062e1b8  static/js/handouts.js
 4aab5e77bfb77448  static/js/history.js

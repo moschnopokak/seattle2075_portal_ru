@@ -2,9 +2,12 @@
    Чистые функции без обращения к странице: их проверяют тесты на Node (tests/js/geo.test.js).
    Координаты в метрах, как в static/map/map.json. Дороги: три класса (магистрали, трассы, основные).
    Из линий строится граф: близкие вершины склеиваются, висячие концы соединяются «мостами» с ближайшей
-   соседней сетью. Маршрут ищется по времени (алгоритм Дейкстры) отдельно для каждого вида транспорта. */
+   соседней сетью, а концы линий, между которыми в данных не хватает куска дороги, сшиваются («швы»).
+   Маршрут ищется по времени (алгоритм Дейкстры) отдельно для каждого вида транспорта. */
 const GEO_SNAP=30;          // вершины ближе этого (м) считаются одним узлом
 const GEO_BRIDGE=300;       // висячий конец дороги соединяется с чужой сетью, если она ближе этого (м)
+const GEO_SEAM=500;         // концы линий ближе этого (м) сшиваются, если короткого объезда между ними нет: в данных выпал кусок дороги
+const GEO_SEAM_LOCAL=5000;  // объезд короче этого (м) считается «связаны»: тогда шва не нужно, а он создал бы лишний срез
 const GEO_CELL=1000;        // размер ячейки пространственного индекса (м)
 const GEO_MAX_ACCESS=12000; // дальше этого от дорог маршрут по дорогам не строится (м)
 const GEO_CLASSES=['motorway','trunk','primary'];
@@ -28,12 +31,13 @@ function geoProject(x,y,ax,ay,bx,by){
 
 /* Граф дорог. roads: {motorway:{coordinates:[[[x,y],...],...]}, trunk:..., primary:...}. */
 function buildRoadGraph(roads){
-  const xs=[],ys=[],key=new Map(),ea=[],eb=[],elen=[],ecls=[];
+  const xs=[],ys=[],key=new Map(),ea=[],eb=[],elen=[],ecls=[],ends=new Set();
   const node=(x,y)=>{const k=Math.round(x/GEO_SNAP)+','+Math.round(y/GEO_SNAP);let i=key.get(k);if(i===undefined){i=xs.length;key.set(k,i);xs.push(x);ys.push(y);}return i;};
   GEO_CLASSES.forEach((cls,c)=>{
     const lines=(roads[cls]&&roads[cls].coordinates)||[];
     for(const line of lines)for(let i=0;i+1<line.length;i++){
       const a=node(line[i][0],line[i][1]),b=node(line[i+1][0],line[i+1][1]);
+      if(i===0)ends.add(a);if(i+2===line.length)ends.add(b);
       if(a!==b){ea.push(a);eb.push(b);elen.push(Math.hypot(xs[a]-xs[b],ys[a]-ys[b]));ecls.push(c);}
     }
   });
@@ -57,6 +61,24 @@ function buildRoadGraph(roads){
     }
     if(best>=0){const e=ea.length;ea.push(i);eb.push(best);elen.push(bd);ecls.push(ecls[adj[i][0]]);adj[i].push(e);adj[best].push(e);parent[find(i)]=find(best);}
   }
+  // «швы»: два конца разных линий ближе GEO_SEAM, а короткого пути между ними по дорогам нет. Обычно в данных выпал кусок дороги
+  // (развязка, мост), и без шва маршрут делает огромный крюк (например, в обход через Эверетт между Сноухомишем и Беллвью)
+  let seams=0;
+  const reach=(src,limit)=>{
+    const d=new Map([[src,0]]),h=new GeoHeap();h.push(0,src);
+    while(h.size){const [du,u]=h.pop();if(du>d.get(u))continue;for(const e of adj[u]){const v=ea[e]===u?eb[e]:ea[e],nd=du+elen[e];if(nd<=limit&&nd<(d.has(v)?d.get(v):Infinity)){d.set(v,nd);h.push(nd,v);}}}
+    return d;
+  };
+  const endCells=new Map();
+  for(const i of ends){const k=Math.floor(xs[i]/GEO_CELL)+','+Math.floor(ys[i]/GEO_CELL);(endCells.get(k)||endCells.set(k,[]).get(k)).push(i);}
+  for(const i of ends){
+    const cx=Math.floor(xs[i]/GEO_CELL),cy=Math.floor(ys[i]/GEO_CELL);let near=null;
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const j of endCells.get((cx+dx)+','+(cy+dy))||[]){
+      if(j<=i)continue;const d=Math.hypot(xs[i]-xs[j],ys[i]-ys[j]);if(d>GEO_SEAM)continue;
+      if(!near)near=reach(i,GEO_SEAM_LOCAL);if(near.has(j))continue;
+      const e=ea.length;ea.push(i);eb.push(j);elen.push(d);ecls.push(Math.max(ecls[adj[i][0]],ecls[adj[j][0]]));adj[i].push(e);adj[j].push(e);near=null;seams++;
+    }
+  }
   // индекс рёбер по ячейкам для поиска ближайшей дороги к произвольной точке
   const ecell=new Map();
   for(let e=0;e<ea.length;e++){
@@ -65,7 +87,7 @@ function buildRoadGraph(roads){
       const k=cx+','+cy;(ecell.get(k)||ecell.set(k,[]).get(k)).push(e);
     }
   }
-  return {xs,ys,ea,eb,elen,ecls,adj,ecell,n};
+  return {xs,ys,ea,eb,elen,ecls,adj,ecell,n,seams};
 }
 
 /* Ближайшая к (x,y) точка дорожной сети: {e, t, px, py, d} или null, если дороги дальше maxD. */
@@ -171,5 +193,5 @@ function formatMinutes(min){
 }
 
 if(typeof module!=='undefined'&&module.exports){
-  module.exports={GEO_SNAP,GEO_BRIDGE,GEO_MAX_ACCESS,geoDist,pip,geoProject,buildRoadGraph,nearestRoad,routeOnRoads,routeStraight,planTrip,formatKm,formatMinutes};
+  module.exports={GEO_SNAP,GEO_BRIDGE,GEO_SEAM,GEO_SEAM_LOCAL,GEO_MAX_ACCESS,geoDist,pip,geoProject,buildRoadGraph,nearestRoad,routeOnRoads,routeStraight,planTrip,formatKm,formatMinutes};
 }
