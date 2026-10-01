@@ -93,3 +93,24 @@ def test_dossier_editing_keeps_image_and_fact_ids(gm):
         assert [f["id"] for f in again["facts"]] == [f["id"] for f in card["facts"]]
     finally:
         gm.post("/api/gm/items/dossier", json=dict(card))
+
+
+def test_time_change_is_all_or_nothing(gm):
+    """Ошибка в одном поле не должна оставлять применённым другое."""
+    before = gm.get("/api/state").json()["now"]
+    assert gm.post("/api/gm/time", json={"shift": 2, "tod": "полдень"}).status_code == 400
+    assert gm.post("/api/gm/time", json={"tod": ["утро"]}).status_code == 400
+    assert gm.get("/api/state").json()["now"] == before
+
+
+def test_deleting_place_clears_references(gm):
+    place = ok(gm.post("/api/gm/items/places", json={"name": "Временное", "x": 100, "y": 100, "vis": "стол"}))
+    pid = next(p["id"] for p in place["state"]["places"] if p["name"] == "Временное")
+    entry = ok(gm.post("/api/entries", json={"type": "deal", "title": "У места", "from": "2075-08-05", "to": "2075-08-05",
+                                             "who": [], "open": True, "place": pid}))
+    eid = next(e["id"] for e in entry["state"]["entries"] if e["title"] == "У места")
+    try:
+        state = ok(gm.post(f"/api/gm/items/places/{pid}/delete"))["state"]
+        assert next(e for e in state["entries"] if e["id"] == eid)["place"] == ""
+    finally:
+        gm.post(f"/api/entries/{eid}/act", json={"act": "del"})

@@ -640,21 +640,24 @@ def gm_time(v, b):
     with db.lock:
         today, _ = now()
         cs, ce = cal()
+        # Сначала проверяем всё, потом пишем: при ошибке в одном поле остальные не должны примениться.
+        updates = {}
         if b.get("date"):
-            db.meta_set("now_date", check_date(b["date"], "Дата"))
+            updates["now_date"] = check_date(b["date"], "Дата")
         elif "shift" in b:
             n = to_int(b["shift"], "Сдвиг времени: нужно число дней.")
             if abs(n) > 400:
                 bad("Слишком большой сдвиг.")
-            d = add_days(today, n)
-            db.meta_set("now_date", min(max(d, cs), ce))
+            updates["now_date"] = min(max(add_days(today, n), cs), ce)
         if "tod" in b:
-            if b["tod"] not in TOD:
+            if not isinstance(b["tod"], str) or b["tod"] not in TOD:
                 bad("Неизвестное время суток.")
-            db.meta_set("now_tod", b["tod"])
+            updates["now_tod"] = b["tod"]
         if "quiet" in b:
             q = b["quiet"] or ""
-            db.meta_set("quiet_until", check_date(q, "Свободное время") if q else "")
+            updates["quiet_until"] = check_date(q, "Свободное время") if q else ""
+        for key, value in updates.items():
+            db.meta_set(key, value)
         db.bump()
     notify.pin_status(status_text())
     return "Сохранено"
@@ -904,5 +907,22 @@ def delete_item(v, kind, item_id):
             portraits.remove(item_id)
         if kind == "handouts":
             handouts.remove(item_id)
+        if kind == "places":
+            _forget_place(item_id)
         db.bump()
     return "Удалено"
+
+
+def _forget_place(place_id):
+    """Убрать ссылки на удалённое место из записей, раздаток и карточек досье."""
+    for e in db.entries():
+        if e.get("place") == place_id:
+            e["place"] = ""
+            db.save_entry(e)
+    for kind, field in (("handouts", "place"), ("dossier", "last_place")):
+        items = db.items(kind)
+        if any(x.get(field) == place_id for x in items):
+            for x in items:
+                if x.get(field) == place_id:
+                    x[field] = ""
+            db.set_items(kind, items)
