@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
-from . import audit, auth, config, db, diary, handouts, logic, notify, outbox, portraits, recap, scheduler, seed, telegram_bot, trash
+from . import audit, auth, config, db, diary, handouts, logic, notify, outbox, portraits, recap, scheduler, startup, telegram_bot, trash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("portal")
@@ -17,18 +17,7 @@ log = logging.getLogger("portal")
 @asynccontextmanager
 async def lifespan(_app):
     log.info("Портал, версия %s", config.VERSION)
-    db.init()
-    if seed.seed("auto"):
-        log.info("База заполнена из config/campaign.json")
-    added = seed.ensure(("places", "dnotes", "dossier", "travel"))
-    if added:
-        log.info("Добавлены разделы из config/campaign.json: %s", ", ".join(added))
-    for note in seed.migrate():
-        log.info("Обновление данных: %s", note)
-    gone = trash.purge_expired()
-    audit.purge_old()
-    if gone:
-        log.info("Из корзины удалено окончательно (вышел срок хранения): %s", gone)
+    startup.prepare_data(log)
     try:
         config.people()  # ошибка в players.toml видна сразу при запуске
     except FileNotFoundError as ex:

@@ -1,0 +1,2719 @@
+{
+ "counts": {
+  "meta": 11,
+  "items": 26,
+  "entries": 9,
+  "messages": 3,
+  "portraits": 2,
+  "handout_files": 1,
+  "logins": 6
+ },
+ "user_version": 0,
+ "ids": {
+  "e1": "7662fba9e24f",
+  "e2": "d67c8c5e7735",
+  "e3": "5af07744e9b3",
+  "e4": "cfdf6bddaeca",
+  "e5": "a16e85851346",
+  "e6": "8b7f2640a0ad",
+  "grow": "f6ebb07643bb",
+  "grow2": "587ef3bf2ed7",
+  "gm_entry": "0c70ef5529f1",
+  "plan": "gf35130ed",
+  "place": "m328b1746",
+  "card": "nd0af2e1c",
+  "handout": "hed561cbf"
+ },
+ "cookies": {
+  "gm": "eyJ1IjoxLCJuIjoiIiwiZSI6MTc5MzQ0ODk3NX0.4fe226eac0c8f35be0e6f4c13891b1ffc18b8eeef279671c8303c7b1912d113c",
+  "rig": "eyJ1IjoxMDMsIm4iOiIiLCJlIjoxNzkzNDQ4OTc1fQ.27263aa43453841ee4ee1680c1b4ea7007f4979cb8d5e071bbee917996894000",
+  "gate": "eyJ1IjoxMDIsIm4iOiIiLCJlIjoxNzkzNDQ4OTc1fQ.5dd537b82acaa4828b578ec38f95e9db308435472b84bb64ddef78befff92a6c",
+  "hag": "eyJ1IjoxMDQsIm4iOiIiLCJlIjoxNzkzNDQ4OTc1fQ.a409bd568f282a85ef03ff388487057f937aae28c3bf14dbe09044e7792ebded",
+  "max": "eyJ1IjoxMDEsIm4iOiIiLCJlIjoxNzkzNDQ4OTc1fQ.ea91e2e95be8c9e5b35a9c19e70480529bef2a3579c8093b53cb3a5d2dcac034"
+ },
+ "files": {
+  "portrait_full": {
+   "url": "/portrait/9c1411b51caa150a1d1ab4ff0b90b091/f.webp",
+   "bytes": 492
+  },
+  "handout": {
+   "url": "/handout/2e2b79355f7102d0e9929a068f3e185f/view",
+   "bytes": 91
+  }
+ },
+ "secret_key": "9687324b105ed28c301736a1532fd2d6d6605da2295c87d56def99439541a5e3",
+ "state": {
+  "gm": {
+   "version": 39,
+   "now": {
+    "date": "2075-08-02",
+    "tod": "день"
+   },
+   "quietUntil": "2075-08-08",
+   "calStart": "2075-07-01",
+   "calEnd": "2075-12-31",
+   "windows": [
+    {
+     "id": "w1",
+     "from": "2075-07-01",
+     "to": "2075-07-31",
+     "name": "Арка 1",
+     "gm": "Арка 1. СЕКРЕТ-название этапа"
+    },
+    {
+     "id": "w2",
+     "from": "2075-08-01",
+     "to": "2075-08-31",
+     "name": "Промежуточная арка",
+     "inter": true
+    },
+    {
+     "id": "w3",
+     "from": "2075-09-01",
+     "to": "2075-09-30",
+     "name": "СЕКРЕТ-будущий этап",
+     "gm": "СЕКРЕТ-имя будущего этапа"
+    },
+    {
+     "name": "Арка 2",
+     "from": "2075-11-01",
+     "to": "2075-11-30",
+     "gm": "Арка 2: Крысы",
+     "id": "wc41eb17e"
+    }
+   ],
+   "rhythm": [
+    {
+     "id": "r1",
+     "wd": [
+      0
+     ],
+     "title": "Кофе по понедельникам",
+     "note": "Общее",
+     "vis": "стол"
+    },
+    {
+     "id": "r2",
+     "wd": [
+      2
+     ],
+     "title": "СЕКРЕТ-бои в яме",
+     "note": "СЕКРЕТ-заметка ритма",
+     "vis": "мастер"
+    },
+    {
+     "title": "Пересменка",
+     "note": "",
+     "vis": "стол",
+     "wd": [
+      0,
+      3
+     ],
+     "from": "2075-08-01",
+     "to": "2075-12-31",
+     "id": "r3adb43af"
+    },
+    {
+     "title": "Привычка Рига",
+     "note": "",
+     "vis": "стол",
+     "monthDay": 15,
+     "who": "rig",
+     "id": "rdfc39c2a"
+    }
+   ],
+   "past": [
+    {
+     "title": "Хроника вручную",
+     "from": "2075-07-15",
+     "to": "2075-07-16",
+     "note": "Публично",
+     "session": "Сессия 1",
+     "gm_note": "СЕКРЕТ",
+     "id": "p24e9a4bf"
+    },
+    {
+     "id": "p1",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Первая сессия",
+     "note": "Публичная заметка",
+     "session": "Арка 1, сессия 1",
+     "gm_note": "СЕКРЕТ-заметка хроники",
+     "plan_id": "g0"
+    },
+    {
+     "id": "p592b031e",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Сыгранный план",
+     "note": "",
+     "gm_note": "К переносу",
+     "session": "",
+     "plan_id": "gb91d5d20"
+    }
+   ],
+   "plan": [
+    {
+     "id": "g1",
+     "from": "2075-08-10",
+     "to": "2075-08-10",
+     "title": "СЕКРЕТ-событие плана",
+     "note": "СЕКРЕТ-описание плана",
+     "session": ""
+    },
+    {
+     "id": "g2",
+     "from": "2075-08-12",
+     "to": "2075-08-13",
+     "title": "СЕКРЕТ-план с маской",
+     "note": "СЕКРЕТ-описание плана с маской",
+     "session": "",
+     "cover": {
+      "title": "Общий выходной",
+      "note": "Ничего не планируйте",
+      "who": [
+       "rig",
+       "gate"
+      ]
+     }
+    },
+    {
+     "title": "План налёта",
+     "from": "2075-09-01",
+     "to": "2075-09-02",
+     "note": "СЕКРЕТ: детали",
+     "session": "",
+     "cover": {
+      "title": "Общее событие",
+      "note": "Город закрыт",
+      "who": [
+       "rig"
+      ]
+     },
+     "id": "gf35130ed"
+    }
+   ],
+   "blocks": [],
+   "places": [
+    {
+     "id": "m1",
+     "name": "Открытое место",
+     "type": "home",
+     "x": 1000,
+     "y": 1000,
+     "vis": "стол",
+     "known": [],
+     "note": "Видно всем",
+     "gm_note": "СЕКРЕТ-заметка места 1"
+    },
+    {
+     "id": "m2",
+     "name": "Место для знающих",
+     "type": "contact",
+     "x": 2000,
+     "y": 2000,
+     "vis": "знают",
+     "known": [
+      "rig"
+     ],
+     "note": "Знает только Риг",
+     "gm_note": "СЕКРЕТ-заметка места 2"
+    },
+    {
+     "id": "m3",
+     "name": "СЕКРЕТ-скрытое место",
+     "type": "danger",
+     "x": 3000,
+     "y": 3000,
+     "vis": "мастер",
+     "known": [],
+     "note": "",
+     "gm_note": "СЕКРЕТ-заметка места 3"
+    },
+    {
+     "name": "Бар «Тузы»",
+     "type": "business",
+     "x": 4100,
+     "y": 5200,
+     "vis": "знают",
+     "known": [
+      "rig"
+     ],
+     "note": "ВидноРигу",
+     "gm_note": "СЕКРЕТ",
+     "id": "m328b1746"
+    }
+   ],
+   "dossier": [
+    {
+     "id": "n1",
+     "name": "Открытая карточка",
+     "alias": "",
+     "type": "person",
+     "role": "Фиксер",
+     "stance": "contact",
+     "org": "",
+     "vis": "стол",
+     "known": [],
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_place": "m1",
+     "last_note": "Встретились",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Открытое сведение",
+       "vis": "стол",
+       "known": [],
+       "truth": "СЕКРЕТ-поправка на самом деле"
+      },
+      {
+       "id": "f2",
+       "text": "Сведение для Рига",
+       "vis": "знают",
+       "known": [
+        "rig"
+       ],
+       "truth": ""
+      },
+      {
+       "id": "f3",
+       "text": "СЕКРЕТ-сведение только мастера",
+       "vis": "мастер",
+       "known": [],
+       "truth": ""
+      }
+     ],
+     "gm_note": "СЕКРЕТ-заметка карточки",
+     "img": ""
+    },
+    {
+     "id": "n2",
+     "name": "Карточка для Гейта",
+     "alias": "",
+     "type": "org",
+     "role": "",
+     "stance": "unknown",
+     "org": "",
+     "vis": "знают",
+     "known": [
+      "gate"
+     ],
+     "met": [],
+     "last_date": "",
+     "last_place": "m3",
+     "last_note": "",
+     "facts": [],
+     "gm_note": "СЕКРЕТ-заметка карточки 2",
+     "img": ""
+    },
+    {
+     "id": "n3",
+     "name": "СЕКРЕТ-скрытая карточка",
+     "alias": "",
+     "type": "person",
+     "role": "",
+     "stance": "hostile",
+     "org": "",
+     "vis": "мастер",
+     "known": [],
+     "met": [],
+     "last_date": "",
+     "last_place": "",
+     "last_note": "",
+     "facts": [],
+     "gm_note": "СЕКРЕТ-заметка карточки 3",
+     "img": ""
+    },
+    {
+     "name": "Фиксер Ли",
+     "alias": "Ли",
+     "type": "person",
+     "role": "Достаёт железо",
+     "stance": "contact",
+     "org": "Кенран-кай",
+     "vis": "стол",
+     "known": [],
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_place": "m328b1746",
+     "last_note": "Встретились в баре",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Знает ход через канализацию",
+       "vis": "стол",
+       "known": [],
+       "truth": "СЕКРЕТ",
+       "date": "2075-07-20"
+      }
+     ],
+     "gm_note": "СЕКРЕТ: двойной агент",
+     "id": "nd0af2e1c",
+     "img": "9c1411b51caa150a1d1ab4ff0b90b091"
+    }
+   ],
+   "handouts": [
+    {
+     "title": "Письмо Танаки",
+     "date": "2075-07-30",
+     "vis": "знают",
+     "known": [
+      "rig"
+     ],
+     "note": "Нашли в сейфе",
+     "gm_note": "СЕКРЕТ",
+     "place": "m328b1746",
+     "id": "hed561cbf",
+     "file": "2e2b79355f7102d0e9929a068f3e185f",
+     "size": 91,
+     "fname": "п.html",
+     "uploaded": 1790856975
+    }
+   ],
+   "handout_usage": {
+    "used": 98,
+    "quota": 104857600,
+    "limit": 15728640
+   },
+   "portraits": {
+    "used": 590,
+    "quota": 41943040,
+    "count": 1
+   },
+   "dnotes": [
+    {
+     "id": "downtown",
+     "text": "Центр города",
+     "gm_text": "СЕКРЕТ: патрули"
+    }
+   ],
+   "clocks": [
+    {
+     "id": "c1",
+     "title": "СЕКРЕТ-таймер",
+     "note": "СЕКРЕТ-заметка таймера",
+     "when": "2075-12-26"
+    },
+    {
+     "title": "Скрытый таймер",
+     "note": "СЕКРЕТ: облава",
+     "when": "2075-09-15",
+     "id": "cff420e5b"
+    }
+   ],
+   "entries": [
+    {
+     "id": "7662fba9e24f",
+     "type": "meet",
+     "author": "gate",
+     "status": "ok",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [
+      "gate"
+     ],
+     "created": 1790856975.0592983,
+     "title": "Встреча у моста",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "Мост",
+     "cond": "Без оружия",
+     "goal": "Договориться об оплате",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Приду с Хаганэ, если не против 👍",
+       "ts": 1790856975075
+      },
+      {
+       "a": "gate",
+       "t": "Договорились.\nВстречаемся в восемь.",
+       "ts": 1790856975082
+      }
+     ]
+    },
+    {
+     "id": "d67c8c5e7735",
+     "type": "meet",
+     "author": "gate",
+     "status": "resched",
+     "answers": {
+      "rig": "нет",
+      "hagane": "ждёт"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.100346,
+     "title": "Дело с отказом",
+     "from": "2075-08-06",
+     "to": "2075-08-07",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig",
+      "hagane"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "5af07744e9b3",
+     "type": "meet",
+     "author": "hagane",
+     "status": "reply",
+     "answers": {
+      "elijah": "ждёт"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1161165,
+     "title": "Личное дело Хаганэ",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "hagane",
+      "elijah"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Никому не рассказывать",
+     "vis": "лично",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "cfdf6bddaeca",
+     "type": "meet",
+     "author": "rig",
+     "status": "reply",
+     "answers": {
+      "gate": "ждёт",
+      "hagane": "сам"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1230216,
+     "title": "Открытая запись",
+     "from": "2075-08-10",
+     "to": "2075-08-12",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate",
+      "hagane"
+     ],
+     "open": true,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Заходи",
+       "ts": 1790856975135
+      }
+     ]
+    },
+    {
+     "id": "f6ebb07643bb",
+     "type": "grow",
+     "author": "rig",
+     "status": "ok",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1429317,
+     "title": "Навык взлома",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Повысить Hacking на 1",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-10",
+     "chat": []
+    },
+    {
+     "id": "587ef3bf2ed7",
+     "type": "grow",
+     "author": "gate",
+     "status": "gm",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1567879,
+     "title": "Развитие на проверке",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Новая киберруки",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-12",
+     "chat": []
+    },
+    {
+     "id": "a16e85851346",
+     "type": "deal",
+     "author": "alice",
+     "status": "ok",
+     "answers": {
+      "karu": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1637163,
+     "title": "Покупки Элис",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "alice",
+      "karu"
+     ],
+     "open": false,
+     "where": "Любой магазин",
+     "cond": "1000¥",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "8b7f2640a0ad",
+     "type": "meet",
+     "author": "gate",
+     "status": "done",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1711402,
+     "title": "Давняя встреча",
+     "from": "2075-07-22",
+     "to": "2075-07-22",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "0c70ef5529f1",
+     "type": "meet",
+     "author": "gm",
+     "status": "ok",
+     "answers": {
+      "rig": "да",
+      "gate": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1848137,
+     "title": "Задание от мастера",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Общая цель",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    }
+   ],
+   "characters": [
+    {
+     "id": "alice",
+     "name": "Элис",
+     "gen": "Элис"
+    },
+    {
+     "id": "karu",
+     "name": "Кару",
+     "gen": "Кару"
+    },
+    {
+     "id": "gate",
+     "name": "Гейт",
+     "gen": "Гейта"
+    },
+    {
+     "id": "rig",
+     "name": "Риг",
+     "gen": "Рига"
+    },
+    {
+     "id": "hagane",
+     "name": "Хаганэ",
+     "gen": "Хаганэ"
+    },
+    {
+     "id": "elijah",
+     "name": "Илайджа",
+     "gen": "Илайджи"
+    }
+   ],
+   "players": [
+    {
+     "name": "Максим",
+     "chars": [
+      "alice",
+      "karu"
+     ]
+    },
+    {
+     "name": "Игрок Гейта",
+     "chars": [
+      "gate"
+     ]
+    },
+    {
+     "name": "Игрок Рига",
+     "chars": [
+      "rig"
+     ]
+    },
+    {
+     "name": "Игрок Хаганэ",
+     "chars": [
+      "hagane"
+     ]
+    },
+    {
+     "name": "Игрок Илайджи",
+     "chars": [
+      "elijah"
+     ]
+    },
+    {
+     "name": "Без персонажа",
+     "chars": []
+    }
+   ],
+   "me": {
+    "gm": true,
+    "name": "Мастер",
+    "chars": []
+   }
+  },
+  "rig": {
+   "version": 39,
+   "now": {
+    "date": "2075-08-02",
+    "tod": "день"
+   },
+   "quietUntil": "2075-08-08",
+   "calStart": "2075-07-01",
+   "calEnd": "2075-12-31",
+   "windows": [
+    {
+     "id": "w1",
+     "from": "2075-07-01",
+     "to": "2075-07-31",
+     "name": "Арка 1"
+    },
+    {
+     "id": "w2",
+     "from": "2075-08-01",
+     "to": "2075-08-31",
+     "name": "Промежуточная арка",
+     "inter": true
+    }
+   ],
+   "rhythm": [
+    {
+     "id": "r1",
+     "wd": [
+      0
+     ],
+     "title": "Кофе по понедельникам",
+     "note": "Общее",
+     "vis": "стол"
+    },
+    {
+     "title": "Пересменка",
+     "note": "",
+     "vis": "стол",
+     "wd": [
+      0,
+      3
+     ],
+     "from": "2075-08-01",
+     "to": "2075-12-31",
+     "id": "r3adb43af"
+    },
+    {
+     "title": "Привычка Рига",
+     "note": "",
+     "vis": "стол",
+     "monthDay": 15,
+     "who": "rig",
+     "id": "rdfc39c2a"
+    }
+   ],
+   "past": [
+    {
+     "title": "Хроника вручную",
+     "from": "2075-07-15",
+     "to": "2075-07-16",
+     "note": "Публично",
+     "session": "Сессия 1",
+     "id": "p24e9a4bf"
+    },
+    {
+     "id": "p1",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Первая сессия",
+     "note": "Публичная заметка",
+     "session": "Арка 1, сессия 1"
+    },
+    {
+     "id": "p592b031e",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Сыгранный план",
+     "note": "",
+     "session": ""
+    }
+   ],
+   "plan": [],
+   "blocks": [
+    {
+     "id": "g2",
+     "from": "2075-08-12",
+     "to": "2075-08-13",
+     "title": "Общий выходной",
+     "note": "Ничего не планируйте",
+     "who": [
+      "rig",
+      "gate"
+     ]
+    },
+    {
+     "id": "gf35130ed",
+     "from": "2075-09-01",
+     "to": "2075-09-02",
+     "title": "Общее событие",
+     "note": "Город закрыт",
+     "who": [
+      "rig"
+     ]
+    }
+   ],
+   "places": [
+    {
+     "id": "m1",
+     "name": "Открытое место",
+     "type": "home",
+     "x": 1000,
+     "y": 1000,
+     "note": "Видно всем"
+    },
+    {
+     "id": "m2",
+     "name": "Место для знающих",
+     "type": "contact",
+     "x": 2000,
+     "y": 2000,
+     "note": "Знает только Риг"
+    },
+    {
+     "id": "m328b1746",
+     "name": "Бар «Тузы»",
+     "type": "business",
+     "x": 4100,
+     "y": 5200,
+     "note": "ВидноРигу"
+    }
+   ],
+   "dossier": [
+    {
+     "id": "n1",
+     "name": "Открытая карточка",
+     "alias": "",
+     "type": "person",
+     "role": "Фиксер",
+     "stance": "contact",
+     "org": "",
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_note": "Встретились",
+     "img": "",
+     "last_place": "m1",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Открытое сведение"
+      },
+      {
+       "id": "f2",
+       "text": "Сведение для Рига"
+      }
+     ]
+    },
+    {
+     "id": "nd0af2e1c",
+     "name": "Фиксер Ли",
+     "alias": "Ли",
+     "type": "person",
+     "role": "Достаёт железо",
+     "stance": "contact",
+     "org": "Кенран-кай",
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_note": "Встретились в баре",
+     "img": "9c1411b51caa150a1d1ab4ff0b90b091",
+     "last_place": "m328b1746",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Знает ход через канализацию",
+       "date": "2075-07-20"
+      }
+     ]
+    }
+   ],
+   "handouts": [
+    {
+     "id": "hed561cbf",
+     "title": "Письмо Танаки",
+     "date": "2075-07-30",
+     "vis": "знают",
+     "note": "Нашли в сейфе",
+     "file": "2e2b79355f7102d0e9929a068f3e185f",
+     "size": 91,
+     "uploaded": 1790856975,
+     "known": [
+      "rig"
+     ],
+     "place": "m328b1746"
+    }
+   ],
+   "handout_usage": null,
+   "portraits": null,
+   "dnotes": [
+    {
+     "id": "downtown",
+     "text": "Центр города"
+    }
+   ],
+   "clocks": [],
+   "entries": [
+    {
+     "id": "7662fba9e24f",
+     "type": "meet",
+     "author": "gate",
+     "status": "ok",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [
+      "gate"
+     ],
+     "created": 1790856975.0592983,
+     "title": "Встреча у моста",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "Мост",
+     "cond": "Без оружия",
+     "goal": "Договориться об оплате",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Приду с Хаганэ, если не против 👍",
+       "ts": 1790856975075
+      },
+      {
+       "a": "gate",
+       "t": "Договорились.\nВстречаемся в восемь.",
+       "ts": 1790856975082
+      }
+     ]
+    },
+    {
+     "id": "d67c8c5e7735",
+     "type": "meet",
+     "author": "gate",
+     "status": "resched",
+     "answers": {
+      "rig": "нет",
+      "hagane": "ждёт"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.100346,
+     "title": "Дело с отказом",
+     "from": "2075-08-06",
+     "to": "2075-08-07",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig",
+      "hagane"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "cfdf6bddaeca",
+     "type": "meet",
+     "author": "rig",
+     "status": "reply",
+     "answers": {
+      "gate": "ждёт",
+      "hagane": "сам"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1230216,
+     "title": "Открытая запись",
+     "from": "2075-08-10",
+     "to": "2075-08-12",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate",
+      "hagane"
+     ],
+     "open": true,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Заходи",
+       "ts": 1790856975135
+      }
+     ]
+    },
+    {
+     "id": "f6ebb07643bb",
+     "type": "grow",
+     "author": "rig",
+     "status": "ok",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1429317,
+     "title": "Навык взлома",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Повысить Hacking на 1",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-10",
+     "chat": []
+    },
+    {
+     "id": "587ef3bf2ed7",
+     "type": "grow",
+     "author": "gate",
+     "status": "gm",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1567879,
+     "title": "Развитие на проверке",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Новая киберруки",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-12",
+     "chat": []
+    },
+    {
+     "id": "a16e85851346",
+     "type": "deal",
+     "author": "alice",
+     "status": "ok",
+     "answers": {
+      "karu": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1637163,
+     "title": "Покупки Элис",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "alice",
+      "karu"
+     ],
+     "open": false,
+     "where": "Любой магазин",
+     "cond": "1000¥",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "8b7f2640a0ad",
+     "type": "meet",
+     "author": "gate",
+     "status": "done",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1711402,
+     "title": "Давняя встреча",
+     "from": "2075-07-22",
+     "to": "2075-07-22",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "0c70ef5529f1",
+     "type": "meet",
+     "author": "gm",
+     "status": "ok",
+     "answers": {
+      "rig": "да",
+      "gate": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1848137,
+     "title": "Задание от мастера",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Общая цель",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    }
+   ],
+   "characters": [
+    {
+     "id": "alice",
+     "name": "Элис",
+     "gen": "Элис"
+    },
+    {
+     "id": "karu",
+     "name": "Кару",
+     "gen": "Кару"
+    },
+    {
+     "id": "gate",
+     "name": "Гейт",
+     "gen": "Гейта"
+    },
+    {
+     "id": "rig",
+     "name": "Риг",
+     "gen": "Рига"
+    },
+    {
+     "id": "hagane",
+     "name": "Хаганэ",
+     "gen": "Хаганэ"
+    },
+    {
+     "id": "elijah",
+     "name": "Илайджа",
+     "gen": "Илайджи"
+    }
+   ],
+   "players": [
+    {
+     "name": "Максим",
+     "chars": [
+      "alice",
+      "karu"
+     ]
+    },
+    {
+     "name": "Игрок Гейта",
+     "chars": [
+      "gate"
+     ]
+    },
+    {
+     "name": "Игрок Рига",
+     "chars": [
+      "rig"
+     ]
+    },
+    {
+     "name": "Игрок Хаганэ",
+     "chars": [
+      "hagane"
+     ]
+    },
+    {
+     "name": "Игрок Илайджи",
+     "chars": [
+      "elijah"
+     ]
+    },
+    {
+     "name": "Без персонажа",
+     "chars": []
+    }
+   ],
+   "me": {
+    "gm": false,
+    "name": "Игрок Рига",
+    "chars": [
+     "rig"
+    ]
+   }
+  },
+  "gate": {
+   "version": 39,
+   "now": {
+    "date": "2075-08-02",
+    "tod": "день"
+   },
+   "quietUntil": "2075-08-08",
+   "calStart": "2075-07-01",
+   "calEnd": "2075-12-31",
+   "windows": [
+    {
+     "id": "w1",
+     "from": "2075-07-01",
+     "to": "2075-07-31",
+     "name": "Арка 1"
+    },
+    {
+     "id": "w2",
+     "from": "2075-08-01",
+     "to": "2075-08-31",
+     "name": "Промежуточная арка",
+     "inter": true
+    }
+   ],
+   "rhythm": [
+    {
+     "id": "r1",
+     "wd": [
+      0
+     ],
+     "title": "Кофе по понедельникам",
+     "note": "Общее",
+     "vis": "стол"
+    },
+    {
+     "title": "Пересменка",
+     "note": "",
+     "vis": "стол",
+     "wd": [
+      0,
+      3
+     ],
+     "from": "2075-08-01",
+     "to": "2075-12-31",
+     "id": "r3adb43af"
+    },
+    {
+     "title": "Привычка Рига",
+     "note": "",
+     "vis": "стол",
+     "monthDay": 15,
+     "who": "rig",
+     "id": "rdfc39c2a"
+    }
+   ],
+   "past": [
+    {
+     "title": "Хроника вручную",
+     "from": "2075-07-15",
+     "to": "2075-07-16",
+     "note": "Публично",
+     "session": "Сессия 1",
+     "id": "p24e9a4bf"
+    },
+    {
+     "id": "p1",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Первая сессия",
+     "note": "Публичная заметка",
+     "session": "Арка 1, сессия 1"
+    },
+    {
+     "id": "p592b031e",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Сыгранный план",
+     "note": "",
+     "session": ""
+    }
+   ],
+   "plan": [],
+   "blocks": [
+    {
+     "id": "g2",
+     "from": "2075-08-12",
+     "to": "2075-08-13",
+     "title": "Общий выходной",
+     "note": "Ничего не планируйте",
+     "who": [
+      "rig",
+      "gate"
+     ]
+    }
+   ],
+   "places": [
+    {
+     "id": "m1",
+     "name": "Открытое место",
+     "type": "home",
+     "x": 1000,
+     "y": 1000,
+     "note": "Видно всем"
+    }
+   ],
+   "dossier": [
+    {
+     "id": "n1",
+     "name": "Открытая карточка",
+     "alias": "",
+     "type": "person",
+     "role": "Фиксер",
+     "stance": "contact",
+     "org": "",
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_note": "Встретились",
+     "img": "",
+     "last_place": "m1",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Открытое сведение"
+      }
+     ]
+    },
+    {
+     "id": "n2",
+     "name": "Карточка для Гейта",
+     "alias": "",
+     "type": "org",
+     "role": "",
+     "stance": "unknown",
+     "org": "",
+     "met": [],
+     "last_date": "",
+     "last_note": "",
+     "img": "",
+     "facts": []
+    },
+    {
+     "id": "nd0af2e1c",
+     "name": "Фиксер Ли",
+     "alias": "Ли",
+     "type": "person",
+     "role": "Достаёт железо",
+     "stance": "contact",
+     "org": "Кенран-кай",
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_note": "Встретились в баре",
+     "img": "9c1411b51caa150a1d1ab4ff0b90b091",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Знает ход через канализацию",
+       "date": "2075-07-20"
+      }
+     ]
+    }
+   ],
+   "handouts": [],
+   "handout_usage": null,
+   "portraits": null,
+   "dnotes": [
+    {
+     "id": "downtown",
+     "text": "Центр города"
+    }
+   ],
+   "clocks": [],
+   "entries": [
+    {
+     "id": "7662fba9e24f",
+     "type": "meet",
+     "author": "gate",
+     "status": "ok",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [
+      "gate"
+     ],
+     "created": 1790856975.0592983,
+     "title": "Встреча у моста",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "Мост",
+     "cond": "Без оружия",
+     "goal": "Договориться об оплате",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Приду с Хаганэ, если не против 👍",
+       "ts": 1790856975075
+      },
+      {
+       "a": "gate",
+       "t": "Договорились.\nВстречаемся в восемь.",
+       "ts": 1790856975082
+      }
+     ]
+    },
+    {
+     "id": "d67c8c5e7735",
+     "type": "meet",
+     "author": "gate",
+     "status": "resched",
+     "answers": {
+      "rig": "нет",
+      "hagane": "ждёт"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.100346,
+     "title": "Дело с отказом",
+     "from": "2075-08-06",
+     "to": "2075-08-07",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig",
+      "hagane"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "cfdf6bddaeca",
+     "type": "meet",
+     "author": "rig",
+     "status": "reply",
+     "answers": {
+      "gate": "ждёт",
+      "hagane": "сам"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1230216,
+     "title": "Открытая запись",
+     "from": "2075-08-10",
+     "to": "2075-08-12",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate",
+      "hagane"
+     ],
+     "open": true,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Заходи",
+       "ts": 1790856975135
+      }
+     ]
+    },
+    {
+     "id": "f6ebb07643bb",
+     "type": "grow",
+     "author": "rig",
+     "status": "ok",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1429317,
+     "title": "Навык взлома",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Повысить Hacking на 1",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-10",
+     "chat": []
+    },
+    {
+     "id": "587ef3bf2ed7",
+     "type": "grow",
+     "author": "gate",
+     "status": "gm",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1567879,
+     "title": "Развитие на проверке",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Новая киберруки",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-12",
+     "chat": []
+    },
+    {
+     "id": "a16e85851346",
+     "type": "deal",
+     "author": "alice",
+     "status": "ok",
+     "answers": {
+      "karu": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1637163,
+     "title": "Покупки Элис",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "alice",
+      "karu"
+     ],
+     "open": false,
+     "where": "Любой магазин",
+     "cond": "1000¥",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "8b7f2640a0ad",
+     "type": "meet",
+     "author": "gate",
+     "status": "done",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1711402,
+     "title": "Давняя встреча",
+     "from": "2075-07-22",
+     "to": "2075-07-22",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "0c70ef5529f1",
+     "type": "meet",
+     "author": "gm",
+     "status": "ok",
+     "answers": {
+      "rig": "да",
+      "gate": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1848137,
+     "title": "Задание от мастера",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Общая цель",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    }
+   ],
+   "characters": [
+    {
+     "id": "alice",
+     "name": "Элис",
+     "gen": "Элис"
+    },
+    {
+     "id": "karu",
+     "name": "Кару",
+     "gen": "Кару"
+    },
+    {
+     "id": "gate",
+     "name": "Гейт",
+     "gen": "Гейта"
+    },
+    {
+     "id": "rig",
+     "name": "Риг",
+     "gen": "Рига"
+    },
+    {
+     "id": "hagane",
+     "name": "Хаганэ",
+     "gen": "Хаганэ"
+    },
+    {
+     "id": "elijah",
+     "name": "Илайджа",
+     "gen": "Илайджи"
+    }
+   ],
+   "players": [
+    {
+     "name": "Максим",
+     "chars": [
+      "alice",
+      "karu"
+     ]
+    },
+    {
+     "name": "Игрок Гейта",
+     "chars": [
+      "gate"
+     ]
+    },
+    {
+     "name": "Игрок Рига",
+     "chars": [
+      "rig"
+     ]
+    },
+    {
+     "name": "Игрок Хаганэ",
+     "chars": [
+      "hagane"
+     ]
+    },
+    {
+     "name": "Игрок Илайджи",
+     "chars": [
+      "elijah"
+     ]
+    },
+    {
+     "name": "Без персонажа",
+     "chars": []
+    }
+   ],
+   "me": {
+    "gm": false,
+    "name": "Игрок Гейта",
+    "chars": [
+     "gate"
+    ]
+   }
+  },
+  "hag": {
+   "version": 39,
+   "now": {
+    "date": "2075-08-02",
+    "tod": "день"
+   },
+   "quietUntil": "2075-08-08",
+   "calStart": "2075-07-01",
+   "calEnd": "2075-12-31",
+   "windows": [
+    {
+     "id": "w1",
+     "from": "2075-07-01",
+     "to": "2075-07-31",
+     "name": "Арка 1"
+    },
+    {
+     "id": "w2",
+     "from": "2075-08-01",
+     "to": "2075-08-31",
+     "name": "Промежуточная арка",
+     "inter": true
+    }
+   ],
+   "rhythm": [
+    {
+     "id": "r1",
+     "wd": [
+      0
+     ],
+     "title": "Кофе по понедельникам",
+     "note": "Общее",
+     "vis": "стол"
+    },
+    {
+     "title": "Пересменка",
+     "note": "",
+     "vis": "стол",
+     "wd": [
+      0,
+      3
+     ],
+     "from": "2075-08-01",
+     "to": "2075-12-31",
+     "id": "r3adb43af"
+    },
+    {
+     "title": "Привычка Рига",
+     "note": "",
+     "vis": "стол",
+     "monthDay": 15,
+     "who": "rig",
+     "id": "rdfc39c2a"
+    }
+   ],
+   "past": [
+    {
+     "title": "Хроника вручную",
+     "from": "2075-07-15",
+     "to": "2075-07-16",
+     "note": "Публично",
+     "session": "Сессия 1",
+     "id": "p24e9a4bf"
+    },
+    {
+     "id": "p1",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Первая сессия",
+     "note": "Публичная заметка",
+     "session": "Арка 1, сессия 1"
+    },
+    {
+     "id": "p592b031e",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Сыгранный план",
+     "note": "",
+     "session": ""
+    }
+   ],
+   "plan": [],
+   "blocks": [],
+   "places": [
+    {
+     "id": "m1",
+     "name": "Открытое место",
+     "type": "home",
+     "x": 1000,
+     "y": 1000,
+     "note": "Видно всем"
+    }
+   ],
+   "dossier": [
+    {
+     "id": "n1",
+     "name": "Открытая карточка",
+     "alias": "",
+     "type": "person",
+     "role": "Фиксер",
+     "stance": "contact",
+     "org": "",
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_note": "Встретились",
+     "img": "",
+     "last_place": "m1",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Открытое сведение"
+      }
+     ]
+    },
+    {
+     "id": "nd0af2e1c",
+     "name": "Фиксер Ли",
+     "alias": "Ли",
+     "type": "person",
+     "role": "Достаёт железо",
+     "stance": "contact",
+     "org": "Кенран-кай",
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_note": "Встретились в баре",
+     "img": "9c1411b51caa150a1d1ab4ff0b90b091",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Знает ход через канализацию",
+       "date": "2075-07-20"
+      }
+     ]
+    }
+   ],
+   "handouts": [],
+   "handout_usage": null,
+   "portraits": null,
+   "dnotes": [
+    {
+     "id": "downtown",
+     "text": "Центр города"
+    }
+   ],
+   "clocks": [],
+   "entries": [
+    {
+     "id": "7662fba9e24f",
+     "type": "meet",
+     "author": "gate",
+     "status": "ok",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [
+      "gate"
+     ],
+     "created": 1790856975.0592983,
+     "title": "Встреча у моста",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "Мост",
+     "cond": "Без оружия",
+     "goal": "Договориться об оплате",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Приду с Хаганэ, если не против 👍",
+       "ts": 1790856975075
+      },
+      {
+       "a": "gate",
+       "t": "Договорились.\nВстречаемся в восемь.",
+       "ts": 1790856975082
+      }
+     ]
+    },
+    {
+     "id": "d67c8c5e7735",
+     "type": "meet",
+     "author": "gate",
+     "status": "resched",
+     "answers": {
+      "rig": "нет",
+      "hagane": "ждёт"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.100346,
+     "title": "Дело с отказом",
+     "from": "2075-08-06",
+     "to": "2075-08-07",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig",
+      "hagane"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "5af07744e9b3",
+     "type": "meet",
+     "author": "hagane",
+     "status": "reply",
+     "answers": {
+      "elijah": "ждёт"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1161165,
+     "title": "Личное дело Хаганэ",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "hagane",
+      "elijah"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Никому не рассказывать",
+     "vis": "лично",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "cfdf6bddaeca",
+     "type": "meet",
+     "author": "rig",
+     "status": "reply",
+     "answers": {
+      "gate": "ждёт",
+      "hagane": "сам"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1230216,
+     "title": "Открытая запись",
+     "from": "2075-08-10",
+     "to": "2075-08-12",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate",
+      "hagane"
+     ],
+     "open": true,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Заходи",
+       "ts": 1790856975135
+      }
+     ]
+    },
+    {
+     "id": "f6ebb07643bb",
+     "type": "grow",
+     "author": "rig",
+     "status": "ok",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1429317,
+     "title": "Навык взлома",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Повысить Hacking на 1",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-10",
+     "chat": []
+    },
+    {
+     "id": "587ef3bf2ed7",
+     "type": "grow",
+     "author": "gate",
+     "status": "gm",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1567879,
+     "title": "Развитие на проверке",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Новая киберруки",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-12",
+     "chat": []
+    },
+    {
+     "id": "a16e85851346",
+     "type": "deal",
+     "author": "alice",
+     "status": "ok",
+     "answers": {
+      "karu": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1637163,
+     "title": "Покупки Элис",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "alice",
+      "karu"
+     ],
+     "open": false,
+     "where": "Любой магазин",
+     "cond": "1000¥",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "8b7f2640a0ad",
+     "type": "meet",
+     "author": "gate",
+     "status": "done",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1711402,
+     "title": "Давняя встреча",
+     "from": "2075-07-22",
+     "to": "2075-07-22",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "0c70ef5529f1",
+     "type": "meet",
+     "author": "gm",
+     "status": "ok",
+     "answers": {
+      "rig": "да",
+      "gate": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1848137,
+     "title": "Задание от мастера",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Общая цель",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    }
+   ],
+   "characters": [
+    {
+     "id": "alice",
+     "name": "Элис",
+     "gen": "Элис"
+    },
+    {
+     "id": "karu",
+     "name": "Кару",
+     "gen": "Кару"
+    },
+    {
+     "id": "gate",
+     "name": "Гейт",
+     "gen": "Гейта"
+    },
+    {
+     "id": "rig",
+     "name": "Риг",
+     "gen": "Рига"
+    },
+    {
+     "id": "hagane",
+     "name": "Хаганэ",
+     "gen": "Хаганэ"
+    },
+    {
+     "id": "elijah",
+     "name": "Илайджа",
+     "gen": "Илайджи"
+    }
+   ],
+   "players": [
+    {
+     "name": "Максим",
+     "chars": [
+      "alice",
+      "karu"
+     ]
+    },
+    {
+     "name": "Игрок Гейта",
+     "chars": [
+      "gate"
+     ]
+    },
+    {
+     "name": "Игрок Рига",
+     "chars": [
+      "rig"
+     ]
+    },
+    {
+     "name": "Игрок Хаганэ",
+     "chars": [
+      "hagane"
+     ]
+    },
+    {
+     "name": "Игрок Илайджи",
+     "chars": [
+      "elijah"
+     ]
+    },
+    {
+     "name": "Без персонажа",
+     "chars": []
+    }
+   ],
+   "me": {
+    "gm": false,
+    "name": "Игрок Хаганэ",
+    "chars": [
+     "hagane"
+    ]
+   }
+  },
+  "max": {
+   "version": 39,
+   "now": {
+    "date": "2075-08-02",
+    "tod": "день"
+   },
+   "quietUntil": "2075-08-08",
+   "calStart": "2075-07-01",
+   "calEnd": "2075-12-31",
+   "windows": [
+    {
+     "id": "w1",
+     "from": "2075-07-01",
+     "to": "2075-07-31",
+     "name": "Арка 1"
+    },
+    {
+     "id": "w2",
+     "from": "2075-08-01",
+     "to": "2075-08-31",
+     "name": "Промежуточная арка",
+     "inter": true
+    }
+   ],
+   "rhythm": [
+    {
+     "id": "r1",
+     "wd": [
+      0
+     ],
+     "title": "Кофе по понедельникам",
+     "note": "Общее",
+     "vis": "стол"
+    },
+    {
+     "title": "Пересменка",
+     "note": "",
+     "vis": "стол",
+     "wd": [
+      0,
+      3
+     ],
+     "from": "2075-08-01",
+     "to": "2075-12-31",
+     "id": "r3adb43af"
+    },
+    {
+     "title": "Привычка Рига",
+     "note": "",
+     "vis": "стол",
+     "monthDay": 15,
+     "who": "rig",
+     "id": "rdfc39c2a"
+    }
+   ],
+   "past": [
+    {
+     "title": "Хроника вручную",
+     "from": "2075-07-15",
+     "to": "2075-07-16",
+     "note": "Публично",
+     "session": "Сессия 1",
+     "id": "p24e9a4bf"
+    },
+    {
+     "id": "p1",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Первая сессия",
+     "note": "Публичная заметка",
+     "session": "Арка 1, сессия 1"
+    },
+    {
+     "id": "p592b031e",
+     "from": "2075-07-20",
+     "to": "2075-07-20",
+     "title": "Сыгранный план",
+     "note": "",
+     "session": ""
+    }
+   ],
+   "plan": [],
+   "blocks": [],
+   "places": [
+    {
+     "id": "m1",
+     "name": "Открытое место",
+     "type": "home",
+     "x": 1000,
+     "y": 1000,
+     "note": "Видно всем"
+    }
+   ],
+   "dossier": [
+    {
+     "id": "n1",
+     "name": "Открытая карточка",
+     "alias": "",
+     "type": "person",
+     "role": "Фиксер",
+     "stance": "contact",
+     "org": "",
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_note": "Встретились",
+     "img": "",
+     "last_place": "m1",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Открытое сведение"
+      }
+     ]
+    },
+    {
+     "id": "nd0af2e1c",
+     "name": "Фиксер Ли",
+     "alias": "Ли",
+     "type": "person",
+     "role": "Достаёт железо",
+     "stance": "contact",
+     "org": "Кенран-кай",
+     "met": [
+      "rig"
+     ],
+     "last_date": "2075-07-20",
+     "last_note": "Встретились в баре",
+     "img": "9c1411b51caa150a1d1ab4ff0b90b091",
+     "facts": [
+      {
+       "id": "f1",
+       "text": "Знает ход через канализацию",
+       "date": "2075-07-20"
+      }
+     ]
+    }
+   ],
+   "handouts": [],
+   "handout_usage": null,
+   "portraits": null,
+   "dnotes": [
+    {
+     "id": "downtown",
+     "text": "Центр города"
+    }
+   ],
+   "clocks": [],
+   "entries": [
+    {
+     "id": "7662fba9e24f",
+     "type": "meet",
+     "author": "gate",
+     "status": "ok",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [
+      "gate"
+     ],
+     "created": 1790856975.0592983,
+     "title": "Встреча у моста",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "Мост",
+     "cond": "Без оружия",
+     "goal": "Договориться об оплате",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Приду с Хаганэ, если не против 👍",
+       "ts": 1790856975075
+      },
+      {
+       "a": "gate",
+       "t": "Договорились.\nВстречаемся в восемь.",
+       "ts": 1790856975082
+      }
+     ]
+    },
+    {
+     "id": "d67c8c5e7735",
+     "type": "meet",
+     "author": "gate",
+     "status": "resched",
+     "answers": {
+      "rig": "нет",
+      "hagane": "ждёт"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.100346,
+     "title": "Дело с отказом",
+     "from": "2075-08-06",
+     "to": "2075-08-07",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig",
+      "hagane"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "cfdf6bddaeca",
+     "type": "meet",
+     "author": "rig",
+     "status": "reply",
+     "answers": {
+      "gate": "ждёт",
+      "hagane": "сам"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1230216,
+     "title": "Открытая запись",
+     "from": "2075-08-10",
+     "to": "2075-08-12",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate",
+      "hagane"
+     ],
+     "open": true,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": [
+      {
+       "a": "rig",
+       "t": "Заходи",
+       "ts": 1790856975135
+      }
+     ]
+    },
+    {
+     "id": "f6ebb07643bb",
+     "type": "grow",
+     "author": "rig",
+     "status": "ok",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1429317,
+     "title": "Навык взлома",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Повысить Hacking на 1",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-10",
+     "chat": []
+    },
+    {
+     "id": "587ef3bf2ed7",
+     "type": "grow",
+     "author": "gate",
+     "status": "gm",
+     "answers": {},
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1567879,
+     "title": "Развитие на проверке",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Новая киберруки",
+     "vis": "стол",
+     "place": "",
+     "effect": "2075-08-12",
+     "chat": []
+    },
+    {
+     "id": "a16e85851346",
+     "type": "deal",
+     "author": "alice",
+     "status": "ok",
+     "answers": {
+      "karu": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1637163,
+     "title": "Покупки Элис",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "alice",
+      "karu"
+     ],
+     "open": false,
+     "where": "Любой магазин",
+     "cond": "1000¥",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "8b7f2640a0ad",
+     "type": "meet",
+     "author": "gate",
+     "status": "done",
+     "answers": {
+      "rig": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1711402,
+     "title": "Давняя встреча",
+     "from": "2075-07-22",
+     "to": "2075-07-22",
+     "tod": "вечер",
+     "who": [
+      "gate",
+      "rig"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    },
+    {
+     "id": "0c70ef5529f1",
+     "type": "meet",
+     "author": "gm",
+     "status": "ok",
+     "answers": {
+      "rig": "да",
+      "gate": "да"
+     },
+     "talk": "open",
+     "stars": [],
+     "created": 1790856975.1848137,
+     "title": "Задание от мастера",
+     "from": "2075-08-05",
+     "to": "2075-08-05",
+     "tod": "вечер",
+     "who": [
+      "rig",
+      "gate"
+     ],
+     "open": false,
+     "where": "",
+     "cond": "",
+     "goal": "Общая цель",
+     "vis": "стол",
+     "place": "",
+     "chat": []
+    }
+   ],
+   "characters": [
+    {
+     "id": "alice",
+     "name": "Элис",
+     "gen": "Элис"
+    },
+    {
+     "id": "karu",
+     "name": "Кару",
+     "gen": "Кару"
+    },
+    {
+     "id": "gate",
+     "name": "Гейт",
+     "gen": "Гейта"
+    },
+    {
+     "id": "rig",
+     "name": "Риг",
+     "gen": "Рига"
+    },
+    {
+     "id": "hagane",
+     "name": "Хаганэ",
+     "gen": "Хаганэ"
+    },
+    {
+     "id": "elijah",
+     "name": "Илайджа",
+     "gen": "Илайджи"
+    }
+   ],
+   "players": [
+    {
+     "name": "Максим",
+     "chars": [
+      "alice",
+      "karu"
+     ]
+    },
+    {
+     "name": "Игрок Гейта",
+     "chars": [
+      "gate"
+     ]
+    },
+    {
+     "name": "Игрок Рига",
+     "chars": [
+      "rig"
+     ]
+    },
+    {
+     "name": "Игрок Хаганэ",
+     "chars": [
+      "hagane"
+     ]
+    },
+    {
+     "name": "Игрок Илайджи",
+     "chars": [
+      "elijah"
+     ]
+    },
+    {
+     "name": "Без персонажа",
+     "chars": []
+    }
+   ],
+   "me": {
+    "gm": false,
+    "name": "Максим",
+    "chars": [
+     "alice",
+     "karu"
+    ]
+   }
+  }
+ }
+}
