@@ -6,7 +6,7 @@ from ui_support import open_page
 
 pytestmark = [pytest.mark.browser, pytest.mark.usefixtures("strict_csp")]
 
-PAYLOAD = '"><img src=x onerror=__xss=1>'
+PAYLOAD = '"><img src=x onerror=__xss=1 id=hist>'      # не совпадает со строками других тестов: корзина у них общая
 
 
 @pytest.fixture

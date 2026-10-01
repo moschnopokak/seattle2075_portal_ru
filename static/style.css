@@ -461,6 +461,51 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .dlink:hover,.dlink:focus-visible{text-decoration-style:solid}
 .dlink-missing{border-bottom:1px dashed var(--vow);color:var(--vow);cursor:help}
 .mentions{display:grid;gap:4px}
+/* лист персонажа */
+.sheet .seg{margin:10px 0}
+.sh-sum{border-collapse:collapse;margin:8px 0 12px;font-size:14.5px}
+.sh-sum th,.sh-sum td{padding:4px 12px 4px 0;text-align:left;font-weight:400;border-bottom:1px solid var(--line)}
+.sh-char h2{margin:14px 0 8px}
+.sh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-items:start}
+.sh-box{background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:10px 14px}
+.sh-box h3{margin:0 0 6px}
+.sh-bal{margin:0 0 8px;font-size:26px;font-variant-numeric:tabular-nums;font-weight:600}
+.neg{color:var(--vow)}
+.pos{color:var(--grow)}
+.ledger,.standings,.contacts,.factions{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ledger li{display:grid;grid-template-columns:auto auto 1fr;gap:2px 10px;align-items:baseline;font-size:14.5px}
+.lg-d{color:var(--muted);font-size:13px}
+.lg-a{font-variant-numeric:tabular-nums;white-space:nowrap}
+.lg-n{overflow-wrap:anywhere}
+.ledger .sh-acts{grid-column:1/-1}
+.st-row,.ct-row,.fc-row{display:grid;gap:3px;padding:6px 0;border-top:1px solid var(--line);font-size:14.5px}
+.standings li:first-child,.contacts li:first-child,.factions li:first-child{border-top:0}
+.st-top,.ct-top,.fc-top{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline}
+.st-v{font-variant-numeric:tabular-nums}
+.st-neg{color:var(--vow)}
+.st-pos{color:var(--grow)}
+.st-l{color:var(--muted)}
+.st-bar{position:relative;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--vow),var(--line) 50%,var(--grow));opacity:.8}
+.st-bar i{position:absolute;top:-3px;width:4px;height:12px;margin-left:-2px;border-radius:2px;background:var(--ink)}
+.st-n,.ct-n,.ct-s{color:var(--ink)}
+.ct-r{color:var(--muted);font-size:13px}
+.sh-gm{display:block;margin-top:2px;padding-left:8px;border-left:3px solid var(--vow);font-size:13.5px;color:var(--muted);white-space:pre-wrap}
+.sh-acts{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.sh-fac{margin-top:18px}
+/* броски кубов */
+.roll-box{margin:10px 0;border:1px solid var(--line);border-radius:6px;padding:6px 12px;background:var(--raise)}
+.roll-box summary{cursor:pointer;font-weight:600}
+.roll-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.roll{display:grid;gap:4px}
+.roll-head{font-weight:600}
+.dice{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.die{display:inline-grid;place-items:center;width:28px;height:28px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface);font-weight:600;font-variant-numeric:tabular-nums}
+.die.hit{border-color:var(--grow);color:var(--grow);background:var(--raise)}
+.die.one{border-color:var(--vow);color:var(--vow)}
+.die.extra{border-style:dashed}
+.dice-plus{color:var(--muted);padding:0 2px}
+.roll-ok{color:var(--grow)}
+.roll-fail{color:var(--vow)}
 .err{color:var(--vow);min-height:1.2em;margin:8px 0 0;font-size:14.5px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:4px;font-size:15px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1}

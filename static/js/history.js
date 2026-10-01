@@ -1,12 +1,12 @@
 /* ===== Корзина и история изменений (только мастер) =====
    Списки приходят отдельными запросами (в общее состояние они не входят). Всё, что показывается, экранируется. */
-const H_KIND={entry:'запись',dossier:'карточку досье',places:'место',windows:'этап',rhythm:'регулярное событие',clocks:'скрытый таймер',plan:'событие плана',past:'событие хроники',handouts:'раздатку',travel:'вид транспорта',dnote:'описание района',time:'время в игре'};
-const H_KIND_NOM={entry:'Запись',dossier:'Карточка досье',places:'Место',windows:'Этап',rhythm:'Регулярное событие',clocks:'Скрытый таймер',plan:'Событие плана',past:'Событие хроники',handouts:'Раздатка',travel:'Вид транспорта',dnote:'Описание района',time:'Время'};
+const H_KIND={money:'проводку',factions:'фракцию',standing:'репутацию',contacts:'контакт',entry:'запись',dossier:'карточку досье',places:'место',windows:'этап',rhythm:'регулярное событие',clocks:'скрытый таймер',plan:'событие плана',past:'событие хроники',handouts:'раздатку',travel:'вид транспорта',dnote:'описание района',time:'время в игре'};
+const H_KIND_NOM={money:'Проводка',factions:'Фракция',standing:'Репутация',contacts:'Контакт',entry:'Запись',dossier:'Карточка досье',places:'Место',windows:'Этап',rhythm:'Регулярное событие',clocks:'Скрытый таймер',plan:'Событие плана',past:'Событие хроники',handouts:'Раздатка',travel:'Вид транспорта',dnote:'Описание района',time:'Время'};
 const H_VERB={create:'добавил(а)',edit:'изменил(а)',delete:'удалил(а)',restore:'восстановил(а)',revert:'откатил(а) правку:',upload:'загрузил(а) файл:',
   'file-delete':'убрал(а) картинку:',time:'изменил(а)',played:'перенёс(ла) в хронику',
   'act:ans':'ответил(а) на приглашение:','act:join':'напросился(лась) в запись:','act:kick':'убрал(а) участника из записи:',
   'act:approve':'подтвердил(а) развитие:','act:reject':'отклонил(а) развитие:','act:outcome':'отметил(а) итог записи:'};
-const H_FIELD={title:'Название',name:'Название',from:'Начало',to:'Окончание',tod:'Время суток',who:'Участники',open:'Можно напроситься',where:'Где',cond:'Условия',goal:'Цель',
+const H_FIELD={char:'Персонаж',delta:'Сумма',faction:'Фракция',value:'Отношение',connection:'Связи',loyalty:'Лояльность',services:'Чем помогает',card:'Карточка досье',title:'Название',name:'Название',from:'Начало',to:'Окончание',tod:'Время суток',who:'Участники',open:'Можно напроситься',where:'Где',cond:'Условия',goal:'Цель',
   vis:'Видимость',place:'Место',note:'Описание',gm_note:'Заметка мастера',answers:'Ответы',status:'Статус',stars:'Звёзды',talk:'Обсуждение',type:'Тип',role:'Кто это',
   stance:'Отношение',org:'Организация',alias:'Позывной',known:'Кто знает',met:'Знакомы лично',facts:'Сведения',last_date:'Последняя встреча',last_place:'Где виделись',
   last_note:'О встрече',session:'Сессия',cover:'Маска',x:'Координата X',y:'Координата Y',text:'Описание для игроков',gm_text:'Заметка мастера',inter:'Промежуточная арка',
@@ -91,7 +91,7 @@ document.addEventListener('input',ev=>{
   histTimer=setTimeout(()=>{UI.histQ=ev.target.value.trim();gmLoadExtras(true);},350);
 });
 async function openItemHistory(kind,id){
-  const lists={entry:S.entries,dossier:S.dossier,places:S.places,windows:S.windows,rhythm:S.rhythm,clocks:S.clocks,plan:S.plan,past:S.past,handouts:S.handouts,travel:S.travel};
+  const lists={entry:S.entries,dossier:S.dossier,places:S.places,windows:S.windows,rhythm:S.rhythm,clocks:S.clocks,plan:S.plan,past:S.past,handouts:S.handouts,travel:S.travel,money:S.money,factions:S.factions,standing:S.standing,contacts:S.contacts};
   const it=(lists[kind]||[]).find(x=>x.id===id),title=it?(it.title||it.name):id;
   const h=await getJson(`/api/gm/history?kind=${encodeURIComponent(kind)}&item=${encodeURIComponent(id)}&limit=100`);
   if(!h){toast('Не удалось загрузить историю');return;}

@@ -90,11 +90,17 @@ def _m5_handout_media(c):
     c.execute("ALTER TABLE handout_files ADD COLUMN encoding TEXT NOT NULL DEFAULT 'gzip'")
 
 
+def _m6_dice_rolls(c):
+    """Сообщение обсуждения может быть броском кубов: результат хранится в JSON рядом с текстом."""
+    c.execute("ALTER TABLE messages ADD COLUMN roll TEXT")
+
+
 MIGRATIONS = [
     (2, "журнал изменений и корзина", _m2_audit_and_trash),
     (3, "очередь уведомлений и настройки пользователей", _m3_outbox_and_prefs),
     (4, "напоминания о неотвеченных приглашениях", _m4_invite_clock),
     (5, "тип файла раздатки (картинки, PDF, аудио)", _m5_handout_media),
+    (6, "броски кубов в обсуждении", _m6_dice_rolls),
 ]
 LATEST = MIGRATIONS[-1][0]
 
@@ -179,11 +185,14 @@ def _chat_for(ids):
     with lock:
         marks = ",".join("?" * len(ids))
         rows = conn().execute(
-            f"SELECT entry_id, author, text, ts FROM messages WHERE entry_id IN ({marks}) ORDER BY id", ids
+            f"SELECT entry_id, author, text, ts, roll FROM messages WHERE entry_id IN ({marks}) ORDER BY id", ids
         ).fetchall()
     chat = {}
     for r in rows:
-        chat.setdefault(r["entry_id"], []).append({"a": r["author"], "t": r["text"], "ts": int(r["ts"] * 1000)})
+        msg = {"a": r["author"], "t": r["text"], "ts": int(r["ts"] * 1000)}
+        if r["roll"]:
+            msg["r"] = json.loads(r["roll"])
+        chat.setdefault(r["entry_id"], []).append(msg)
     return chat
 
 
@@ -224,17 +233,19 @@ def delete_entry(entry_id):
         c.execute("DELETE FROM entries WHERE id=?", (entry_id,))
 
 
-def add_message(entry_id, author, user_id, text, ts=None):
+def add_message(entry_id, author, user_id, text, ts=None, roll=None):
     with lock:
-        conn().execute("INSERT INTO messages(entry_id,author,user_id,text,ts) VALUES(?,?,?,?,?)",
-                       (entry_id, author, user_id, text, time.time() if ts is None else ts))
+        conn().execute("INSERT INTO messages(entry_id,author,user_id,text,ts,roll) VALUES(?,?,?,?,?,?)",
+                       (entry_id, author, user_id, text, time.time() if ts is None else ts,
+                        json.dumps(roll, ensure_ascii=False) if roll else None))
 
 
 def raw_messages(entry_id):
     """Сообщения обсуждения как есть (для корзины)."""
     with lock:
-        rows = conn().execute("SELECT author, user_id, text, ts FROM messages WHERE entry_id=? ORDER BY id", (entry_id,)).fetchall()
-    return [{"author": r["author"], "user_id": r["user_id"], "text": r["text"], "ts": r["ts"]} for r in rows]
+        rows = conn().execute("SELECT author, user_id, text, ts, roll FROM messages WHERE entry_id=? ORDER BY id", (entry_id,)).fetchall()
+    return [{"author": r["author"], "user_id": r["user_id"], "text": r["text"], "ts": r["ts"], "roll": json.loads(r["roll"]) if r["roll"] else None}
+            for r in rows]
 
 
 # ---------- входы ----------

@@ -32,11 +32,12 @@ function applyState(st){
 const authHeaders=()=>TOKEN?{'Authorization':'Bearer '+TOKEN}:{};
 const RO=()=>!!(S&&S.me.gm&&V!=='gm');
 function errText(j){if(!j)return 'Не удалось выполнить действие.';const d=j.detail;if(typeof d==='string')return d;if(Array.isArray(d))return 'Сервер отклонил запрос.';return (d&&d.message)||'Не удалось выполнить действие.';}
-async function apiPost(path,body,onError){
+/* От чьего имени действие, добавляется само (V). Форма листа персонажа сама называет персонажа, поэтому для неё keepChar=true. */
+async function apiPost(path,body,onError,keepChar){
   if(RO()){toast('Предпросмотр: действия отключены');return null;}
   if(busy)return null;busy=true;
   try{
-    const r=await fetch(path,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({...body,char:V})});
+    const r=await fetch(path,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify(keepChar?body:{...body,char:V})});
     let j=null;try{j=await r.json();}catch(e){}
     if(r.status===401){showLogin();return null;}
     if(!r.ok){const m=errText(j);onError?onError(m):toast(m);return null;}
@@ -87,11 +88,11 @@ function chatMark(e){const n=(e.chat||[]).length;return n?`<span class="cc" titl
 /* ===== Каркас портала ===== */
 const SECTIONS=[
   {id:'now',name:'Сегодня'},{id:'cal',name:'Календарь'},{id:'chron',name:'Хроника'},
-  {id:'dossier',name:'Досье'},{id:'handouts',name:'Раздатки'},{id:'map',name:'Карта'},
+  {id:'dossier',name:'Досье'},{id:'handouts',name:'Раздатки'},{id:'sheet',name:'Лист',needChar:true},{id:'map',name:'Карта'},
   {id:'gm',name:'Панель мастера',gm:true}
 ];
 function renderTop(){
-  document.getElementById('nav').innerHTML=SECTIONS.filter(s=>!s.gm||V==='gm').map(s=>
+  document.getElementById('nav').innerHTML=SECTIONS.filter(s=>(!s.gm||V==='gm')&&(!s.needChar||V==='gm'||(viewChars()||[]).length)).map(s=>
     `<button type="button" data-nav="${s.id}" ${UI.section===s.id?'aria-current="page"':''}>${s.name}${s.id==='handouts'&&unseenHandouts()?`<b class="nav-badge" aria-label="новых: ${unseenHandouts()}">${unseenHandouts()}</b>`:''}</button>`).join('');
   let who='';
   if(S.me.gm){
@@ -121,7 +122,7 @@ function render(keepScroll){
   if(UI.section==='gm'&&V!=='gm')UI.section='now';
   const lw=document.getElementById('lanes-wrap'),sl=lw?lw.scrollLeft:0,sy=window.scrollY;
   renderTop();
-  const f={now:rNow,cal:rCal,chron:rChron,gm:rGM,dossier:rDossier,handouts:rHandouts}[UI.section];
+  const f={now:rNow,cal:rCal,chron:rChron,gm:rGM,dossier:rDossier,handouts:rHandouts,sheet:rSheet}[UI.section];
   const dqEl=document.getElementById('dq'),dqFocus=!!dqEl&&document.activeElement===dqEl,dqPos=dqFocus?dqEl.selectionStart:0;
   const html=f(),sec=SECTIONS.find(x=>x.id===UI.section);
   document.getElementById('main').innerHTML=(html.includes('<h1')?'':`<h1 class="sr-only">${sec?sec.name:''}</h1>`)+html;
@@ -470,9 +471,9 @@ function dEntry(e){
 
   const when=e.to?fSpan(e.from,e.to):'с '+fFull(e.from)+', без срока';
   const chat=e.chat||[];
-  let chatH=`<h3>Обсуждение${chat.length?' ('+chat.length+')':''}</h3><div class="chat">${chat.length?chat.map(m=>`<div class="msg ${m.a===V?'mine':''}"><div class="mh"><b>${esc(CN[m.a]||m.a)}</b><span>${fTs(m.ts)}</span></div><p>${rich(m.t)}</p></div>`).join(''):'<p class="muted" style="margin:0">Сообщений пока нет.</p>'}</div>`;
+  let chatH=`<h3>Обсуждение${chat.length?' ('+chat.length+')':''}</h3><div class="chat">${chat.length?chat.map(m=>`<div class="msg ${m.a===V?'mine':''}"><div class="mh"><b>${esc(CN[m.a]||m.a)}</b><span>${fTs(m.ts)}</span></div>${m.r?rollHTML(m):`<p>${rich(m.t)}</p>`}</div>`).join(''):'<p class="muted" style="margin:0">Сообщений пока нет.</p>'}</div>`;
   if(talk==='closed')chatH+='<p class="note" style="margin-top:10px">Обсуждение окончено, новые сообщения недоступны.</p>';
-  else if(canWrite(e))chatH+=`<form id="chat-form" data-id="${e.id}"><textarea name="msg" rows="2" maxlength="2000" placeholder="Как подойти к делу и кто что делает на игре"></textarea><div class="chat-send"><span class="muted small">Ctrl+Enter отправляет. [[Имя]] ссылается на карточку досье</span><button type="submit" class="btn primary">Отправить</button></div></form>`;
+  else if(canWrite(e))chatH+=rollFormHTML(e)+`<form id="chat-form" data-id="${e.id}"><textarea name="msg" rows="2" maxlength="2000" placeholder="Как подойти к делу и кто что делает на игре"></textarea><div class="chat-send"><span class="muted small">Ctrl+Enter отправляет. [[Имя]] ссылается на карточку досье</span><button type="submit" class="btn primary">Отправить</button></div></form>`;
   else chatH+=`<p class="note" style="margin-top:10px">Писать могут участники и мастер.${canJoin(e)?' Чтобы участвовать, напроситесь в запись.':''}</p>`;
 
   return `<p class="kind t-${e.type}"><i class="sw"></i>${TYPES[e.type].name}<span class="tag">${TALK[talk]}</span>${e.vis==='лично'?'<span class="tag">видят только участники и мастер</span>':''}</p><h2>${esc(e.title)}</h2>

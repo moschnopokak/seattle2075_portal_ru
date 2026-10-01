@@ -27,6 +27,10 @@ ITEM_BODIES = {
     "travel": {"name": "Транспорт", "kind": "roads", "motorway": 80, "trunk": 60, "primary": 40, "off": 20, "delay": 3, "wall": 15,
                "vis": "стол", "note": "n"},
     "handouts": {"title": "Раздатка", "date": "2075-08-01", "vis": "знают", "known": ["rig"], "note": "n", "gm_note": "g", "place": "m1"},
+    "money": {"char": "rig", "delta": -500, "note": "n", "date": "2075-08-01", "gm_note": "g"},
+    "factions": {"name": "Фракция", "kind": "gang", "vis": "знают", "known": ["rig"], "note": "n", "gm_note": "g"},
+    "standing": {"char": "rig", "faction": "ПОДСТАВИТЬ", "value": 3, "note": "n", "gm_note": "g"},
+    "contacts": {"char": "rig", "name": "Контакт", "card": "n1", "connection": 5, "loyalty": 3, "services": "s", "note": "n", "gm_note": "g"},
 }
 
 
@@ -79,7 +83,24 @@ def test_entry_endpoints_survive_garbage(gm, gate, rig, sandbox):
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_gm_item_endpoints_survive_garbage(gm, sandbox, kind):
-    failures = run(gm, f"/api/gm/items/{kind}", ITEM_BODIES[kind])
+    body = dict(ITEM_BODIES[kind])
+    if kind == "standing":                                                    # репутация ссылается на существующую фракцию
+        made = gm.post("/api/gm/items/factions", json={"name": "Для репутации", "vis": "стол"}).json()["state"]["factions"]
+        body["faction"] = made[-1]["id"]
+    failures = run(gm, f"/api/gm/items/{kind}", body)
+    assert not failures, "500 на некорректных данных:\n" + "\n".join(failures[:40])
+
+
+def test_dice_endpoint_survives_garbage(gate, rig, gm, sandbox):
+    base = gate.post("/api/entries", json=entry(char="gate", title="Для кубов", who=["rig"])).json()["state"]
+    eid = next(e["id"] for e in base["entries"] if e["title"] == "Для кубов")
+    from app import logic
+    saved = logic.ROLLS_PER_MINUTE
+    logic.ROLLS_PER_MINUTE = 10 ** 6                                          # частоту не проверяем: тут нужны все варианты
+    try:
+        failures = run(rig, f"/api/entries/{eid}/roll", {"char": "rig", "dice": 4, "edge": True, "limit": 3, "threshold": 2, "label": "метка"})
+    finally:
+        logic.ROLLS_PER_MINUTE = saved
     assert not failures, "500 на некорректных данных:\n" + "\n".join(failures[:40])
 
 

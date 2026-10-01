@@ -290,6 +290,12 @@ def add_message(entry_id: str, request: Request, data: dict = Body(...)):
     return _answer(v, logic.add_message(v, entry_id, data))
 
 
+@app.post("/api/entries/{entry_id}/roll")
+def roll_dice(entry_id: str, request: Request, data: dict = Body(...)):
+    v = viewer(request)
+    return _answer(v, logic.roll_dice(v, entry_id, data))
+
+
 @app.post("/api/gm/time")
 def gm_time(request: Request, data: dict = Body(...)):
     v = viewer(request)

@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 from fastapi import HTTPException
 
-from . import audit, config, db, handouts, notify, portraits, reminders, trash
+from . import audit, config, db, dice, handouts, notify, portraits, reminders, trash
 from .config import people
 
 TYPES = {"meet": "Встреча", "grow": "Развитие", "deal": "Дело", "vow": "Обещание"}
@@ -107,7 +107,7 @@ def to_num(value, lo, hi, message):
 
 def to_int(value, message):
     """Целое число из запроса; на мусоре отвечает 400, а не падает."""
-    if isinstance(value, bool):
+    if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
         bad(message)
     try:
         return int(value)
@@ -200,6 +200,7 @@ def state_for(v):
         "handout_usage": handouts.usage() if v.gm else None,
         "portraits": portraits.usage() if v.gm else None,
         "dnotes": [d if v.gm else {"id": d["id"], "text": d.get("text", "")} for d in db.items("dnotes")],
+        **sheet_for(v),
         "travel": [t for t in db.items("travel") if v.gm or t.get("vis") != "мастер"],
         "trash": trash.count() if v.gm else None,
         "clocks": db.items("clocks") if v.gm else [],
@@ -224,6 +225,33 @@ def map_size():
         except (OSError, ValueError, KeyError):
             _MAP_SIZE = (200000, 300000)
     return _MAP_SIZE
+
+
+def _faction_known_to(f, char):
+    return f.get("vis") == "стол" or (f.get("vis") == "знают" and char in f.get("known", []))
+
+
+def sheet_for(v):
+    """Лист персонажа. Игрок видит только свои проводки, контакты и репутацию, и только у фракций, о которых его персонаж знает.
+    Заметки мастера и чужие данные не уходят."""
+    names = ("money", "factions", "standing", "contacts")
+    if v.gm:
+        return {k: db.items(k) for k in names}
+    mine = set(v.chars)
+    factions = {f["id"]: f for f in db.items("factions")}
+    visible_cards = {c["id"] for c in dossier_for(v)}
+    standing = [{k: s[k] for k in ("id", "char", "faction", "value", "note")} for s in db.items("standing")
+                if s["char"] in mine and s["faction"] in factions and _faction_known_to(factions[s["faction"]], s["char"])]
+    shown = {s["faction"] for s in standing}
+    return {
+        "money": [{k: m[k] for k in ("id", "char", "delta", "note", "date")} for m in db.items("money") if m["char"] in mine],
+        "factions": [{"id": f["id"], "name": f["name"], "kind": f.get("kind", "other"), "note": f.get("note", "")}
+                     for f in factions.values() if any(_faction_known_to(f, c) for c in mine) or f["id"] in shown],
+        "standing": standing,
+        "contacts": [{**{k: c[k] for k in ("id", "char", "name", "connection", "loyalty", "services", "note")},
+                      **({"card": c["card"]} if c.get("card") in visible_cards else {})}
+                     for c in db.items("contacts") if c["char"] in mine],
+    }
 
 
 def places_for(v):
@@ -688,6 +716,49 @@ def add_message(v, entry_id, b):
     return "Сообщение отправлено"
 
 
+_ROLL_TIMES = {}
+ROLLS_PER_MINUTE = 30
+
+
+def roll_dice(v, entry_id, b):
+    """Бросок кубов в обсуждении записи: бросает сервер, результат остаётся сообщением в обсуждении."""
+    with db.lock:
+        e = db.entry(entry_id)
+        if not e or not visible(e, v):
+            bad("Запись не найдена.", 404)
+        char = v.acting(b.get("char"))
+        if e.get("talk", "open") == "closed":
+            bad("Обсуждение окончено, бросать кубы нельзя.")
+        if not v.gm and not involves(e, char):
+            bad("Бросать кубы в обсуждении могут участники и мастер.", 403)
+        pool = to_int(b.get("dice"), f"Число кубов: целое от 1 до {dice.MAX_POOL}.")
+        if not 1 <= pool <= dice.MAX_POOL:
+            bad(f"Число кубов: целое от 1 до {dice.MAX_POOL}.")
+        limit = threshold = None
+        if b.get("limit") not in (None, ""):
+            limit = to_int(b.get("limit"), f"Предел: целое от 1 до {dice.MAX_LIMIT}.")
+            if not 1 <= limit <= dice.MAX_LIMIT:
+                bad(f"Предел: целое от 1 до {dice.MAX_LIMIT}.")
+        if b.get("threshold") not in (None, ""):
+            threshold = to_int(b.get("threshold"), f"Порог: целое от 0 до {dice.MAX_LIMIT}.")
+            if not 0 <= threshold <= dice.MAX_LIMIT:
+                bad(f"Порог: целое от 0 до {dice.MAX_LIMIT}.")
+        now_ts = time.time()
+        recent = [t for t in _ROLL_TIMES.get(v.tg_id, []) if now_ts - t < 60]
+        if len(recent) >= ROLLS_PER_MINUTE:
+            bad("Слишком много бросков подряд. Подождите минуту.", 429)
+        _ROLL_TIMES[v.tg_id] = recent + [now_ts]
+        label = clean(b.get("label"), 60)
+        result = dice.roll(pool, bool(b.get("edge")), limit, threshold)
+        result["label"] = label
+        text = dice.describe(result, label)
+        db.add_message(entry_id, char, v.tg_id, text, roll=result)
+        db.bump()
+        who = "Мастер" if char == "gm" else char_map().get(char, {}).get("name", char)
+    notify.chat_message(e, who, text, v.tg_id)
+    return "Кубы брошены"
+
+
 # ---------- панель мастера ----------
 
 def gm_time(v, b):
@@ -747,8 +818,14 @@ def plan_played(v, plan_id):
 
 # ---------- редактирование этапов, регулярных событий, таймеров, плана и хроники ----------
 
-KINDS = {"windows": "w", "rhythm": "r", "clocks": "c", "plan": "g", "past": "p", "places": "m", "dossier": "n", "handouts": "h", "travel": "t"}
+KINDS = {"windows": "w", "rhythm": "r", "clocks": "c", "plan": "g", "past": "p", "places": "m", "dossier": "n", "handouts": "h", "travel": "t",
+         "money": "y", "factions": "f", "standing": "s", "contacts": "k"}
 MAX_TRAVEL = 12
+# Лист персонажа (Shadowrun): нуйены (проводки), фракции, репутация персонажа у фракции, контакты. Пишет только мастер.
+MAX_ITEMS = {"money": 3000, "factions": 60, "standing": 600, "contacts": 300}
+FACTION_KINDS = {"corp", "gang", "gov", "org", "other"}
+STANDING_RANGE = (-5, 5)
+MONEY_LIMIT = 1_000_000_000
 STANCES = {"unknown", "contact", "ally", "neutral", "hostile"}
 FACT_ID = re.compile(r"[A-Za-z0-9_-]{1,20}")
 PLACE_TYPES = {"home", "contact", "business", "corp", "danger", "checkpoint", "other"}
@@ -773,6 +850,68 @@ def _title(b, key="title", limit=120, label="Укажите название."):
     if not text:
         bad(label)
     return text
+
+
+def _char_of(b, chars):
+    char = b.get("char")
+    if not isinstance(char, str) or char not in chars:
+        bad("Выберите персонажа.")
+    return char
+
+
+def _fmt_money(n):
+    return f"{'+' if n > 0 else '−'}{abs(n):,}".replace(",", "\u00a0") + "\u00a0¥"
+
+
+def _normalize_sheet(kind, b, chars):
+    """Нуйены, фракции, репутация и контакты. Названия персонажей и фракций попадают в заголовок для журнала и корзины."""
+    name_of = lambda c: chars[c]["name"]
+    if kind == "factions":
+        vis = one_of(b.get("vis"), ("стол", "знают", "мастер"), "мастер")
+        known = listed(b.get("known"), chars)
+        if vis == "знают" and not known:
+            bad("Отметьте, какие персонажи знают эту фракцию.")
+        return {"name": _title(b, "name", 60, "Укажите название фракции."), "kind": one_of(b.get("kind"), FACTION_KINDS, "other"),
+                "note": clean(b.get("note"), 1000, True), "gm_note": clean(b.get("gm_note"), 1000, True),
+                "vis": vis, "known": known if vis == "знают" else []}
+    char = _char_of(b, chars)
+    if kind == "money":
+        delta = to_int(b.get("delta"), "Сумма: целое число нуйенов, плюс это доход, минус расход.")
+        if delta == 0 or abs(delta) > MONEY_LIMIT:
+            bad("Сумма: целое число нуйенов от 1 до 1 000 000 000, плюс это доход, минус расход.")
+        note = clean(b.get("note"), 200)
+        return {"char": char, "delta": delta, "note": note, "date": _opt_date(b.get("date"), "Дата") or now()[0],
+                "gm_note": clean(b.get("gm_note"), 500, True), "title": f"{name_of(char)}: {_fmt_money(delta)}" + (f", {note}" if note else "")}
+    if kind == "standing":
+        faction = b.get("faction")
+        found = next((f for f in db.items("factions") if f["id"] == faction), None) if isinstance(faction, str) else None
+        if not found:
+            bad("Выберите фракцию.")
+        value = to_int(b.get("value"), f"Репутация: целое число от {STANDING_RANGE[0]} до {STANDING_RANGE[1]}.")
+        if not STANDING_RANGE[0] <= value <= STANDING_RANGE[1]:
+            bad(f"Репутация: целое число от {STANDING_RANGE[0]} до {STANDING_RANGE[1]}.")
+        if any(s["char"] == char and s["faction"] == faction and s["id"] != b.get("id") for s in db.items("standing")):
+            bad("Репутация этого персонажа у этой фракции уже записана. Измените её.", 409)
+        return {"char": char, "faction": faction, "value": value, "note": clean(b.get("note"), 300), "gm_note": clean(b.get("gm_note"), 500, True),
+                "title": f"{name_of(char)} и «{found['name']}»: " + f"{value:+d}".replace("-", "−")}
+    # contacts
+    card = b.get("card") or ""
+    cards = db.items("dossier")
+    linked = next((c for c in cards if c["id"] == card), None) if isinstance(card, str) and card else None
+    if card and not linked:
+        bad("Карточка досье не найдена.")
+    name = clean(b.get("name"), 80) or (linked["name"] if linked else "")
+    if not name:
+        bad("Укажите имя контакта или выберите карточку досье.")
+    connection = to_int(b.get("connection"), "Связи: целое число от 1 до 12.")
+    loyalty = to_int(b.get("loyalty"), "Лояльность: целое число от 1 до 6.")
+    if not 1 <= connection <= 12:
+        bad("Связи: целое число от 1 до 12.")
+    if not 1 <= loyalty <= 6:
+        bad("Лояльность: целое число от 1 до 6.")
+    return {"char": char, "name": name, "card": linked["id"] if linked else "", "connection": connection, "loyalty": loyalty,
+            "services": clean(b.get("services"), 300), "note": clean(b.get("note"), 1000, True), "gm_note": clean(b.get("gm_note"), 1000, True),
+            "title": f"{name_of(char)}: контакт «{name}»"}
 
 
 def _normalize(kind, b):
@@ -834,6 +973,8 @@ def _normalize(kind, b):
         return {"title": _title(b, "title", 120, "Укажите название раздатки."),
                 "date": check_date(b.get("date"), "Дата получения"), "vis": vis, "known": known if vis == "знают" else [],
                 "note": clean(b.get("note"), 3000, True), "gm_note": clean(b.get("gm_note"), 3000, True), "place": place}
+    if kind in ("money", "factions", "standing", "contacts"):
+        return _normalize_sheet(kind, b, chars)
     if kind == "travel":
         tkind = one_of(b.get("kind"), ("roads", "straight"), "roads")
         speeds = {k: to_num(b.get(k, 0), 0, 2000, f"Скорость «{label}»: число от 0 до 2000 км/ч.")
@@ -941,6 +1082,8 @@ def save_item(v, kind, b):
             bad("Запись не найдена, возможно, её уже удалили.", 404)
         if kind == "travel" and not old and len(items) >= MAX_TRAVEL:
             bad(f"Видов транспорта не больше {MAX_TRAVEL}.")
+        if kind in MAX_ITEMS and not old and len(items) >= MAX_ITEMS[kind]:
+            bad("Достигнут предел числа записей этого раздела. Уберите ненужные.", 409)
         item = _normalize(kind, b)
         item["id"] = old["id"] if old else KINDS[kind] + uuid.uuid4().hex[:8]
         if kind == "dossier":
@@ -1012,6 +1155,10 @@ def _check_insert(kind, item):
         _check_windows(items, item)
     if kind == "travel" and len(items) >= MAX_TRAVEL:
         bad(f"Видов транспорта не больше {MAX_TRAVEL}.")
+    if kind == "standing" and any(x["char"] == item["char"] and x["faction"] == item["faction"] for x in items):
+        bad("Репутация этого персонажа у этой фракции уже записана.", 409)
+    if kind in MAX_ITEMS and len(items) >= MAX_ITEMS[kind]:
+        bad("Достигнут предел числа записей этого раздела.", 409)
 
 
 def _insert_item(kind, item):
@@ -1036,7 +1183,7 @@ def restore_trash(v, trash_id):
             db.save_entry(data)
             reminders.asked(data["id"], [c for c, a in data.get("answers", {}).items() if a == "ждёт"])
             for m in (row["extra"] or {}).get("chat", []):
-                db.add_message(data["id"], m["author"], m["user_id"], m["text"], m["ts"])
+                db.add_message(data["id"], m["author"], m["user_id"], m["text"], m["ts"], m.get("roll"))
         else:
             _check_insert(kind, data)
             if kind == "dossier" and data.get("img"):
