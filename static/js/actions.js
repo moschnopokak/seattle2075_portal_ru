@@ -15,6 +15,7 @@ document.addEventListener('click',async ev=>{
   }
   if(a==='map-measure'||a.startsWith('measure-')){measureAct(a,b);return;}
   if(a.startsWith('hist-')||a.startsWith('trash-')||a==='item-history'){historyAct(a,b);return;}
+  if(a==='free-pick'){const f=document.getElementById('entry-form');if(f)freePick(f,b.dataset.d);return;}
   if(a==='open-prefs'){openPrefs();return;}
   if(a==='prefs-test'){prefsTest();return;}
   if(ENTRY_ACTS.includes(a)){

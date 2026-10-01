@@ -55,7 +55,7 @@ const winOf=s=>S.windows.find(w=>s>=w.from&&s<=w.to);
 const rhythmVisible=r=>V==='gm'||r.vis!=='мастер';
 const visEntries=()=>S.entries.filter(canSee);
 const involves=(e,c)=>(e.who||[]).includes(c)||e.author===c;
-const rhythmOn=s=>S.rhythm.filter(r=>rhythmVisible(r)&&(!r.from||s>=r.from)&&(!r.to||s<=r.to)&&((r.wd&&r.wd.includes(wdi(s)))||(r.monthDay&&dOf(s)===r.monthDay)));
+const rhythmOn=s=>S.rhythm.filter(r=>rhythmVisible(r)&&rhythmHits(r,s));
 const isActive=e=>!CLOSED.includes(e.status)&&(e.to||'9999-12-31')>=S.now.date;
 const canWrite=e=>V==='gm'||involves(e,V);
 const canJoin=e=>V!=='gm'&&e.open&&!involves(e,V)&&isActive(e);
@@ -635,6 +635,7 @@ function openForm(date,ed){
   <div class="two"><label class="field">Начало<select name="from">${opts(d0)}</select></label><label class="field">Окончание<select name="to">${opts(d0)}</select></label></div>
   <p class="note" id="block-hint" hidden></p>
   <label class="field">Время суток<select name="tod"><option value="">не указано</option>${TOD.map(t=>`<option value="${t}">${t}</option>`).join('')}</select></label>
+  <div class="free-box" id="free-box" aria-live="polite"></div>
   <fieldset class="anketa"><legend>Анкета</legend>
     <fieldset class="who"><legend>Кто</legend>${CHARS.map(c=>`<label><input type="checkbox" name="who" value="${c.id}" ${c.id===me?'checked disabled':''}> ${esc(c.name)}</label>`).join('')}<label id="plus-opt" class="plus-opt"><input type="checkbox" name="open" value="1"> <b class="plus">+</b> <span class="muted small">любой может напроситься</span></label></fieldset>
     <label class="field">Место на карте<select name="place"><option value="">не выбрано</option>${placesVisible().slice().sort((a,b)=>a.name.localeCompare(b.name,'ru')).map(p=>`<option value="${p.id}">${esc(p.name)}${placeTag(p)}</option>`).join('')}</select>${V==='gm'?'<span class="sub">Название скрытого места не подставляется в «Где», чтобы не показать его игрокам.</span>':''}</label>
@@ -675,8 +676,9 @@ function openForm(date,ed){
     if(nm==='place'&&!F('where').value.trim()){const w=placeWhere(placeById(F('place').value));if(w)F('where').value=w;}
     if(nm==='from'){if(F('to').value<F('from').value)F('to').value=F('from').value;if(F('effect').value<F('from').value)F('effect').value=F('from').value;}
     if(nm==='from'||nm==='to'||nm==='who')syncHint();
+    if(nm==='from'||nm==='to'||nm==='who'||nm==='tod')freeRefresh(f,ed,me);
   });
-  syncOpen();syncHint();
+  syncOpen();syncHint();freeRefresh(f,ed,me);
   f.addEventListener('submit',async ev=>{
     ev.preventDefault();
     const err=m=>{document.getElementById('form-err').textContent=m;};
