@@ -93,3 +93,24 @@ def test_dossier_editing_keeps_image_and_fact_ids(gm):
         assert [f["id"] for f in again["facts"]] == [f["id"] for f in card["facts"]]
     finally:
         gm.post("/api/gm/items/dossier", json=dict(card))
+
+
+def test_time_change_is_all_or_nothing(gm):
+    before = gm.get("/api/state").json()
+    r = gm.post("/api/gm/time", json={"shift": 2, "tod": "полдень"})
+    assert r.status_code == 400
+    after = gm.get("/api/state").json()
+    assert after["now"] == before["now"] and after["version"] == before["version"]
+
+
+def test_deleting_a_place_clears_references(gm):
+    data = ok(gm.post("/api/gm/items/places", json={"name": "Временное", "x": 100, "y": 100}))
+    pid = next(p["id"] for p in data["state"]["places"] if p["name"] == "Временное")
+    from helpers import entry
+    data = ok(gm.post("/api/entries", json=entry(title="С местом", who=["rig"], place=pid)))
+    eid = next(e["id"] for e in data["state"]["entries"] if e["title"] == "С местом")
+    try:
+        data = ok(gm.post(f"/api/gm/items/places/{pid}/delete"))
+        assert next(e for e in data["state"]["entries"] if e["id"] == eid)["place"] == ""
+    finally:
+        gm.post(f"/api/entries/{eid}/act", json={"act": "del"})

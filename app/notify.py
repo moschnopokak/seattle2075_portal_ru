@@ -94,7 +94,11 @@ def _send(chat_id, text, section=None):
         body = ex.read().decode(errors="replace")
         if kb and "BUTTON" in body.upper():
             # старый клиент или запрет кнопок Mini App: отправить с обычной ссылкой
-            payload["reply_markup"] = _keyboard()
+            fallback = _keyboard()
+            if fallback:
+                payload["reply_markup"] = fallback
+            else:
+                payload.pop("reply_markup", None)
             _call("sendMessage", payload)
         else:
             # тело ответа Telegram объясняет причину (например, «бот не может писать первым»): оно должно попасть в журнал
