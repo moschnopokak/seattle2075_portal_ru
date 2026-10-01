@@ -31,7 +31,10 @@ TG_WEBHOOK = os.getenv("TG_WEBHOOK", "0") == "1"
 # Пересказ «Что было раньше» через Claude API. Включается, только если задан ключ API (без него кнопки нет и ничего никуда не отправляется).
 # В Anthropic уходит только то, что видит сам игрок (его хроника, сведения, раздатки, его записи). Модель и «глубину размышления» можно сменить.
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
-RECAP_ENABLED = bool(ANTHROPIC_API_KEY) and os.getenv("RECAP", "1") != "0"
+# RECAP_MODE=gm: пересказ готовит сам мастер в своём чате с Claude. Портал собирает запрос, мастер копирует его туда и вставляет ответ обратно;
+# ключ API не нужен, и никуда ничего не отправляется. Если задан, ключ в этом режиме не используется.
+RECAP_MANUAL = os.getenv("RECAP", "1") != "0" and os.getenv("RECAP_MODE", "").strip().lower() == "gm"
+RECAP_ENABLED = bool(ANTHROPIC_API_KEY) and os.getenv("RECAP", "1") != "0" and not RECAP_MANUAL
 RECAP_MODEL = os.getenv("RECAP_MODEL", "claude-opus-5-5").strip() or "claude-opus-5-5"
 RECAP_EFFORT = os.getenv("RECAP_EFFORT", "low").strip().lower()
 if RECAP_EFFORT not in ("low", "medium", "high"):

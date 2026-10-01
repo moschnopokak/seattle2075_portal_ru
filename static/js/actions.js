@@ -20,6 +20,8 @@ document.addEventListener('click',async ev=>{
   if(a==='open-diary'){openDiary();return;}
   if(a==='open-recap'){openRecap();return;}
   if(a==='recap-copy'){copyRecap(b);return;}
+  if(a==='recap-show'){showRecapMine(id);return;}
+  if(a==='recap-copy-prompt'||a==='recap-send'||a==='recap-decline'){recapGmAct(a,b);return;}
   if(a==='open-prefs'){openPrefs();return;}
   if(a==='prefs-test'){prefsTest();return;}
   if(ENTRY_ACTS.includes(a)){

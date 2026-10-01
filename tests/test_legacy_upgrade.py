@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from app.db import LATEST
+
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
 META = json.loads((FIXTURES / "legacy_v1.json").read_text(encoding="utf-8"))
@@ -64,7 +66,7 @@ def test_rehearsal_passes_and_leaves_the_original_file_untouched(tmp_path):
     r = run_python(["-m", "app.preflight", "--db", str(data / "portal.db")], tmp_path / "unused")
     assert r.returncode == 0, r.stdout + r.stderr
     out = r.stdout
-    assert "Миграция прошла: схема 0 → 7" in out and "Все данные на месте" in out and "можно обновлять" in out
+    assert f"Миграция прошла: схема 0 → {LATEST}" in out and "Все данные на месте" in out and "можно обновлять" in out
     assert "Мастер и игроки (6)" in out and "Картинки и раздатки" in out
     assert sha(data / "portal.db") == before                                      # репетиция работала с копией
     assert sqlite3.connect(data / "portal.db").execute("PRAGMA user_version").fetchone()[0] == 0
@@ -81,7 +83,7 @@ def test_rehearsal_reports_the_counts(tmp_path):
 
 def test_schema_is_migrated_on_start(upgraded):
     report, data = upgraded
-    assert report["user_version"][0] == report["user_version"][1] == 7
+    assert report["user_version"][0] == report["user_version"][1] == LATEST
     assert sqlite3.connect(data / "portal.db").execute("PRAGMA integrity_check").fetchone()[0] == "ok"
 
 
@@ -92,7 +94,7 @@ def test_every_viewer_gets_exactly_the_same_data_as_before(upgraded):
         assert v["status"] == 200, who                                            # входные cookie старой версии принимаются: никто не разлогинен
         assert v["missing"] == [], (who, v)                                       # ни один раздел не пропал
         assert v["changed"] == [], (who, v)                                       # ни один элемент не изменился (версия данных растёт, это нормально)
-        assert set(v["extra"]) <= {"contacts", "factions", "money", "recap", "standing", "trash", "travel"}, (who, v["extra"])
+        assert set(v["extra"]) <= {"contacts", "factions", "money", "recap", "recap_mode", "recap_open", "recap_ready", "standing", "trash", "travel"}, (who, v["extra"])
 
 
 def test_anonymous_still_needs_login(upgraded):
@@ -158,7 +160,7 @@ def test_the_original_code_still_runs_on_the_migrated_database(tmp_path):
     data = make_data(work, "data")
     migrated = run_python(["-c", "from app import startup; startup.prepare_data()"], data)
     assert migrated.returncode == 0, migrated.stderr[-1500:]
-    assert sqlite3.connect(data / "portal.db").execute("PRAGMA user_version").fetchone()[0] == 7
+    assert sqlite3.connect(data / "portal.db").execute("PRAGMA user_version").fetchone()[0] == LATEST
     old_code = tmp_path / "old"
     old_code.mkdir()
     archive = subprocess.run(["git", "archive", "f9785e9"], cwd=ROOT, capture_output=True, check=True).stdout

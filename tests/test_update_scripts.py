@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from app.db import LATEST
+
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
 META = json.loads((FIXTURES / "legacy_v1.json").read_text(encoding="utf-8"))
@@ -159,7 +161,7 @@ def test_unknown_option_is_refused():
 def test_rehearse_only_changes_nothing_on_the_server(site):
     r = site.update("--rehearse-only")
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "Миграция прошла: схема 0 → 7" in r.stdout and "Все данные на месте" in r.stdout and "ничего не изменено" in r.stdout
+    assert f"Миграция прошла: схема 0 → {LATEST}" in r.stdout and "Все данные на месте" in r.stdout and "ничего не изменено" in r.stdout
     assert_everything_as_before(site)
     assert site.state() == ("running", "old")                                      # портал не останавливали
     assert not any(c.startswith("compose stop") or c.startswith("compose up") for c in site.calls())
@@ -210,7 +212,7 @@ def test_full_update_keeps_all_data_and_swaps_the_code(site):
     assert (srv / "data" / "secret.key").read_text() == META["secret_key"]
     assert (srv / "data" / "backups" / "portal-20750101.db").read_bytes() == "старая копия".encode()
     # база мигрировала и ничего не потеряла
-    assert db_version(srv / "data" / "portal.db") == 7
+    assert db_version(srv / "data" / "portal.db") == LATEST
     for table, n in META["counts"].items():
         assert count(srv / "data" / "portal.db", table) >= n, table
     assert site.state() == ("running", "new")
@@ -226,7 +228,7 @@ def test_full_update_leaves_a_complete_backup_outside_the_install_dir(site):
     assert hashlib.sha256((bk / "data" / "portal.db").read_bytes()).hexdigest() == site.original_db
     assert (bk / "data" / "secret.key").read_text() == META["secret_key"]
     assert (bk / "portal-live.db").is_file() and (bk / "portal-before.db").is_file() and (bk / "portal-after.db").is_file()
-    assert db_version(bk / "portal-before.db") == 0 and db_version(bk / "portal-after.db") == 7
+    assert db_version(bk / "portal-before.db") == 0 and db_version(bk / "portal-after.db") == LATEST
     assert (bk / "rollback.sh").read_bytes() == (ROOT / "deploy" / "rollback.sh").read_bytes()
     assert (bk / "install-dir").read_text().strip() == str(site.srv)
     names = subprocess.run(["tar", "-tzf", str(bk / "code-before.tgz")], capture_output=True, text=True, check=True).stdout
@@ -254,7 +256,7 @@ def test_asking_for_confirmation_and_declining_changes_nothing(site):
 
 def test_asking_for_confirmation_and_agreeing_updates(site):
     r = site.update(input="y\n")
-    assert r.returncode == 0 and db_version(site.srv / "data" / "portal.db") == 7
+    assert r.returncode == 0 and db_version(site.srv / "data" / "portal.db") == LATEST
 
 
 def test_update_reports_new_optional_settings(site):
@@ -293,7 +295,7 @@ def test_two_updates_in_a_row_make_two_backups_and_stay_healthy(site):
     time.sleep(1.1)                                                                 # метка копии берётся с точностью до секунды
     r = site.update("--yes")
     assert r.returncode == 0, r.stdout + r.stderr
-    assert len(site.backup_dirs()) == 2 and count(before, "entries") == count_before and db_version(before) == 7
+    assert len(site.backup_dirs()) == 2 and count(before, "entries") == count_before and db_version(before) == LATEST
     assert "Схема уже актуальна" in r.stdout
 
 
@@ -360,7 +362,7 @@ def test_a_dropped_ssh_connection_does_not_leave_the_portal_half_updated(site):
     out, _ = proc.communicate(timeout=300)
     assert proc.returncode == 0, out
     assert "Готово: портал обновлён" in out
-    assert db_version(site.srv / "data" / "portal.db") == 7 and site.state() == ("running", "new")
+    assert db_version(site.srv / "data" / "portal.db") == LATEST and site.state() == ("running", "new")
 
 
 # ---------------------------------------------------------------- ручные правки кода на сервере
@@ -530,7 +532,7 @@ def test_unhealthy_new_version_rolls_back_automatically(site):
     assert (srv / ".env").read_text(encoding="utf-8") == OLD_ENV
     assert site.state() == ("running", "old")
     kept = site.after_update_dirs()
-    assert len(kept) == 1 and db_version(kept[0] / "portal.db") == 7               # то, что успела сделать новая версия, не выбросили
+    assert len(kept) == 1 and db_version(kept[0] / "portal.db") == LATEST               # то, что успела сделать новая версия, не выбросили
 
 
 def test_failed_compose_up_rolls_back_automatically(site):
@@ -691,4 +693,4 @@ def test_update_works_again_after_a_rollback(site):
     time.sleep(1.1)
     r = site.update("--yes")
     assert r.returncode == 0, r.stdout + r.stderr
-    assert db_version(site.srv / "data" / "portal.db") == 7 and site.state() == ("running", "new")
+    assert db_version(site.srv / "data" / "portal.db") == LATEST and site.state() == ("running", "new")

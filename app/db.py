@@ -114,6 +114,15 @@ def _m7_recaps(c):
     c.execute("CREATE INDEX IF NOT EXISTS recaps_created ON recaps(created)")
 
 
+def _m8_recap_requests(c):
+    """Просьбы о пересказе, когда его готовит мастер: что собрал портал, чей запрос и что мастер ответил (open, done или declined)."""
+    c.execute("""CREATE TABLE IF NOT EXISTS recap_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, tg_id INTEGER NOT NULL, char TEXT NOT NULL, since TEXT NOT NULL, prompt TEXT NOT NULL,
+        hash TEXT NOT NULL, events INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'open', text TEXT NOT NULL DEFAULT '',
+        created REAL NOT NULL, answered REAL, seen INTEGER NOT NULL DEFAULT 0)""")
+    c.execute("CREATE INDEX IF NOT EXISTS recap_requests_who ON recap_requests(tg_id, char, status)")
+
+
 MIGRATIONS = [
     (2, "журнал изменений и корзина", _m2_audit_and_trash),
     (3, "очередь уведомлений и настройки пользователей", _m3_outbox_and_prefs),
@@ -121,6 +130,7 @@ MIGRATIONS = [
     (5, "тип файла раздатки (картинки, PDF, аудио)", _m5_handout_media),
     (6, "броски кубов в обсуждении", _m6_dice_rolls),
     (7, "пересказы «Что было раньше»", _m7_recaps),
+    (8, "просьбы о пересказе, который готовит мастер", _m8_recap_requests),
 ]
 LATEST = MIGRATIONS[-1][0]
 
@@ -171,6 +181,23 @@ def meta_set(key, value):
             "INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (key, None if value is None else str(value)),
         )
+
+
+def recap_open(tg_id=None) -> int:
+    """Сколько просьб о пересказе ждёт мастера (у этого человека, если назван, иначе у всех)."""
+    with lock:
+        if tg_id is None:
+            row = conn().execute("SELECT COUNT(*) AS n FROM recap_requests WHERE status='open'").fetchone()
+        else:
+            row = conn().execute("SELECT COUNT(*) AS n FROM recap_requests WHERE status='open' AND tg_id=?", (tg_id,)).fetchone()
+    return int(row["n"])
+
+
+def recap_ready(tg_id) -> int:
+    """Сколько ответов мастера на просьбы о пересказе этот человек ещё не открывал."""
+    with lock:
+        row = conn().execute("SELECT COUNT(*) AS n FROM recap_requests WHERE tg_id=? AND status IN ('done','declined') AND seen=0", (tg_id,)).fetchone()
+    return int(row["n"])
 
 
 def bump() -> int:

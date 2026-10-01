@@ -70,14 +70,18 @@ function patchExtras(){
   if(t)t.innerHTML=trashInner();
   if(h)h.innerHTML=historyInner();
 }
+const recapSig=q=>JSON.stringify((q||[]).map(i=>i.id));
 async function gmLoadExtras(force){
   if(V!=='gm'||UI.section!=='gm'||!S.me.gm)return;
   if(!force&&UI.extrasVer===S.version)return;
   UI.extrasVer=S.version;
-  const [t,h]=await Promise.all([getJson('/api/gm/trash'),getJson(histQuery())]);
+  const manual=S.recap_mode==='gm';
+  const [t,h,q]=await Promise.all([getJson('/api/gm/trash'),getJson(histQuery()),manual?getJson('/api/gm/recap'):null]);
   if(t){UI.trashList=t.items;UI.trashDays=t.days;}
   if(h){UI.hist=h.items;UI.histMore=h.items.length>=40;}
-  if(UI.section==='gm')patchExtras();
+  const changed=!!q&&recapSig(q.items)!==recapSig(UI.recapQueue);                      // очередь перерисовывается, только если в ней что-то изменилось: иначе сбился бы ввод ответа
+  if(q)UI.recapQueue=q.items;
+  if(UI.section==='gm'){patchExtras();if(changed||(q&&!document.querySelector('#recap-queue .recap-q')&&q.items.length))patchRecapQueue();}
 }
 async function histMore(){
   const last=(UI.hist||[]).slice(-1)[0];if(!last)return;

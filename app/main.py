@@ -312,12 +312,54 @@ def my_diary(request: Request, format: str = "md", parts: str = "", char: str = 
 
 @app.post("/api/me/recap")
 def my_recap(request: Request, data: dict = Body(...)):
-    """«Что было раньше»: пересказ хроники с даты по тому, что видит сам игрок. Пишет Claude, ключ только на сервере."""
+    """«Что было раньше»: пересказ хроники с даты по тому, что видит сам игрок. Его пишет Claude по ключу (ключ только на портале)
+    или, если включён режим «через мастера», мастер: тогда портал кладёт ему просьбу и отвечает «ждите»."""
     v = viewer(request)
     try:
+        if recap.mode() == "gm":
+            return recap.request(v, data.get("char"), data.get("since"))
         return recap.generate(v, data.get("char"), data.get("since"))
     except recap.RecapError as ex:
         raise HTTPException(ex.code, ex.message)
+
+
+@app.get("/api/me/recap/requests")
+def my_recap_requests(request: Request):
+    """Просьбы игрока о пересказе и ответы мастера (только его собственные)."""
+    v = viewer(request)
+    if recap.mode() != "gm":
+        return {"items": []}
+    try:
+        return {"items": recap.mine(v)}
+    except recap.RecapError as ex:
+        raise HTTPException(ex.code, ex.message)
+
+
+@app.get("/api/gm/recap")
+def gm_recap_queue(request: Request):
+    """Просьбы игроков о пересказе с готовым текстом для чата с Claude (только мастеру)."""
+    _gm_only(request)
+    return {"items": recap.queue() if recap.mode() == "gm" else []}
+
+
+def _gm_recap(request: Request, action):
+    v = _gm_only(request)
+    if recap.mode() != "gm":
+        raise HTTPException(404, "Пересказ через мастера не включён.")
+    try:
+        return _answer(v, action()["msg"])
+    except recap.RecapError as ex:
+        raise HTTPException(ex.code, ex.message)
+
+
+@app.post("/api/gm/recap/{req_id}/answer")
+def gm_recap_answer(req_id: int, request: Request, data: dict = Body(...)):
+    return _gm_recap(request, lambda: recap.answer(req_id, data.get("text")))
+
+
+@app.post("/api/gm/recap/{req_id}/decline")
+def gm_recap_decline(req_id: int, request: Request, data: dict = Body(...)):
+    return _gm_recap(request, lambda: recap.decline(req_id, data.get("note")))
 
 
 @app.post("/api/entries/{entry_id}/roll")

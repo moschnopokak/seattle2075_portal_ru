@@ -91,9 +91,15 @@ const SECTIONS=[
   {id:'dossier',name:'Досье'},{id:'handouts',name:'Раздатки'},{id:'sheet',name:'Лист',needChar:true},{id:'map',name:'Карта'},
   {id:'gm',name:'Панель мастера',gm:true}
 ];
+/* Метка с числом на вкладке: новые раздатки; у мастера просьбы о пересказе; у игрока готовые ответы на его просьбы. */
+function navBadge(id){
+  const manual=S.recap_mode==='gm';
+  const n=id==='handouts'?unseenHandouts():id==='gm'&&manual&&V==='gm'?S.recap_open:id==='chron'&&manual&&!S.me.gm?S.recap_ready:0;
+  return n>0?`<b class="nav-badge" aria-label="новых: ${n}">${n}</b>`:'';
+}
 function renderTop(){
   document.getElementById('nav').innerHTML=SECTIONS.filter(s=>(!s.gm||V==='gm')&&(!s.needChar||V==='gm'||(viewChars()||[]).length)).map(s=>
-    `<button type="button" data-nav="${s.id}" ${UI.section===s.id?'aria-current="page"':''}>${s.name}${s.id==='handouts'&&unseenHandouts()?`<b class="nav-badge" aria-label="новых: ${unseenHandouts()}">${unseenHandouts()}</b>`:''}</button>`).join('');
+    `<button type="button" data-nav="${s.id}" ${UI.section===s.id?'aria-current="page"':''}>${s.name}${navBadge(s.id)}</button>`).join('');
   let who='';
   if(S.me.gm){
     who=`<label class="viewas">Вид <select id="who-select" aria-label="Чьими глазами показать портал"><option value="gm" ${V==='gm'?'selected':''}>Мастер</option>${CHARS.map(c=>`<option value="${c.id}" ${V===c.id?'selected':''}>как видит ${esc(c.name)}</option>`).join('')}</select></label>`;
@@ -125,9 +131,11 @@ function render(keepScroll){
   renderTop();
   const f={now:rNow,cal:rCal,chron:rChron,gm:rGM,dossier:rDossier,handouts:rHandouts,sheet:rSheet}[UI.section];
   const dqEl=document.getElementById('dq'),dqFocus=!!dqEl&&document.activeElement===dqEl,dqPos=dqFocus?dqEl.selectionStart:0;
+  const rqf=recapFocus();
   const html=f(),sec=SECTIONS.find(x=>x.id===UI.section);
   document.getElementById('main').innerHTML=(html.includes('<h1')?'':`<h1 class="sr-only">${sec?sec.name:''}</h1>`)+html;
   if(dqFocus){const n=document.getElementById('dq');if(n){n.focus();try{n.setSelectionRange(dqPos,dqPos);}catch(e){}}}
+  recapRefocus(rqf);
   if(UI.section==='gm')gmLoadExtras();
   if(UI.section==='cal'&&UI.cal==='lanes'){fitLanes();if(keepScroll){const w=document.getElementById('lanes-wrap');if(w)w.scrollLeft=sl;}else scrollToNow();}
   if(keepScroll)window.scrollTo(0,sy);
@@ -338,7 +346,7 @@ function rChron(){
   const wins=S.windows.filter(w=>winVisible(w)&&w.from<=S.now.date);
   let h='<div class="chron">';
   if(V==='gm')h+='<div class="chron-top"><button type="button" class="btn" data-act="new-item" data-kind="past">Добавить событие в хронику</button><span class="muted small">Чтобы изменить или удалить событие, откройте его.</span></div>';
-  else if(S.recap&&!RO()&&(viewChars()||[]).length)h+='<div class="chron-top"><button type="button" class="btn" data-act="open-recap">Что было раньше</button><span class="muted small">Пересказ того, что вы пропустили, по вашей хронике.</span></div>';
+  else if(S.recap&&!RO()&&(viewChars()||[]).length)h+='<div class="chron-top"><button type="button" class="btn'+(S.recap_ready>0?' primary':'')+'" data-act="open-recap">'+recapButtonLabel(S)+'</button><span class="muted small">Пересказ того, что вы пропустили, по вашей хронике.</span></div>';
   if(!wins.length)h+='<p class="muted">Хроника начнётся с первого этапа кампании.</p>';
   for(const w of wins){
     const ev=S.past.filter(p=>p.from>=w.from&&p.from<=w.to);
@@ -383,6 +391,7 @@ function rGM(){
   <section>${secHead('Транспорт и скорости','travel','Добавить вид транспорта')}<p class="note">Нужен для линейки на карте: время в пути считается по этим скоростям (км/ч).</p>${(S.travel||[]).map(t=>`<button type="button" class="row" data-act="edit-item" data-kind="travel" data-id="${t.id}"><span class="rt">${esc(t.name)}${t.vis==='мастер'?'<span class="tag">скрыто от игроков</span>':''}</span><span class="rs">${t.kind==='straight'?'по прямой, '+t.off+' км/ч':'дороги '+t.motorway+'/'+t.trunk+'/'+t.primary+' км/ч, вне дорог '+t.off}</span></button>`).join('')||'<p class="muted">Видов транспорта нет.</p>'}</section>
   <section>${secHead('Этапы','windows','Добавить этап')}<p class="note">Арки и промежуточные арки. Игроки видят название этапа с его первого дня.</p>${S.windows.map(w=>`<div class="gm-item"><span class="wname">${esc(winName(w))}${w.gm&&w.gm!==w.name?`<span class="muted small" style="display:block">игроки видят: ${esc(w.name)}</span>`:''}</span><span class="muted small">${fRange(w.from,w.to)}</span><button type="button" class="btn" data-act="edit-item" data-kind="windows" data-id="${w.id}">Изменить</button></div>`).join('')}</section>
   <section>${secHead('Хроника','past','Добавить событие')}<p class="note">Сыгранные события. Чтобы изменить или удалить событие, откройте его в разделе «Хроника».</p></section>
+  ${recapGmHTML()}
   ${gmExtrasHTML()}
   <section><h2>Копия данных для Obsidian</h2><p class="note">Если вы ведёте заметки в программе Obsidian: нажмите кнопку, скопируйте получившийся текст и вставьте его в Obsidian как новую заметку. В нём весь календарь, места, досье и раздатки, в том числе то, что скрыто от игроков.</p><button type="button" class="btn" data-act="export">Собрать текст для копирования</button><textarea id="exp" readonly hidden aria-label="Текст выгрузки"></textarea></section>
   </div>`;

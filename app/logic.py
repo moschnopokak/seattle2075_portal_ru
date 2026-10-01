@@ -208,7 +208,10 @@ def state_for(v):
         "characters": p["characters"],
         "players": [{"name": pl["name"], "chars": pl["chars"]} for pl in p["players"]],
         "me": {"gm": v.gm, "name": v.name, "chars": v.chars},
-        "recap": bool(config.RECAP_ENABLED) and not v.gm,          # кнопка «Что было раньше» есть, только если задан ключ Claude API
+        "recap": bool(config.RECAP_ENABLED or config.RECAP_MANUAL) and not v.gm,          # кнопка «Что было раньше»: есть ключ Claude API или пересказ готовит мастер
+        "recap_mode": "gm" if config.RECAP_MANUAL and not config.RECAP_ENABLED else "api",
+        "recap_open": db.recap_open(None if v.gm else v.tg_id) if config.RECAP_MANUAL and not config.RECAP_ENABLED else 0,
+        "recap_ready": db.recap_ready(v.tg_id) if config.RECAP_MANUAL and not config.RECAP_ENABLED and not v.gm else 0,
     }
 
 

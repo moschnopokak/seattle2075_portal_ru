@@ -5,6 +5,10 @@
 личные записи в запрос не попадают, поэтому пересказать их модель не может. Материалы кампании передаются как данные, а не как
 инструкции. Включается только при заданном ANTHROPIC_API_KEY; готовые пересказы запоминаются (одинаковый запрос второй раз
 ничего не стоит), число новых пересказов в сутки ограничено.
+
+Второй режим (RECAP_MODE=gm), без ключа: портал собирает тот же запрос и кладёт его мастеру, мастер копирует его в свой чат с Claude
+и вставляет готовый ответ обратно. Игрок получает пересказ, когда мастер его вставил. Запрос и в этом режиме состоит только из того,
+что видит сам игрок, поэтому мастер, который его читает, не узнаёт ничего нового.
 """
 import hashlib
 import logging
@@ -193,13 +197,11 @@ def purge_old(days=90, now=None):
     now = time.time() if now is None else now
     with db.lock:
         db.conn().execute("DELETE FROM recaps WHERE created<?", (now - days * DAY,))
+        db.conn().execute("DELETE FROM recap_requests WHERE created<?", (now - days * DAY,))
 
 
-def generate(v, char, since, now=None):
-    """Пересказ для персонажа с даты since. {'text', 'cached', 'events', 'since'}. RecapError при любой помехе."""
-    if not enabled():
-        raise RecapError("Пересказ на этом портале не включён.", 404)
-    now = time.time() if now is None else now
+def _prepare(v, char, since):
+    """Общая проверка просьбы о пересказе и сборка запроса: (персонаж, запрос, число событий хроники). RecapError при любой помехе."""
     if v.gm:
         raise RecapError("Пересказ нужен игрокам: мастер знает, что было.", 403)
     try:
@@ -217,6 +219,15 @@ def generate(v, char, since, now=None):
     if since > today:
         raise RecapError("Эта дата ещё не наступила в игре.")
     prompt, events = build_prompt(state, char, since)
+    return char, prompt, events
+
+
+def generate(v, char, since, now=None):
+    """Пересказ для персонажа с даты since. {'text', 'cached', 'events', 'since'}. RecapError при любой помехе."""
+    if not enabled():
+        raise RecapError("Пересказ на этом портале не включён.", 404)
+    now = time.time() if now is None else now
+    char, prompt, events = _prepare(v, char, since)
     key = _key(prompt)
     text = _cached(key)
     if text is not None:
@@ -239,3 +250,139 @@ def generate(v, char, since, now=None):
                               (key, v.tg_id, char, text, now, config.RECAP_MODEL, tokens_in, tokens_out))
         log.info("Пересказ для %s с %s: %s событий, токенов %s → %s", char, since, events, tokens_in, tokens_out)
     return {"text": text, "cached": False, "events": events, "since": since}
+
+
+# ---------- пересказ через мастера (RECAP_MODE=gm) ----------
+
+OPEN_MAX = 30               # сколько нерассмотренных просьб может лежать у мастера на всём портале
+ANSWER_MAX = 6000
+NOTE_MAX = 300
+
+
+def mode():
+    """«api»: пишет Claude по ключу; «gm»: готовит мастер в своём чате; None: пересказа нет."""
+    if config.RECAP_ENABLED:
+        return "api"
+    return "gm" if config.RECAP_MANUAL else None
+
+
+def for_claude(prompt):
+    """Всё, что мастер копирует в чат с Claude: правила пересказа и материалы одним текстом."""
+    return SYSTEM + "\n\n" + prompt
+
+
+def _gm_key(prompt):
+    return hashlib.sha256("\x00".join(("gm", SYSTEM, prompt)).encode("utf-8")).hexdigest()
+
+
+def _char_name(char):
+    return logic.char_map().get(char, {}).get("name", char)
+
+
+def request(v, char, since, now=None):
+    """Просьба о пересказе: игрок просит, портал собирает запрос и кладёт его мастеру.
+    Если мастер уже отвечал на тот же запрос, готовый текст отдаётся сразу: {'text', 'cached', 'events', 'since'}.
+    Иначе {'pending': True, 'id', 'events', 'since'}. У одного персонажа одна открытая просьба: новая заменяет прежнюю."""
+    if mode() != "gm":
+        raise RecapError("Пересказ на этом портале не включён.", 404)
+    now = time.time() if now is None else now
+    char, prompt, events = _prepare(v, char, since)
+    key = _gm_key(prompt)
+    with _lock:
+        with db.lock:
+            c = db.conn()
+            done = c.execute("SELECT text FROM recap_requests WHERE tg_id=? AND char=? AND hash=? AND status='done' ORDER BY id DESC LIMIT 1",
+                             (v.tg_id, char, key)).fetchone()
+            if done:
+                return {"text": done["text"], "cached": True, "events": events, "since": since}
+            open_row = c.execute("SELECT id, hash FROM recap_requests WHERE tg_id=? AND char=? AND status='open'", (v.tg_id, char)).fetchone()
+            if open_row and open_row["hash"] == key:
+                return {"pending": True, "id": open_row["id"], "events": events, "since": since}
+            today = c.execute("SELECT COUNT(*) AS n FROM recap_requests WHERE tg_id=? AND created>?", (v.tg_id, now - DAY)).fetchone()["n"]
+            total = c.execute("SELECT COUNT(*) AS n FROM recap_requests WHERE status='open'").fetchone()["n"]
+        recent = [t for t in _recent.get(v.tg_id, []) if now - t < 60]
+        if len(recent) >= BURST:
+            raise RecapError("Слишком часто. Подождите минуту.", 429)
+        _recent[v.tg_id] = recent + [now]
+        if today >= config.RECAP_PER_DAY:
+            raise RecapError(f"На сегодня хватит: не больше {config.RECAP_PER_DAY} просьб о пересказе в сутки. Уже готовые открываются снова без ограничений.", 429)
+        if not open_row and total >= OPEN_MAX:
+            raise RecapError("У мастера сейчас слишком много просьб о пересказе. Попробуйте позже.", 429)
+        with db.tx() as c:
+            if open_row:
+                c.execute("UPDATE recap_requests SET status='replaced' WHERE id=?", (open_row["id"],))
+            cur = c.execute("INSERT INTO recap_requests(tg_id,char,since,prompt,hash,events,created) VALUES(?,?,?,?,?,?,?)",
+                            (v.tg_id, char, since, prompt, key, events, now))
+            req_id = cur.lastrowid
+    db.bump()
+    notify.to_gm(f"{_char_name(char)} просит пересказ «Что было раньше» (с {logic.ffull(since)}). Запрос для Claude ждёт в панели мастера.",
+                 "gm", kind="recap")
+    log.info("Просьба о пересказе от %s с %s: %s событий", char, since, events)
+    return {"pending": True, "id": req_id, "events": events, "since": since}
+
+
+def mine(v):
+    """Просьбы самого игрока, свежие первыми (для окна «Что было раньше»). Заменённые не показываются; открыв список, игрок видит все ответы."""
+    if v.gm:
+        raise RecapError("Пересказ нужен игрокам: мастер знает, что было.", 403)
+    with db.lock:
+        rows = db.conn().execute("SELECT id,char,since,status,text,events,created,answered FROM recap_requests "
+                                 "WHERE tg_id=? AND status!='replaced' ORDER BY id DESC LIMIT 10", (v.tg_id,)).fetchall()
+        db.conn().execute("UPDATE recap_requests SET seen=1 WHERE tg_id=? AND status IN ('done','declined') AND seen=0", (v.tg_id,))
+    return [dict(r) for r in rows]
+
+
+def queue():
+    """Открытые просьбы для мастера, старые первыми. В каждой готовый текст для чата с Claude."""
+    with db.lock:
+        rows = db.conn().execute("SELECT id,char,since,events,created,prompt FROM recap_requests WHERE status='open' ORDER BY id").fetchall()
+    return [{"id": r["id"], "char": r["char"], "name": _char_name(r["char"]), "since": r["since"], "events": r["events"],
+             "created": r["created"], "prompt": for_claude(r["prompt"])} for r in rows]
+
+
+def _open_request(req_id):
+    with db.lock:
+        row = db.conn().execute("SELECT * FROM recap_requests WHERE id=?", (req_id,)).fetchone()
+    if not row:
+        raise RecapError("Такой просьбы нет.", 404)
+    if row["status"] == "replaced":
+        raise RecapError("Игрок уже поменял просьбу. Обновите список и возьмите новый запрос.", 409)
+    if row["status"] != "open":
+        raise RecapError("На эту просьбу уже ответили.", 409)
+    return row
+
+
+def _close(req_id, status, text, now):
+    with db.lock:
+        cur = db.conn().execute("UPDATE recap_requests SET status=?, text=?, answered=? WHERE id=? AND status='open'", (status, text, now, req_id))
+    if cur.rowcount != 1:
+        raise RecapError("На эту просьбу уже ответили.", 409)
+    db.bump()
+
+
+def answer(req_id, text, now=None):
+    """Мастер вставил ответ Claude: он сохраняется и уходит игроку."""
+    now = time.time() if now is None else now
+    if not isinstance(text, str):
+        raise RecapError("Вставьте пересказ.")
+    text = CTRL.sub("", text).replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not text:
+        raise RecapError("Вставьте пересказ, который написал Claude.")
+    if len(text) > ANSWER_MAX:
+        raise RecapError(f"Пересказ длиннее {ANSWER_MAX} знаков. Сократите его или попросите Claude писать короче.")
+    row = _open_request(req_id)
+    _close(req_id, "done", text, now)
+    notify.to_user(row["tg_id"], "Мастер подготовил пересказ «Что было раньше». Он ждёт вас на портале, в разделе «Хроника».", "chron", kind="recap")
+    return {"msg": f"Пересказ отправлен: {_char_name(row['char'])}"}
+
+
+def decline(req_id, note, now=None):
+    """Мастер отказал: игрок увидит причину, если она есть."""
+    now = time.time() if now is None else now
+    note = CTRL.sub("", note).strip() if isinstance(note, str) else ""
+    if len(note) > NOTE_MAX:
+        raise RecapError(f"Пояснение длиннее {NOTE_MAX} знаков.")
+    row = _open_request(req_id)
+    _close(req_id, "declined", note, now)
+    notify.to_user(row["tg_id"], "Мастер пока не может подготовить пересказ." + (f" {note}" if note else ""), "chron", kind="recap")
+    return {"msg": f"Просьба отклонена: {_char_name(row['char'])}"}

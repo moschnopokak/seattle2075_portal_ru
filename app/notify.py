@@ -159,6 +159,13 @@ def to_characters(char_ids, text, section=None, kind="event", buttons=None, key=
         outbox.enqueue(uid, kind, text, section, buttons, key, meta, now=now)
 
 
+def to_user(tg_id, text, section=None, kind="event"):
+    """Написать одному человеку по его Telegram ID (с учётом тихих часов и сводки)."""
+    if not _enabled():
+        return
+    outbox.enqueue(tg_id, kind, text, section)
+
+
 # ---------- кнопки-ответы под сообщением ----------
 # callback_data: «e:<действие>:<номер записи>[:<персонаж>]», у Telegram предел 64 байта. Разбор и выполнение: telegram_bot.py
 

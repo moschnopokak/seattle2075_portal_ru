@@ -41,3 +41,26 @@ test("дата не позже сегодняшней", () => {
 test("напоминание об отправке в Anthropic есть", () => {
   assert.match(recap.RECAP_NOTE, /Anthropic/);
 });
+
+test("в режиме «через мастера» заметка говорит, что пересказ готовит мастер и что он видит то же, что игрок", () => {
+  assert.match(recap.RECAP_NOTE_GM, /готовит мастер/);
+  assert.match(recap.RECAP_NOTE_GM, /видит ровно то, что видите вы/);
+  assert.doesNotMatch(recap.RECAP_NOTE_GM, /Anthropic/);                          // ничего никуда не отправляется
+});
+
+test("строка о просьбе: ждёт, готов, отказ с причиной и без", () => {
+  const fmt = (d) => `«${d}»`;
+  assert.deepEqual(recap.recapRequestLine({ status: "open", since: "2075-07-20" }, fmt), { tone: "wait", text: "ждёт мастера, с «2075-07-20»" });
+  assert.deepEqual(recap.recapRequestLine({ status: "done", since: "2075-07-20", text: "Длинный текст" }, fmt), { tone: "ok", text: "пересказ готов, с «2075-07-20»" });
+  assert.deepEqual(recap.recapRequestLine({ status: "declined", since: "2075-07-20", text: "Расскажу на игре" }, fmt), { tone: "no", text: "мастер пока не может, с «2075-07-20»: Расскажу на игре" });
+  assert.equal(recap.recapRequestLine({ status: "declined", since: "2075-07-20", text: "" }, fmt).text, "мастер пока не может, с «2075-07-20»");
+  assert.equal(recap.recapRequestLine({ status: "open", since: "2075-07-20" }).text, "ждёт мастера, с 2075-07-20");
+});
+
+test("подпись кнопки: ответ готов важнее ожидания, вне режима «через мастера» подписи не меняются", () => {
+  assert.equal(recap.recapButtonLabel({ recap_mode: "gm", recap_ready: 1, recap_open: 1 }), "Что было раньше (ответ готов)");
+  assert.equal(recap.recapButtonLabel({ recap_mode: "gm", recap_ready: 0, recap_open: 2 }), "Что было раньше (ждёт мастера)");
+  assert.equal(recap.recapButtonLabel({ recap_mode: "gm", recap_ready: 0, recap_open: 0 }), "Что было раньше");
+  assert.equal(recap.recapButtonLabel({ recap_mode: "api", recap_ready: 3, recap_open: 3 }), "Что было раньше");
+  assert.equal(recap.recapButtonLabel(undefined), "Что было раньше");
+});
