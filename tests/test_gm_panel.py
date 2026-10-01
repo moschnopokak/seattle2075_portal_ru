@@ -93,3 +93,30 @@ def test_dossier_editing_keeps_image_and_fact_ids(gm):
         assert [f["id"] for f in again["facts"]] == [f["id"] for f in card["facts"]]
     finally:
         gm.post("/api/gm/items/dossier", json=dict(card))
+
+
+def test_time_change_is_all_or_nothing(gm):
+    before = gm.get("/api/state").json()
+    d0, tod0 = before["now"]["date"], before["now"]["tod"]
+    try:
+        # неверное время суток не должно оставить новую дату
+        r = gm.post("/api/gm/time", json={"date": "2075-10-10", "tod": "полдень"})
+        assert r.status_code == 400
+        r = gm.post("/api/gm/time", json={"date": "2075-10-10", "tod": ["вечер"]})
+        assert r.status_code == 400
+        after = gm.get("/api/state").json()
+        assert after["now"] == {"date": d0, "tod": tod0} and after["version"] == before["version"]
+    finally:
+        gm.post("/api/gm/time", json={"date": d0, "tod": tod0})
+
+
+def test_deleting_place_clears_references(gm):
+    data = ok(gm.post("/api/gm/items/places", json={"name": "Временное", "x": 1000, "y": 1000, "type": "other"}))
+    pid = next(p["id"] for p in data["state"]["places"] if p["name"] == "Временное")
+    ok(gm.post("/api/gm/items/handouts", json={"title": "Раздатка с местом", "date": "2075-08-01", "vis": "мастер", "place": pid}))
+    state = ok(gm.post(f"/api/gm/items/places/{pid}/delete"))["state"]
+    h = next(h for h in state["handouts"] if h["title"] == "Раздатка с местом")
+    assert not h.get("place")
+    # раздатку теперь можно править: «место не найдено» больше не мешает
+    ok(gm.post("/api/gm/items/handouts", json={"id": h["id"], "title": "Раздатка с местом", "date": "2075-08-01", "vis": "мастер", "place": ""}))
+    gm.post(f"/api/gm/items/handouts/{h['id']}/delete")
