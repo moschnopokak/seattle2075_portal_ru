@@ -132,7 +132,7 @@ function openPlace(id,keep){
   if(V==='gm')acts=`<button type="button" class="btn" data-act="edit-item" data-kind="places" data-id="${p.id}">Изменить</button><button type="button" class="btn" data-act="map-move" data-id="${p.id}">Переместить</button>`+acts+`<button type="button" class="btn plain" data-act="del-item" data-kind="places" data-id="${p.id}">Удалить</button>`;
   showPanel(`<p class="kind"><span class="pl-dot pl-${p.type}"></span>${PLACE_TYPES[p.type]||'Место'}${V==='gm'?`<span class="tag">${PVIS[p.vis]||''}</span>`:''}</p><h2>${esc(p.name)}</h2>
   <dl><dt>Район</dt><dd>${DNAMES[d]||'—'}</dd><dt>Квадрат</dt><dd>${square(p.x,p.y)}</dd>${V==='gm'&&p.vis==='знают'?`<dt>Знают</dt><dd>${esc(joinNames((p.known||[]).map(c=>CN[c]||c)))}</dd>`:''}</dl>
-  ${p.note?`<p class="prose">${esc(p.note)}</p>`:''}${V==='gm'&&p.gm_note?`<h3>Заметка мастера</h3><p class="prose" style="margin-top:0">${esc(p.gm_note)}</p>`:''}
+  ${p.note?`<p class="prose">${rich(p.note)}</p>`:''}${V==='gm'&&p.gm_note?`<h3>Заметка мастера</h3><p class="prose" style="margin-top:0">${rich(p.gm_note)}</p>`:''}
   ${(()=>{const seen=dossierVisible().filter(c=>c.last_place===p.id);return seen.length?`<h3>Видели здесь</h3>`+seen.map(c=>`<button type="button" class="row" data-open="n:${c.id}"><span class="rt">${esc(c.name)}</span><span class="rs">${c.last_date?fDate(c.last_date):''}</span></button>`).join(''):'';})()}
   <h3>Записи календаря</h3>${es.length?es.map(e=>entryRow(e,fFull(e.from))).join(''):'<p class="muted" style="margin:0">Записей с этим местом пока нет.</p>'}
   <div class="acts">${acts}</div>`,keep);
@@ -141,8 +141,8 @@ function openDistrict(slug,keep){
   curKey='d:'+slug;
   const dn=(S.dnotes||[]).find(d=>d.id===slug)||{};
   const pl=placesVisible().filter(p=>districtAt(p.x,p.y)===slug).sort((a,b)=>a.name.localeCompare(b.name,'ru'));
-  showPanel(`<p class="kind">Район</p><h2>${DNAMES[slug]}</h2>${dn.text?`<p class="prose" style="margin-top:0">${esc(dn.text)}</p>`:'<p class="muted">Описания пока нет.</p>'}
-  ${V==='gm'&&dn.gm_text?`<h3>Заметка мастера</h3><p class="prose" style="margin-top:0">${esc(dn.gm_text)}</p>`:''}
+  showPanel(`<p class="kind">Район</p><h2>${DNAMES[slug]}</h2>${dn.text?`<p class="prose" style="margin-top:0">${rich(dn.text)}</p>`:'<p class="muted">Описания пока нет.</p>'}
+  ${V==='gm'&&dn.gm_text?`<h3>Заметка мастера</h3><p class="prose" style="margin-top:0">${rich(dn.gm_text)}</p>`:''}
   <h3>Места</h3>${pl.length?pl.map(p=>`<button type="button" class="row" data-act="open-place" data-id="${p.id}"><span class="pl-dot pl-${p.type}"></span><span class="rt">${esc(p.name)}</span><span class="rs">${PLACE_TYPES[p.type]||''}</span></button>`).join(''):'<p class="muted" style="margin:0">Отмеченных мест нет.</p>'}
   ${V==='gm'?`<div class="acts"><button type="button" class="btn" data-act="edit-district" data-id="${slug}">Изменить описание</button></div>`:''}`,keep);
 }

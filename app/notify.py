@@ -4,6 +4,7 @@
 """
 import json
 import logging
+import re
 import secrets
 import threading
 import urllib.error
@@ -13,6 +14,14 @@ from . import db, outbox
 from .config import BOT_TOKEN, NOTIFY_DM, SITE_URL, TG_CHAT_ID, TG_WEBHOOK, people
 
 log = logging.getLogger("portal.notify")
+LINK_RE = re.compile(r"\[\[([^\[\]\n|]{1,60})(?:\|([^\[\]\n]{1,60}))?\]\]")      # [[Имя]] и [[Имя|подпись]], как в static/js/links.js
+
+
+def strip_links(text):
+    """В сообщении бота ссылки на карточки досье становятся просто именем."""
+    return LINK_RE.sub(lambda m: (m.group(2) or "").strip() or m.group(1).strip(), text)
+
+
 _pin_lock = threading.Lock()
 
 
@@ -212,6 +221,7 @@ def chat_message(entry, author_label, text, author_tg_id, to_gm_too=True):
     chars = set(entry.get("who", [])) | {entry.get("author")}
     chars.discard("gm")
     ids = _recipients(chars, gm=to_gm_too) - {author_tg_id}
+    text = strip_links(text)
     preview = text if len(text) <= 140 else text[:140] + "…"
     meta = {"title": entry.get("title", ""), "last": f"{author_label}: {preview}", "entry": entry.get("id")}
     for uid in sorted(ids):

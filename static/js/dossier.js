@@ -58,18 +58,19 @@ function openDossier(id,keep){
   const c=dossierVisible().find(x=>x.id===id);if(!c){closePanel();return;}
   curKey='n:'+id;
   const gm=V==='gm',pl=c.last_place?placeById(c.last_place):null,met=(c.met||[]).map(x=>CN[x]||x),facts=c.facts||[];
-  const fh=facts.map(f=>`<li class="fact ${gm&&f.vis==='мастер'?'fact-hidden':''}"><div class="ft">${esc(f.text)}</div>
+  const fh=facts.map(f=>`<li class="fact ${gm&&f.vis==='мастер'?'fact-hidden':''}"><div class="ft">${rich(f.text)}</div>
     <div class="fm">${f.date?esc(fFull(f.date)):''}${gm?`${f.date?' · ':''}${f.vis==='знают'?'только: '+esc(factWho(f)):({'стол':'видят все, кто видит карточку','мастер':'скрыто от игроков'}[f.vis])}`:''}</div>
     ${gm&&f.truth?`<div class="ftruth"><b>На самом деле:</b> ${esc(f.truth)}</div>`:''}
     ${gm?`<div class="acts mini-acts"><button type="button" class="btn small" data-act="fact-vis" data-card="${c.id}" data-id="${esc(f.id)}">${f.vis==='мастер'?'Открыть игрокам':'Скрыть'}</button><button type="button" class="btn small" data-act="fact-edit" data-card="${c.id}" data-id="${esc(f.id)}">Изменить</button><button type="button" class="btn small plain" data-act="fact-del" data-card="${c.id}" data-id="${esc(f.id)}">Удалить</button></div>`:''}</li>`).join('');
-  const seen=(c.last_date||pl||c.last_note)?`<dt>${dSeenLbl(c)}</dt><dd>${[c.last_date?esc(fFull(c.last_date)):'',pl?`${esc(pl.name)} <button type="button" class="btn plain mini" data-act="show-place" data-id="${pl.id}">на карте</button>`:'',c.last_note?esc(c.last_note):''].filter(Boolean).join(', ')}</dd>`:'';
+  const seen=(c.last_date||pl||c.last_note)?`<dt>${dSeenLbl(c)}</dt><dd>${[c.last_date?esc(fFull(c.last_date)):'',pl?`${esc(pl.name)} <button type="button" class="btn plain mini" data-act="show-place" data-id="${pl.id}">на карте</button>`:'',c.last_note?rich(c.last_note):''].filter(Boolean).join(', ')}</dd>`:'';
   showPanel(`<div class="dp">${portraitBlock(c)}<div class="dp-txt"><p class="kind">${DTYPE[c.type]||''}<span class="dc-st" style="--sc:${STANCE_CLR[c.stance]||'var(--muted)'};color:var(--sc)">${STANCE[c.stance]||''}</span>${gm?`<span class="tag">${DVIS[c.vis]||''}</span>`:''}</p>
-  <h2>${esc(c.name)}${c.alias?` <i class="muted">${dAlias(c)}</i>`:''}</h2>${c.role?`<p class="prose" style="margin-top:0">${esc(c.role)}</p>`:''}</div></div>
+  <h2>${esc(c.name)}${c.alias?` <i class="muted">${dAlias(c)}</i>`:''}</h2>${c.role?`<p class="prose" style="margin-top:0">${rich(c.role)}</p>`:''}</div></div>
   ${gm?`<div class="acts pimg-acts"><button type="button" class="btn small" data-act="portrait-pick" data-id="${c.id}">${c.img?'Заменить картинку':'Добавить картинку'}</button>${c.img?`<button type="button" class="btn small plain" data-act="portrait-del" data-id="${c.id}">Убрать картинку</button>`:''}</div>`:''}
   <dl class="dd">${c.org?`<dt>Организация</dt><dd>${esc(c.org)}</dd>`:''}${met.length?`<dt>${dMetLbl(c)}</dt><dd>${esc(joinNames(met))}</dd>`:''}${gm&&c.vis==='знают'?`<dt>Карточка открыта</dt><dd>${esc(joinNames((c.known||[]).map(x=>CN[x]||x)))}</dd>`:''}${seen}</dl>
   <h3>Что известно</h3>${facts.length?`<ul class="facts">${fh}</ul>`:'<p class="muted" style="margin:0">Пока ничего конкретного.</p>'}
+  ${mentionsHTML(c)}
   ${gm?`<div class="acts" style="margin-top:12px"><button type="button" class="btn" data-act="fact-add" data-card="${c.id}">Добавить сведение</button></div>
-  ${c.gm_note?`<h3>Заметка мастера</h3><p class="prose" style="margin-top:0;white-space:pre-wrap">${esc(c.gm_note)}</p>`:''}
+  ${c.gm_note?`<h3>Заметка мастера</h3><p class="prose" style="margin-top:0;white-space:pre-wrap">${rich(c.gm_note)}</p>`:''}
   <div class="acts"><button type="button" class="btn primary" data-act="dcard-vis" data-id="${c.id}">${c.vis==='стол'?'Скрыть от игроков':'Открыть всем игрокам'}</button><button type="button" class="btn" data-act="edit-item" data-kind="dossier" data-id="${c.id}">Изменить карточку</button><button type="button" class="btn plain" data-act="item-history" data-kind="dossier" data-id="${c.id}">История</button><button type="button" class="btn plain" data-act="del-item" data-kind="dossier" data-id="${c.id}">Удалить</button></div>`:''}`,keep);
 }
 function openFactForm(cardId,factId){
@@ -78,7 +79,7 @@ function openFactForm(cardId,factId){
   const vis=it?it.vis:(c.vis==='мастер'?'мастер':'стол');
   curKey=null;
   showPanel(`<p class="kind">${esc(c.name)}</p><h2>${it?'Изменить сведение':'Новое сведение'}</h2><form id="fact-form" data-card="${c.id}" data-fact="${it?esc(it.id):''}" novalidate>
-  <label class="field">Что известно<textarea name="text" rows="4" maxlength="1500">${esc(it&&it.text)}</textarea></label>
+  <label class="field">Что известно<textarea name="text" rows="4" maxlength="1500">${esc(it&&it.text)}</textarea><span class="sub">Сослаться на другую карточку можно так: [[Имя]].</span></label>
   <label class="field">Когда стало известно<select name="date">${dateOpts(it?it.date:S.now.date,'не указано')}</select></label>
   <fieldset class="vis"><legend>Кто видит</legend>${Object.entries(FVIS).map(([k,t])=>`<label><input type="radio" name="fvis" value="${k}" ${vis===k?'checked':''}> ${t}</label>`).join('')}</fieldset>
   <fieldset class="who" id="fknown-box" ${vis==='знают'?'':'hidden'}><legend>Кто из персонажей знает</legend><span class="sub muted small" style="flex-basis:100%">Сведение видит только тот, кому открыта и карточка, и само сведение.</span>${CHARS.map(x=>`<label><input type="checkbox" name="fknown" value="${x.id}" ${it&&(it.known||[]).includes(x.id)?'checked':''}> ${esc(x.name)}</label>`).join('')}</fieldset>
