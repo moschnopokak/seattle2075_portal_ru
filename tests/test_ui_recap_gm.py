@@ -113,6 +113,7 @@ def test_player_reads_the_answer_as_plain_text(browser, live_url, on, rig, gm):
     ok(gm.post(f"/api/gm/recap/{req['id']}/answer", json={"text": f"Вы пропустили налёт.\n{EVIL}"}))
     ctx, page, problems = make_page(browser, live_url, PLAYER_TG, "chron")
     try:
+        ctx.grant_permissions(["clipboard-read", "clipboard-write"])                     # без разрешения браузер не даёт писать в буфер (на GitHub так и есть)
         assert page.inner_text('[data-act="open-recap"]') == "Что было раньше (ответ готов)"
         assert "primary" in page.get_attribute('[data-act="open-recap"]', "class")
         page.click('[data-act="open-recap"]')
@@ -127,6 +128,7 @@ def test_player_reads_the_answer_as_plain_text(browser, live_url, on, rig, gm):
         assert "готовит мастер" in page.inner_text("#panel")
         page.click('#panel [data-act="recap-copy"]')
         page.wait_for_selector("#toast >> text=Пересказ скопирован", timeout=5000)
+        assert page.evaluate("()=>navigator.clipboard.readText()") == f"Вы пропустили налёт.\n{EVIL}"
     finally:
         ctx.close()
     assert not problems
