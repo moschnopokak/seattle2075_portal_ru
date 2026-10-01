@@ -30,42 +30,42 @@ def _data_check_string(fields: dict) -> str:
 def check_widget(data: dict) -> dict:
     """Данные от Telegram Login Widget: https://core.telegram.org/widgets/login#checking-authorization"""
     if not BOT_TOKEN:
-        raise AuthError("На сервере не задан BOT_TOKEN.")
+        raise AuthError("Вход через Telegram на этом портале не настроен. Сообщите мастеру.")
     received = str(data.get("hash", ""))
     fields = {k: str(v) for k, v in data.items() if k != "hash" and v is not None}
     secret = hashlib.sha256(BOT_TOKEN.encode()).digest()
     calc = hmac.new(secret, _data_check_string(fields).encode(), hashlib.sha256).hexdigest()
     if not received or not hmac.compare_digest(calc.encode(), received.encode()):
-        raise AuthError("Подпись Telegram не сошлась.")
+        raise AuthError("Не удалось проверить вход через Telegram. Попробуйте ещё раз.")
     if not _fresh(fields):
         raise AuthError("Данные входа устарели, войдите ещё раз.")
     try:
         tg_id = int(fields["id"])
     except (KeyError, ValueError):
-        raise AuthError("В данных входа нет Telegram ID.")
+        raise AuthError("Telegram не передал ваш номер. Попробуйте войти ещё раз.")
     return {"id": tg_id, "username": fields.get("username", ""), "first_name": fields.get("first_name", "")}
 
 
 def check_webapp(init_data: str) -> dict:
     """initData из Telegram Mini App: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app"""
     if not BOT_TOKEN:
-        raise AuthError("На сервере не задан BOT_TOKEN.")
+        raise AuthError("Вход через Telegram на этом портале не настроен. Сообщите мастеру.")
     try:
         fields = dict(parse_qsl(init_data or "", keep_blank_values=True, strict_parsing=True))
     except ValueError:
-        raise AuthError("Повреждённые данные Mini App.")
+        raise AuthError("Telegram передал неполные данные. Откройте портал заново.")
     received = fields.pop("hash", "")
     secret = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
     calc = hmac.new(secret, _data_check_string(fields).encode(), hashlib.sha256).hexdigest()
     if not received or not hmac.compare_digest(calc.encode(), received.encode()):
-        raise AuthError("Подпись Telegram не сошлась.")
+        raise AuthError("Не удалось проверить вход через Telegram. Попробуйте ещё раз.")
     if not _fresh(fields):
-        raise AuthError("Данные входа устарели, откройте приложение заново.")
+        raise AuthError("Данные входа устарели, откройте портал заново.")
     try:
         user = json.loads(fields["user"])
         tg_id = int(user["id"])
     except (KeyError, ValueError, TypeError):
-        raise AuthError("В данных Mini App нет пользователя.")
+        raise AuthError("Telegram не передал ваш аккаунт. Откройте портал заново.")
     return {"id": tg_id, "username": user.get("username", ""), "first_name": user.get("first_name", "")}
 
 

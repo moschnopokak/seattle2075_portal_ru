@@ -319,9 +319,9 @@ def test_garbage_bodies(rig, story, fake):
 # ---------------------------------------------------------------- сбои Anthropic
 
 @pytest.mark.parametrize("error,status,words", [
-    (api_error(anthropic.AuthenticationError, 401), 502, "Ключ"),
-    (api_error(anthropic.PermissionDeniedError, 403), 502, "Ключ"),
-    (api_error(anthropic.NotFoundError, 404), 502, "Модель"),
+    (api_error(anthropic.AuthenticationError, 401), 502, "недоступен"),
+    (api_error(anthropic.PermissionDeniedError, 403), 502, "недоступен"),
+    (api_error(anthropic.NotFoundError, 404), 502, "недоступен"),
     (api_error(anthropic.RateLimitError, 429), 503, "перегружен"),
     (api_error(anthropic.InternalServerError, 500), 502, "не ответил"),
     (api_error(anthropic.BadRequestError, 400), 502, "не ответил"),
@@ -339,7 +339,7 @@ def test_anthropic_failures_become_clear_messages_without_internals(rig, story, 
 def test_a_refusal_is_reported_not_shown_as_a_recap(rig, story, fake):
     fake.stop, fake.reply = "refusal", "частичный текст"
     r = post(rig, since=story["since"], char="rig")
-    assert r.status_code == 422 and "отказалась" in r.json()["detail"] and "частичный" not in r.text
+    assert r.status_code == 422 and "Не получилось пересказать" in r.json()["detail"] and "частичный" not in r.text
     assert db.conn().execute("SELECT COUNT(*) FROM recaps").fetchone()[0] == 0
 
 

@@ -76,7 +76,7 @@ def test_history_shows_changes_and_reverts(gm_page, gm):
         check_clean(page)
         first.locator('[data-act="hist-revert"]').click()
         page.wait_for_function("id=>(S.clocks.find(c=>c.id===id)||{}).note==='было'", arg=cid, timeout=10000)
-        page.wait_for_function("()=>document.querySelector('#hist-list .hist-row').textContent.includes('откатил(а)')", timeout=10000)
+        page.wait_for_function("()=>document.querySelector('#hist-list .hist-row').textContent.includes('вернул(а) прежнее')", timeout=10000)
         check_clean(page)
     finally:
         gm.post(f"/api/gm/items/clocks/{cid}/delete")

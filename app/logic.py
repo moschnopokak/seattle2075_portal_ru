@@ -233,7 +233,7 @@ def _faction_known_to(f, char):
 
 
 def sheet_for(v):
-    """Лист персонажа. Игрок видит только свои проводки, контакты и репутацию, и только у фракций, о которых его персонаж знает.
+    """Лист персонажа. Игрок видит только свои записи о деньгах, контакты и репутацию, и только у фракций, о которых его персонаж знает.
     Заметки мастера и чужие данные не уходят."""
     names = ("money", "factions", "standing", "contacts")
     if v.gm:
@@ -628,12 +628,12 @@ def entry_action(v, entry_id, b):
             note = ("chars", [e["author"]], f"Ответ на приглашение в «{e['title']}»: {names.get(char, char)}, {label}.")
         elif act == "join":
             if v.gm or not e.get("open") or involves(e, char) or not is_active(e, today):
-                bad("Напроситься в эту запись нельзя.")
+                bad("Попроситься в эту запись нельзя.")
             e["who"].append(char)
             e["answers"][char] = "сам"
             recompute(e)
             msg = "Вы добавлены в участники"
-            note = ("chars", [e["author"]], f"В запись «{e['title']}» напросился участник: {names.get(char, char)}.")
+            note = ("chars", [e["author"]], f"В запись «{e['title']}» попросился участник: {names.get(char, char)}.")
         elif act == "kick":
             if not manage or not live:
                 bad("Убрать участника может только автор записи или мастер.", 403)
@@ -774,7 +774,7 @@ def gm_time(v, b):
         elif "shift" in b:
             n = to_int(b["shift"], "Сдвиг времени: нужно число дней.")
             if abs(n) > 400:
-                bad("Слишком большой сдвиг.")
+                bad("Слишком большой сдвиг времени.")
             d = add_days(today, n)
             db.meta_set("now_date", min(max(d, cs), ce))
         if "tod" in b:
@@ -822,7 +822,7 @@ def plan_played(v, plan_id):
 KINDS = {"windows": "w", "rhythm": "r", "clocks": "c", "plan": "g", "past": "p", "places": "m", "dossier": "n", "handouts": "h", "travel": "t",
          "money": "y", "factions": "f", "standing": "s", "contacts": "k"}
 MAX_TRAVEL = 12
-# Лист персонажа (Shadowrun): нуйены (проводки), фракции, репутация персонажа у фракции, контакты. Пишет только мастер.
+# Лист персонажа (Shadowrun): нуйены (записи о доходах и расходах), фракции, репутация персонажа у фракции, контакты. Пишет только мастер.
 MAX_ITEMS = {"money": 3000, "factions": 60, "standing": 600, "contacts": 300, "places": 1500}
 IMPORT_PLACES_AT_ONCE = 600
 FACTION_KINDS = {"corp", "gang", "gov", "org", "other"}
@@ -878,9 +878,9 @@ def _normalize_sheet(kind, b, chars):
                 "vis": vis, "known": known if vis == "знают" else []}
     char = _char_of(b, chars)
     if kind == "money":
-        delta = to_int(b.get("delta"), "Сумма: целое число нуйенов, плюс это доход, минус расход.")
+        delta = to_int(b.get("delta"), "Укажите сумму: целое число нуйенов. Доход со знаком «+», расход со знаком «−».")
         if delta == 0 or abs(delta) > MONEY_LIMIT:
-            bad("Сумма: целое число нуйенов от 1 до 1 000 000 000, плюс это доход, минус расход.")
+            bad("Сумма: целое число нуйенов от 1 до 1 000 000 000. Доход со знаком «+», расход со знаком «−».")
         note = clean(b.get("note"), 200)
         return {"char": char, "delta": delta, "note": note, "date": _opt_date(b.get("date"), "Дата") or now()[0],
                 "gm_note": clean(b.get("gm_note"), 500, True), "title": f"{name_of(char)}: {_fmt_money(delta)}" + (f", {note}" if note else "")}
@@ -1188,7 +1188,7 @@ def delete_item(v, kind, item_id):
 def _check_insert(kind, item):
     items = db.items(kind)
     if any(x["id"] == item["id"] for x in items):
-        bad("Элемент с таким номером уже существует.", 409)
+        bad("Такая запись уже есть.", 409)
     if kind == "windows":
         _check_windows(items, item)
     if kind == "travel" and len(items) >= MAX_TRAVEL:
@@ -1217,7 +1217,7 @@ def restore_trash(v, trash_id):
         kind, data = row["kind"], row["data"]
         if kind == "entry":
             if db.entry(data["id"]):
-                bad("Запись с таким номером уже существует.", 409)
+                bad("Такая запись уже есть.", 409)
             db.save_entry(data)
             reminders.asked(data["id"], [c for c, a in data.get("answers", {}).items() if a == "ждёт"])
             for m in (row["extra"] or {}).get("chat", []):
@@ -1293,7 +1293,7 @@ def revert_change(v, audit_id):
             db.bump()
             return "Время в игре возвращено"
         if action != "edit" or not isinstance(before, dict):
-            bad("Эту правку откатить нельзя.")
+            bad("Это изменение вернуть нельзя.")
         if kind == "entry":
             current = db.entry(item_id)
             if not current:
@@ -1310,7 +1310,7 @@ def revert_change(v, audit_id):
             items = db.items(kind)
             current = next((x for x in items if x["id"] == item_id), None)
             if not current:
-                bad("Элемент удалён: сначала восстановите его из корзины.", 409)
+                bad("Эта запись удалена: сначала восстановите её из корзины.", 409)
             restored = dict(before)
             for k in ("img", "file", "size", "fname", "uploaded", "plan_id"):     # ссылки на файлы не откатываются
                 if k in current:
@@ -1326,6 +1326,6 @@ def revert_change(v, audit_id):
             db.set_items(kind, items)
             audit.record(v, "revert", kind, item_id, _item_title(restored), before=current, after=restored)
         else:
-            bad("Эту правку откатить нельзя.")
+            bad("Это изменение вернуть нельзя.")
         db.bump()
-    return "Правка откатена"
+    return "Вернули как было"

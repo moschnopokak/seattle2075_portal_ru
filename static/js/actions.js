@@ -97,7 +97,7 @@ document.addEventListener('submit',async ev=>{
   if(ev.target.id==='item-form'){
     ev.preventDefault();
     const form=ev.target,b=collectItem(form),err=m=>{document.getElementById('form-err').textContent=m;};
-    if(b.cover&&!b.cover.title)return err('Укажите, что видят игроки, или выключите маску.');
+    if(b.cover&&!b.cover.title)return err('Укажите, что видят игроки, или выключите «Игроки видят как общее событие».');
     const before=new Set((S.dossier||[]).map(x=>x.id));
     const j=await apiPost('/api/gm/items/'+form.dataset.kind,b,err);
     if(j&&form.dataset.kind==='dossier'){

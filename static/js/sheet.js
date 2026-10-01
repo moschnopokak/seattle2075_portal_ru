@@ -1,5 +1,5 @@
 /* ===== Лист персонажа (Shadowrun): нуйены, репутация по фракциям, контакты =====
-   Данные ведёт мастер. Игрок видит только свои проводки, контакты и репутацию, и только у фракций, о которых его персонаж знает:
+   Данные ведёт мастер. Игрок видит только свои записи о деньгах, контакты и репутацию, и только у фракций, о которых его персонаж знает:
    сервер отдаёт уже отфильтрованное, а sheetView повторяет те же правила для предпросмотра мастера «как видит игрок».
    Чистые функции вынесены наверх, их проверяют автотесты в Node. */
 const FACTION_KIND={corp:'Корпорация',gang:'Банда',gov:'Власть',org:'Организация',other:'Другое'};
@@ -13,7 +13,7 @@ const signed=n=>(n>0?'+':n<0?'−':'')+Math.abs(n);
 const fmtNuyen=n=>signed(n).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ¥';
 const fmtBalance=n=>(n<0?'−':'')+String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ¥';
 const sheetBalance=(char,money)=>(money||[]).filter(m=>m.char===char).reduce((a,m)=>a+m.delta,0);
-/* Проводки персонажа, новые сверху: по дате, при равной дате позже внесённые выше. */
+/* Записи о деньгах персонажа, новые сверху: по дате, при равной дате позже внесённые выше. */
 const sheetLedger=(char,money)=>(money||[]).map((m,i)=>({m,i})).filter(x=>x.m.char===char)
   .sort((a,b)=>a.m.date<b.m.date?1:a.m.date>b.m.date?-1:b.i-a.i).map(x=>x.m);
 /* У фракции из ответа сервера поля vis нет: он уже отфильтровал. У полного списка мастера оно есть. */
@@ -43,13 +43,13 @@ const srEdit=(kind,id)=>V==='gm'?`<span class="sh-acts"><button type="button" cl
 const srGm=t=>V==='gm'&&t?`<span class="sh-gm"><b>Мастер:</b> ${esc(t)}</span>`:'';
 function ledgerHTML(c,d){
   const all=sheetLedger(c,d.money),open=!!UI.ledgerAll[c],list=open?all:all.slice(0,SR_LEDGER_SHOWN);
-  if(!all.length)return '<p class="muted">Записей пока нет.</p>';
+  if(!all.length)return '<p class="muted">Записей о деньгах пока нет.</p>';
   return `<ul class="ledger">${list.map(m=>`<li><span class="lg-d">${esc(fDate(m.date))}</span><b class="lg-a ${m.delta<0?'neg':'pos'}">${fmtNuyen(m.delta)}</b><span class="lg-n">${esc(m.note||'')}${srGm(m.gm_note)}</span>${srEdit('money',m.id)}</li>`).join('')}</ul>`
     +(all.length>SR_LEDGER_SHOWN?`<button type="button" class="btn plain mini" data-act="sr-ledger" data-id="${esc(c)}">${open?'Свернуть':`Показать все (${all.length})`}</button>`:'');
 }
 function standingHTML(c,d){
   const F=new Map((d.factions||[]).map(f=>[f.id,f])),list=(d.standing||[]).filter(s=>s.char===c);
-  if(!list.length)return '<p class="muted">Записей пока нет.</p>';
+  if(!list.length)return '<p class="muted">Репутации пока нет.</p>';
   return `<ul class="standings">${list.map(s=>{const f=F.get(s.faction);
     return `<li class="st-row"><div class="st-top"><span class="st-f">${f?esc(f.name):'<i class="muted">фракция удалена</i>'}</span><b class="st-v st-${s.value<0?'neg':s.value>0?'pos':'zero'}">${signed(s.value)}</b><span class="st-l">${esc(standingLabel(s.value))}</span></div>
     <span class="st-bar" role="img" aria-label="Репутация ${signed(s.value)} из ±5"><i style="left:${(s.value+5)*10}%"></i></span>
@@ -57,7 +57,7 @@ function standingHTML(c,d){
 }
 function contactsHTML(c,d){
   const list=(d.contacts||[]).filter(x=>x.char===c);
-  if(!list.length)return '<p class="muted">Записей пока нет.</p>';
+  if(!list.length)return '<p class="muted">Контактов пока нет.</p>';
   return `<ul class="contacts">${list.map(x=>`<li class="ct-row"><div class="ct-top">${x.card?`<button type="button" class="dlink" data-open="n:${esc(x.card)}">${esc(x.name)}</button>`:`<b>${esc(x.name)}</b>`}
     <span class="ct-r" title="Связи (влияние и знакомства) и лояльность">Связи ${x.connection} · Лояльность ${x.loyalty}</span></div>
     ${x.services?`<span class="ct-s">${esc(x.services)}</span>`:''}${x.note?`<span class="ct-n">${rich(x.note)}</span>`:''}${srGm(x.gm_note)}${srEdit('contacts',x.id)}</li>`).join('')}</ul>`;
@@ -65,7 +65,7 @@ function contactsHTML(c,d){
 function charSheetHTML(c,d){
   const gm=V==='gm',bal=sheetBalance(c,d.money);
   return `<article class="sh-char" aria-label="${esc(CN[c]||c)}"><h2>${esc(CN[c]||c)}</h2><div class="sh-grid">
-  <section class="sh-box"><h3>Нуйены</h3><p class="sh-bal ${bal<0?'neg':''}">${fmtBalance(bal)}</p>${ledgerHTML(c,d)}${gm?`<div class="acts"><button type="button" class="btn small" data-act="sr-new" data-kind="money" data-char="${esc(c)}">Добавить проводку</button></div>`:''}</section>
+  <section class="sh-box"><h3>Нуйены</h3><p class="sh-bal ${bal<0?'neg':''}">${fmtBalance(bal)}</p>${ledgerHTML(c,d)}${gm?`<div class="acts"><button type="button" class="btn small" data-act="sr-new" data-kind="money" data-char="${esc(c)}">Записать доход или расход</button></div>`:''}</section>
   <section class="sh-box"><h3>Репутация</h3>${standingHTML(c,d)}${gm?`<div class="acts"><button type="button" class="btn small" data-act="sr-new" data-kind="standing" data-char="${esc(c)}">Записать репутацию</button></div>`:''}</section>
   <section class="sh-box"><h3>Контакты</h3>${contactsHTML(c,d)}${gm?`<div class="acts"><button type="button" class="btn small" data-act="sr-new" data-kind="contacts" data-char="${esc(c)}">Добавить контакт</button></div>`:''}</section>
   </div></article>`;
@@ -80,7 +80,7 @@ function factionsHTML(){
 function rSheet(){
   const gm=V==='gm';
   if(gm){
-    if(!CHARS.length)return '<section class="sheet"><div class="d-top"><h1>Лист</h1></div><p class="muted">В players.toml нет ни одного персонажа.</p></section>';
+    if(!CHARS.length)return '<section class="sheet"><div class="d-top"><h1>Лист</h1></div><p class="muted">В списке игроков нет ни одного персонажа. Добавьте их в файл players.toml.</p></section>';
     const cur=CHARS.some(c=>c.id===UI.sheetChar)?UI.sheetChar:CHARS[0].id,d={money:S.money||[],standing:S.standing||[],factions:S.factions||[],contacts:S.contacts||[]};
     return `<section class="sheet"><div class="d-top"><h1>Лист</h1></div>
     <p class="note">Нуйены, репутация и контакты персонажей. Игрок видит только своё и только у фракций, о которых его персонаж знает; заметки мастера до игроков не доходят.</p>
@@ -103,9 +103,9 @@ function openSrForm(kind,id,char){
   const c0=it?it.char:(char||(CHARS[0]||{}).id),v=x=>esc(x||'');
   let title,f;
   if(kind==='money'){
-    const neg=it&&it.delta<0;title=it?'Изменить проводку':'Новая проводка';
+    const neg=it&&it.delta<0;title=it?'Изменить запись о деньгах':'Доход или расход';
     f=`${srCharSelect(c0)}
-    <fieldset class="vis"><legend>Что это</legend><label><input type="radio" name="sign" value="1" ${neg?'':'checked'}> Доход</label><label><input type="radio" name="sign" value="-1" ${neg?'checked':''}> Расход</label></fieldset>
+    <fieldset class="vis"><legend>Что произошло</legend><label><input type="radio" name="sign" value="1" ${neg?'':'checked'}> Деньги пришли (доход)</label><label><input type="radio" name="sign" value="-1" ${neg?'checked':''}> Деньги ушли (расход)</label></fieldset>
     <label class="field">Сумма, нуйенов<input name="amount" type="number" min="1" max="1000000000" step="1" inputmode="numeric" value="${it?Math.abs(it.delta):''}"></label>
     <label class="field">За что<input name="note" maxlength="200" value="${v(it&&it.note)}" placeholder="Например: плата за работу, ремонт кибердеки"></label>
     <label class="field">Когда<select name="date">${dateOpts(it?it.date:S.now.date)}</select></label>${srGmNote(it,500)}`;

@@ -157,9 +157,9 @@ async function uploadHandout(hid,file,onError){
     const r=await fetch(`/api/gm/handouts/${encodeURIComponent(hid)}/file`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':file.type||'application/octet-stream','X-File-Name':encodeURIComponent(file.name),...authHeaders()},body:file});
     let j=null;try{j=await r.json();}catch(e){}
     if(r.status===401){showLogin();return null;}
-    if(!r.ok){onError(r.status===413&&!j?'Файл слишком большой для сервера.':errText(j));return null;}
+    if(!r.ok){onError(r.status===413&&!j?'Файл слишком большой для портала. Уменьшите его.':errText(j));return null;}
     if(j&&j.state)applyState(j.state);
     return j;
-  }catch(e){onError('Нет связи с сервером. Попробуйте ещё раз.');return null;}
+  }catch(e){onError('Нет связи с порталом. Проверьте интернет и попробуйте ещё раз.');return null;}
   finally{busy=false;}
 }

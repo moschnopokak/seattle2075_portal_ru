@@ -29,9 +29,9 @@ function showLogin(denied){
   }else if(CFG.bot_username){
     h+=`<p>Войдите через Telegram. Портал узнаёт игроков по их аккаунту, пароль не нужен.</p><div id="tg-login"></div><p class="muted small" style="margin-top:14px">Если кнопка входа не появилась, откройте портал из Telegram: кнопка «Календарь» в чате с ботом @${esc(CFG.bot_username)}.</p>`;
   }else{
-    h+=`<p class="err">На сервере не указан BOT_USERNAME, вход через Telegram недоступен.</p>`;
+    h+=`<p class="err">Вход через Telegram пока не настроен: на портале не указано имя бота. Сообщите мастеру.</p>`;
   }
-  if(CFG.dev_login)h+=`<form id="dev-login" class="dev"><p class="muted small">Режим проверки без Telegram (DEV_LOGIN=1). На рабочем сервере его нужно выключить.</p><div class="inline"><input name="tg" inputmode="numeric" placeholder="Telegram ID из players.toml" aria-label="Telegram ID"><button type="submit" class="btn">Войти</button></div></form>`;
+  if(CFG.dev_login)h+=`<form id="dev-login" class="dev"><p class="muted small">Это проверочный вход без Telegram, только для настройки портала. Когда всё заработает, мастеру нужно его выключить.</p><div class="inline"><input name="tg" inputmode="numeric" placeholder="Telegram ID из players.toml" aria-label="Telegram ID"><button type="submit" class="btn">Войти</button></div></form>`;
   h+='</section>';
   document.getElementById('main').innerHTML=h;
   if(!denied&&CFG.bot_username){
@@ -100,7 +100,7 @@ async function boot(){
   if(r.status===401&&LAUNCH.data&&await webappLogin())r=await getState();
   if(r.status===401){setToken(null);return showLogin();}
   if(r.status===403){let j=null;try{j=await r.json();}catch(e){}return showLogin((j&&j.detail)||{tg_id:'?'});}
-  if(!r.ok){document.getElementById('main').innerHTML='<p class="err" style="padding-top:40px">Сервер не отвечает. Обновите страницу через минуту.</p>';return;}
+  if(!r.ok){document.getElementById('main').innerHTML='<p class="err" style="padding-top:40px">Портал не отвечает. Обновите страницу через минуту.</p>';return;}
   applyState(await r.json());
   document.getElementById('app-top').hidden=false;
   const want=new URLSearchParams(location.search).get('open');

@@ -8,7 +8,7 @@ async function openPrefs(){
   const p=j.prefs,bt=browserTz(),zones=[...new Set([bt,...TZ_LIST].filter(Boolean))];
   curKey=null;
   showPanel(`<p class="kind">Настройки</p><h2>Личные уведомления</h2>
-  ${j.dm?'<p class="note">Сообщения приходят от бота в Telegram. Если ничего не приходит, откройте бота и нажмите «Запустить», затем проверьте связь кнопкой ниже.</p>':'<p class="err">На этом портале личные уведомления выключены: не задан токен бота или NOTIFY_DM=0.</p>'}
+  ${j.dm?'<p class="note">Сообщения приходят от бота в Telegram. Если ничего не приходит, откройте бота и нажмите «Запустить», затем проверьте связь кнопкой ниже.</p>':'<p class="err">Личные уведомления на этом портале выключены. Спросите мастера, можно ли их включить.</p>'}
   <form id="prefs-form" novalidate>
     <label class="check"><input type="checkbox" name="chat_notify" ${p.chat_notify?'checked':''}> Сообщения в обсуждениях записей (одним уведомлением, примерно через ${j.chat_minutes} мин. после первого)</label>
     ${j.remind_days>0&&j.remind_max>0?`<label class="check"><input type="checkbox" name="remind" ${p.remind?'checked':''}> Напоминать о приглашениях, на которые я не ответил(а) (через ${j.remind_days} ${plural(j.remind_days,'день','дня','дней')}, не больше ${j.remind_max} ${plural(j.remind_max,'раза','раз','раз')})</label>`:''}

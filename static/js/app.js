@@ -31,7 +31,7 @@ function applyState(st){
 }
 const authHeaders=()=>TOKEN?{'Authorization':'Bearer '+TOKEN}:{};
 const RO=()=>!!(S&&S.me.gm&&V!=='gm');
-function errText(j){if(!j)return 'Не удалось выполнить действие.';const d=j.detail;if(typeof d==='string')return d;if(Array.isArray(d))return 'Сервер отклонил запрос.';return (d&&d.message)||'Не удалось выполнить действие.';}
+function errText(j){if(!j)return 'Не удалось выполнить действие.';const d=j.detail;if(typeof d==='string')return d;if(Array.isArray(d))return 'Портал не принял запрос. Обновите страницу и попробуйте ещё раз.';return (d&&d.message)||'Не удалось выполнить действие.';}
 /* От чьего имени действие, добавляется само (V). Форма листа персонажа сама называет персонажа, поэтому для неё keepChar=true. */
 async function apiPost(path,body,onError,keepChar){
   if(RO()){toast('Предпросмотр: действия отключены');return null;}
@@ -43,7 +43,7 @@ async function apiPost(path,body,onError,keepChar){
     if(!r.ok){const m=errText(j);onError?onError(m):toast(m);return null;}
     if(j&&j.state)applyState(j.state);
     return j;
-  }catch(e){toast('Нет связи с сервером. Попробуйте ещё раз.');return null;}
+  }catch(e){toast('Нет связи с порталом. Проверьте интернет и попробуйте ещё раз.');return null;}
   finally{busy=false;}
 }
 
@@ -79,7 +79,7 @@ const CHAT_ICO='<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><path d=
 function marks(e){
   const n=(e.stars||[]).length;let h='';
   if(n)h+=`<b class="star" title="Приоритет: ${esc(joinNames(e.stars.map(c=>CN[c]||c)))}">★${n>1?n:''}</b>`;
-  if(e.open)h+='<b class="plus" title="Можно напроситься">+</b>';
+  if(e.open)h+='<b class="plus" title="Можно попроситься">+</b>';
   if(e.vis==='лично')h+=LOCK;
   return h;
 }
@@ -194,7 +194,7 @@ function rNow(){
     const st=starOf(V);
     h+=`<div class="side-block"><h2>Звезда ${esc(GEN[V]||'')}</h2>${st?entryRow(st,fFull(st.from))+'<p class="note" style="margin-top:6px">Это дело мастер сыграет подробно. Звезду можно перенести в карточке другого дела.</p>':'<p class="muted" style="margin:0">Звезда свободна. Поставьте её в карточке дела, которое хотите сыграть подробно.</p>'}</div>`;
     const open=visEntries().filter(canJoin).sort((a,b)=>a.from<b.from?-1:1);
-    h+=`<div class="side-block"><h2>Можно напроситься</h2>${open.length?open.map(e=>entryRow(e,'от '+(GEN[e.author]||'мастера')+', '+fFull(e.from))).join(''):'<p class="muted" style="margin:0">Открытых записей нет.</p>'}</div>`;
+    h+=`<div class="side-block"><h2>Можно попроситься</h2>${open.length?open.map(e=>entryRow(e,'от '+(GEN[e.author]||'мастера')+', '+fFull(e.from))).join(''):'<p class="muted" style="margin:0">Открытых записей нет.</p>'}</div>`;
   }
   return h+'</div></div>';
 }
@@ -306,7 +306,7 @@ function rMonth(ym){
 function legend(){
   const lanes=UI.cal==='lanes';
   return `<div class="legend">${Object.entries(TYPES).map(([k,t])=>`<span class="lg"><i class="sw t-${k} talk-closed"></i>${t.name}</span>`).join('')}<span class="lg"><i class="sw k-past"></i>Сыграно</span>${V==='gm'?'<span class="lg"><i class="sw k-plan"></i>План мастера</span><span class="lg">'+EYE+'Игроки видят как общее событие</span><span class="lg"><i class="sw k-clock"></i>Скрытый таймер</span>':'<span class="lg"><i class="sw k-block"></i>Общее событие</span>'}<span class="lg"><i class="sw k-rhythm"></i>Регулярное событие или привычка</span></div>
-  <div class="legend"><span class="lg"><i class="sw t-deal talk-open"></i>Бледный цвет: в обсуждении</span><span class="lg"><i class="sw t-deal talk-closed"></i>Насыщенный цвет: обсуждение окончено</span><span class="lg"><b class="star">★</b>Приоритет игрока</span><span class="lg"><b class="plus">+</b>Можно напроситься</span>${lanes?'<span class="lg"><i class="sw pend"></i>Ждёт ответа или проверки</span><span class="lg"><span class="mark">✓</span>Состоялось</span><span class="lg"><span class="strike">Текст</span>Сорвано или отклонено</span><span class="lg"><i class="ln now"></i>Текущий момент</span><span class="lg"><i class="ln quiet"></i>Свободное время гарантировано</span><span class="lg"><i class="ln unsure"></i>Свободное время не гарантировано</span>':''}</div>`;
+  <div class="legend"><span class="lg"><i class="sw t-deal talk-open"></i>Бледный цвет: в обсуждении</span><span class="lg"><i class="sw t-deal talk-closed"></i>Насыщенный цвет: обсуждение окончено</span><span class="lg"><b class="star">★</b>Приоритет игрока</span><span class="lg"><b class="plus">+</b>Можно попроситься</span>${lanes?'<span class="lg"><i class="sw pend"></i>Ждёт ответа или проверки</span><span class="lg"><span class="mark">✓</span>Состоялось</span><span class="lg"><span class="strike">Текст</span>Сорвано или отклонено</span><span class="lg"><i class="ln now"></i>Текущий момент</span><span class="lg"><i class="ln quiet"></i>Свободное время гарантировано</span><span class="lg"><i class="ln unsure"></i>Свободное время не гарантировано</span>':''}</div>`;
 }
 function rCal(){
   let h=`<div class="toolbar"><div class="seg" role="group" aria-label="Вид календаря"><button type="button" data-act="cal-view" data-v="lanes" aria-pressed="${UI.cal==='lanes'}">По персонажам</button><button type="button" data-act="cal-view" data-v="month" aria-pressed="${UI.cal==='month'}">Месяц</button></div>`;
@@ -377,14 +377,14 @@ function rGM(){
   <section><h2>Приоритеты игроков</h2><p class="note">У каждого персонажа одна звезда. Дело со звездой игрок хочет сыграть подробно.</p>${priorityList()}</section>
   <section><h2>Заявки на развитие</h2>${pend.length?pend.map(e=>`<div class="gm-item">${entryRow(e,CN[e.author]||'')}<button type="button" class="btn" data-act="approve" data-id="${e.id}">Подтвердить</button><button type="button" class="btn" data-act="reject" data-id="${e.id}">Отклонить</button></div>`).join(''):'<p class="muted">Новых заявок нет.</p>'}</section>
   <section><h2>Прошедшие записи без итога</h2><p class="note">Отметьте, состоялось ли запланированное. Состоявшиеся записи попадают в хронику.</p>${stale.length?stale.map(e=>`<div class="gm-item">${entryRow(e,fFull(e.to))}<button type="button" class="btn" data-act="outcome" data-id="${e.id}" data-v="done">Состоялось</button><button type="button" class="btn" data-act="outcome" data-id="${e.id}" data-v="failed">Сорвано</button></div>`).join(''):'<p class="muted">Все прошедшие записи отмечены.</p>'}</section>
-  <section>${secHead('План мастера','plan','Добавить событие')}<p class="note">События плана игроки не видят. Если у события включена маска, игроки видят на эти дни общее событие с другим текстом (${EYE} на календаре). Сыгранное событие переносится в хронику, а его описание становится там заметкой мастера, которую игроки не видят.</p>${plan.length?plan.map(p=>`<div class="gm-item">${row('g:'+p.id,'k-plan',p.title,fFull(p.from),p.cover?EYE+' ':'')}<button type="button" class="btn" data-act="played" data-id="${p.id}">В хронику</button></div>`).join(''):'<p class="muted">План пуст.</p>'}</section>
+  <section>${secHead('План мастера','plan','Добавить событие')}<p class="note">События плана игроки не видят. Если у события включено «Показать игрокам как общее событие», игроки видят на эти дни общее событие с другим текстом (${EYE} на календаре). Сыгранное событие переносится в хронику, а его описание становится там заметкой мастера, которую игроки не видят.</p>${plan.length?plan.map(p=>`<div class="gm-item">${row('g:'+p.id,'k-plan',p.title,fFull(p.from),p.cover?EYE+' ':'')}<button type="button" class="btn" data-act="played" data-id="${p.id}">В хронику</button></div>`).join(''):'<p class="muted">План пуст.</p>'}</section>
   <section>${secHead('Скрытые таймеры','clocks','Добавить таймер')}<p class="note">Угрозы и сроки, которые идут независимо от пачки. Таймер со сроком появляется в строке «План мастера».</p>${S.clocks.length?S.clocks.map(c=>row('c:'+c.id,'k-clock',c.title,c.when?'срок: '+fFull(c.when):'без срока')).join(''):'<p class="muted">Таймеров нет.</p>'}</section>
   <section>${secHead('Регулярные события','rhythm','Добавить событие')}<p class="note">Расписание города и привычки персонажей. Привычка показывается в строке персонажа.</p>${S.rhythm.length?S.rhythm.map(r=>row('r:'+r.id,'k-rhythm',r.title,[r.who?CN[r.who]:'',rhythmWhen(r),r.to?'до '+fDate(r.to):'',r.vis==='мастер'?'скрыто от игроков':''].filter(Boolean).join(', '))).join(''):'<p class="muted">Регулярных событий нет.</p>'}</section>
   <section>${secHead('Транспорт и скорости','travel','Добавить вид транспорта')}<p class="note">Нужен для линейки на карте: время в пути считается по этим скоростям (км/ч).</p>${(S.travel||[]).map(t=>`<button type="button" class="row" data-act="edit-item" data-kind="travel" data-id="${t.id}"><span class="rt">${esc(t.name)}${t.vis==='мастер'?'<span class="tag">скрыто от игроков</span>':''}</span><span class="rs">${t.kind==='straight'?'по прямой, '+t.off+' км/ч':'дороги '+t.motorway+'/'+t.trunk+'/'+t.primary+' км/ч, вне дорог '+t.off}</span></button>`).join('')||'<p class="muted">Видов транспорта нет.</p>'}</section>
   <section>${secHead('Этапы','windows','Добавить этап')}<p class="note">Арки и промежуточные арки. Игроки видят название этапа с его первого дня.</p>${S.windows.map(w=>`<div class="gm-item"><span class="wname">${esc(winName(w))}${w.gm&&w.gm!==w.name?`<span class="muted small" style="display:block">игроки видят: ${esc(w.name)}</span>`:''}</span><span class="muted small">${fRange(w.from,w.to)}</span><button type="button" class="btn" data-act="edit-item" data-kind="windows" data-id="${w.id}">Изменить</button></div>`).join('')}</section>
   <section>${secHead('Хроника','past','Добавить событие')}<p class="note">Сыгранные события. Чтобы изменить или удалить событие, откройте его в разделе «Хроника».</p></section>
   ${gmExtrasHTML()}
-  <section><h2>Выгрузка для Obsidian</h2><p class="note">Текст в формате Markdown с полями Dataview. Скопируйте его и вставьте в хранилище как новую заметку.</p><button type="button" class="btn" data-act="export">Сформировать выгрузку</button><textarea id="exp" readonly hidden aria-label="Текст выгрузки"></textarea></section>
+  <section><h2>Копия данных для Obsidian</h2><p class="note">Если вы ведёте заметки в программе Obsidian: нажмите кнопку, скопируйте получившийся текст и вставьте его в Obsidian как новую заметку. В нём весь календарь, места, досье и раздатки, в том числе то, что скрыто от игроков.</p><button type="button" class="btn" data-act="export">Собрать текст для копирования</button><textarea id="exp" readonly hidden aria-label="Текст выгрузки"></textarea></section>
   </div>`;
 }
 function exportMd(){
@@ -457,7 +457,7 @@ function dEntry(e){
 
   let acts='';
   if(ans[V]==='ждёт')acts+=`<button type="button" class="btn primary" data-act="ans" data-id="${e.id}" data-v="да">Принять приглашение</button><button type="button" class="btn" data-act="ans" data-id="${e.id}" data-v="нет">Отказаться: неудобная дата</button>`;
-  if(canJoin(e))acts+=`<button type="button" class="btn primary" data-act="join" data-id="${e.id}">Напроситься</button>`;
+  if(canJoin(e))acts+=`<button type="button" class="btn primary" data-act="join" data-id="${e.id}">Попроситься</button>`;
   if(V==='gm'&&e.status==='gm')acts+=`<button type="button" class="btn primary" data-act="approve" data-id="${e.id}">Подтвердить развитие</button><button type="button" class="btn" data-act="reject" data-id="${e.id}">Отклонить</button>`;
   if(V==='gm'&&e.to&&e.to<S.now.date&&e.status==='ok')acts+=`<button type="button" class="btn" data-act="outcome" data-id="${e.id}" data-v="done">Состоялось</button><button type="button" class="btn" data-act="outcome" data-id="${e.id}" data-v="failed">Сорвано</button>`;
   if(manage&&live)acts+=`<button type="button" class="btn" data-act="edit-entry" data-id="${e.id}">Изменить запись</button>`;
@@ -476,7 +476,7 @@ function dEntry(e){
   let chatH=`<h3>Обсуждение${chat.length?' ('+chat.length+')':''}</h3><div class="chat">${chat.length?chat.map(m=>`<div class="msg ${m.a===V?'mine':''}"><div class="mh"><b>${esc(CN[m.a]||m.a)}</b><span>${fTs(m.ts)}</span></div>${m.r?rollHTML(m):`<p>${rich(m.t)}</p>`}</div>`).join(''):'<p class="muted" style="margin:0">Сообщений пока нет.</p>'}</div>`;
   if(talk==='closed')chatH+='<p class="note" style="margin-top:10px">Обсуждение окончено, новые сообщения недоступны.</p>';
   else if(canWrite(e))chatH+=rollFormHTML(e)+`<form id="chat-form" data-id="${e.id}"><textarea name="msg" rows="2" maxlength="2000" placeholder="Как подойти к делу и кто что делает на игре"></textarea><div class="chat-send"><span class="muted small">Ctrl+Enter отправляет. [[Имя]] ссылается на карточку досье</span><button type="submit" class="btn primary">Отправить</button></div></form>`;
-  else chatH+=`<p class="note" style="margin-top:10px">Писать могут участники и мастер.${canJoin(e)?' Чтобы участвовать, напроситесь в запись.':''}</p>`;
+  else chatH+=`<p class="note" style="margin-top:10px">Писать могут участники и мастер.${canJoin(e)?' Чтобы участвовать, попроситесь в запись.':''}</p>`;
 
   return `<p class="kind t-${e.type}"><i class="sw"></i>${TYPES[e.type].name}<span class="tag">${TALK[talk]}</span>${e.vis==='лично'?'<span class="tag">видят только участники и мастер</span>':''}</p><h2>${esc(e.title)}</h2>
   <dl><dt>Даты</dt><dd>${when}${e.tod?', '+e.tod:''}</dd>${e.type==='grow'&&e.effect?`<dt>Действует с</dt><dd>${fFull(e.effect)}</dd>`:''}<dt>Статус</dt><dd>${stText(e)}</dd><dt>Видимость</dt><dd>${e.vis==='лично'?'участники и мастер':'все игроки'}</dd>${e.author==='gm'?'<dt>Автор</dt><dd>мастер</dd>':''}</dl>
@@ -499,7 +499,7 @@ function openDetail(key,keep){
   if(k==='g'){const p=S.plan.find(x=>x.id===id);if(!p){closePanel();return;}
     const c=p.cover;
     const cover=c?`<h3>Что видят игроки</h3><dl><dt>Событие</dt><dd>${esc(c.title)}</dd><dt>Кого касается</dt><dd>${c.who&&c.who.length?esc(joinNames(c.who.map(x=>CN[x]||x))):'вся пачка'}</dd></dl>${c.note?`<p class="prose">${rich(c.note)}</p>`:''}`:'<h3>Что видят игроки</h3><p class="muted" style="margin:0">Ничего: событие скрыто от игроков.</p>';
-    showPanel(`<p class="kind k-plan"><i class="sw"></i>План мастера${c?'<span class="tag">игроки видят маску</span>':'<span class="tag">скрыто от игроков</span>'}</p><h2>${esc(p.title)}</h2><dl><dt>Даты</dt><dd>${fSpan(p.from,p.to)}</dd>${p.session?`<dt>Сессия</dt><dd>${esc(p.session)}</dd>`:''}</dl>${p.note?`<p class="prose">${rich(p.note)}</p>`:''}${cover}${gmBtns('plan',p.id,`<button type="button" class="btn primary" data-act="played" data-id="${p.id}">Перенести в хронику</button>`)}`,keep);return;}
+    showPanel(`<p class="kind k-plan"><i class="sw"></i>План мастера${c?'<span class="tag">игроки видят общее событие</span>':'<span class="tag">скрыто от игроков</span>'}</p><h2>${esc(p.title)}</h2><dl><dt>Даты</dt><dd>${fSpan(p.from,p.to)}</dd>${p.session?`<dt>Сессия</dt><dd>${esc(p.session)}</dd>`:''}</dl>${p.note?`<p class="prose">${rich(p.note)}</p>`:''}${cover}${gmBtns('plan',p.id,`<button type="button" class="btn primary" data-act="played" data-id="${p.id}">Перенести в хронику</button>`)}`,keep);return;}
   if(k==='c'){const c=S.clocks.find(x=>x.id===id);if(c)showPanel(`<p class="kind k-clock"><i class="sw"></i>Скрытый таймер<span class="tag">скрыто от игроков</span></p><h2>${esc(c.title)}</h2><dl><dt>Срок</dt><dd>${c.when?fFull(c.when):'не назначен'}</dd></dl>${c.note?`<p class="prose">${rich(c.note)}</p>`:''}${gmBtns('clocks',c.id)}`,keep);else closePanel();return;}
   if(k==='r'){const r=S.rhythm.find(x=>x.id===id);if(!r||!rhythmVisible(r)){closePanel();return;}
     showPanel(`<p class="kind k-rhythm"><i class="sw"></i>${r.who?'Привычка персонажа':'Регулярное событие'}${r.vis==='мастер'?'<span class="tag">скрыто от игроков</span>':''}</p><h2>${esc(r.title)}</h2><dl><dt>Повторяется</dt><dd>${rhythmWhen(r)}</dd>${r.who?`<dt>Персонаж</dt><dd>${esc(CN[r.who]||r.who)}</dd>`:''}${r.from?`<dt>Начиная с</dt><dd>${fFull(r.from)}</dd>`:''}${r.to?`<dt>Заканчивается</dt><dd>${fFull(r.to)}</dd>`:''}</dl>${r.note?`<p class="prose">${rich(r.note)}</p>`:''}${gmBtns('rhythm',r.id)}`,keep);}
@@ -573,7 +573,7 @@ function openItemForm(kind,id,pos){
   }else if(kind==='clocks'){
     f=`<label class="field">Название<input name="title" maxlength="120" value="${v(it&&it.title)}" placeholder="Например: Рекламация 2075-0726-К"></label>
     <label class="field">Срок<select name="when">${dateOpts(it&&it.when,'без срока')}</select><span class="sub">Таймер со сроком появляется в строке «План мастера» в этот день.</span></label>
-    <label class="field">Описание<textarea name="note" rows="4" maxlength="1000" placeholder="Что тикает и что будет, когда сработает">${v(it&&it.note)}</textarea></label>`;
+    <label class="field">Описание<textarea name="note" rows="4" maxlength="1000" placeholder="Что должно случиться и что будет, когда срок наступит">${v(it&&it.note)}</textarea></label>`;
   }else{
     f=`<label class="field">Название<input name="title" maxlength="120" value="${v(it&&it.title)}"></label>
     <div class="two"><label class="field">Начало<select name="from">${dateOpts(it?it.from:d0)}</select></label><label class="field">Окончание<select name="to">${dateOpts(it?it.to:d0)}</select></label></div>
@@ -583,7 +583,7 @@ function openItemForm(kind,id,pos){
       const c=it&&it.cover;
       f+=`<fieldset class="anketa"><legend>Что видят игроки</legend>
       <label class="check"><input type="checkbox" name="cover_on" ${c?'checked':''}> Показать игрокам как общее событие</label>
-      <p class="muted small" style="margin:4px 0 0">Игроки увидят на эти дни только текст маски. Настоящее описание останется скрытым. Так можно занять дату, чтобы на неё ничего не планировали.</p>
+      <p class="muted small" style="margin:4px 0 0">Игроки увидят на эти дни только этот текст. Настоящее описание останется скрытым. Так можно занять дату, чтобы на неё ничего не планировали.</p>
       <div id="cover-box" ${c?'':'hidden'}>
         <label class="field">Что видят игроки<input name="cover_title" maxlength="120" value="${v(c&&c.title)}" placeholder="Например: Риг позвал всех к себе в ангар"></label>
         <label class="field">Подробности для игроков<textarea name="cover_note" rows="2" maxlength="1000">${v(c&&c.note)}</textarea></label>
@@ -641,7 +641,7 @@ function openForm(date,ed){
   <label class="field">Время суток<select name="tod"><option value="">не указано</option>${TOD.map(t=>`<option value="${t}">${t}</option>`).join('')}</select></label>
   <div class="free-box" id="free-box" aria-live="polite"></div>
   <fieldset class="anketa"><legend>Анкета</legend>
-    <fieldset class="who"><legend>Кто</legend>${CHARS.map(c=>`<label><input type="checkbox" name="who" value="${c.id}" ${c.id===me?'checked disabled':''}> ${esc(c.name)}</label>`).join('')}<label id="plus-opt" class="plus-opt"><input type="checkbox" name="open" value="1"> <b class="plus">+</b> <span class="muted small">любой может напроситься</span></label></fieldset>
+    <fieldset class="who"><legend>Кто</legend>${CHARS.map(c=>`<label><input type="checkbox" name="who" value="${c.id}" ${c.id===me?'checked disabled':''}> ${esc(c.name)}</label>`).join('')}<label id="plus-opt" class="plus-opt"><input type="checkbox" name="open" value="1"> <b class="plus">+</b> <span class="muted small">любой может попроситься в участники</span></label></fieldset>
     <label class="field">Место на карте<select name="place"><option value="">не выбрано</option>${placesVisible().slice().sort((a,b)=>a.name.localeCompare(b.name,'ru')).map(p=>`<option value="${p.id}">${esc(p.name)}${placeTag(p)}</option>`).join('')}</select>${V==='gm'?'<span class="sub">Название скрытого места не подставляется в «Где», чтобы не показать его игрокам.</span>':''}</label>
   <label class="field">Где<input name="where" maxlength="120" autocomplete="off" placeholder="Например: любой целевой магазин"></label>
     <label class="field">Условие<input name="cond" maxlength="160" autocomplete="off" placeholder="Например: 1000¥ на шопинг, можно без"></label>

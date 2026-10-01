@@ -158,7 +158,7 @@ def build(v, char, parts):
         balance = sum(m["delta"] for m in money)
         blocks = [("h3", "Нуйены"), ("p", f"Баланс: {_nuyen(balance, plain=True)}")]
         if money:
-            blocks.append(("item", "Проводки", [f"{logic.ffull(m['date'])}: {_nuyen(m['delta'])}" + (f", {m['note']}" if m.get("note") else "")
+            blocks.append(("item", "Доходы и расходы", [f"{logic.ffull(m['date'])}: {_nuyen(m['delta'])}" + (f", {m['note']}" if m.get("note") else "")
                                                 for m in sorted(money, key=lambda m: m["date"])]))
         blocks.append(("h3", "Репутация"))
         standing = [s for s in state["standing"] if s["char"] == char and s["faction"] in factions]

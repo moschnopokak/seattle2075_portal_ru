@@ -33,7 +33,7 @@ async function downloadDiary(form){
     a.href=url;a.download=diaryName(r.headers.get('content-disposition'));document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),60000);
     closePanel();toast('Дневник сохранён');
-  }catch(e){err('Нет связи с сервером. Попробуйте ещё раз.');}
+  }catch(e){err('Нет связи с порталом. Проверьте интернет и попробуйте ещё раз.');}
   finally{btn.disabled=false;btn.textContent='Скачать';}
 }
 

@@ -49,7 +49,7 @@ app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
 async def unexpected_error(request: Request, exc: Exception):
     """Непредвиденный сбой: в журнал с подробностями, наружу короткий JSON (без внутренностей)."""
     log.error("Необработанная ошибка: %s %s", request.method, request.url.path, exc_info=exc)
-    return JSONResponse({"detail": "Внутренняя ошибка сервера. Попробуйте ещё раз."}, status_code=500)
+    return JSONResponse({"detail": "Что-то пошло не так на портале. Попробуйте ещё раз."}, status_code=500)
 
 
 # Кто может встраивать страницу портала: сам портал и веб-версии Telegram (там Mini App открывается во фрейме).
@@ -163,7 +163,7 @@ async def telegram_webhook(request: Request):
     if not telegram_bot.check_secret(request.headers.get("x-telegram-bot-api-secret-token")):
         raise HTTPException(403, "Неверный секрет.")
     if len(await request.body()) > 65536:
-        raise HTTPException(413, "Слишком большой запрос.")
+        raise HTTPException(413, "Слишком много данных за один раз.")
     try:
         update = await request.json()
     except ValueError:

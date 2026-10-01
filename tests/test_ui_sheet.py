@@ -131,7 +131,7 @@ def test_master_sees_everything_with_notes_and_summary(master):
     master.locator('.sheet .seg [data-act="sr-char"]', has_text="Риг").click()
     t = text(master)
     assert "СЕКРЕТ-деньги" in t and "СЕКРЕТ-репутация" in t and "СЕКРЕТ-контакт" in t and "Фракция скрытая" in t
-    assert master.locator('.sheet [data-act="sr-new"]').count() >= 4                                    # проводка, репутация, контакт, фракция
+    assert master.locator('.sheet [data-act="sr-new"]').count() >= 4                                    # деньги, репутация, контакт, фракция
     clean(master)
 
 
@@ -207,7 +207,7 @@ def test_item_history_opens_for_a_sheet_row(master, world):
     master.locator('.sheet .seg [data-act="sr-char"]', has_text="Риг").click()
     master.locator(".ledger li", has_text="Награда").locator('[data-act="item-history"]').click()
     master.wait_for_selector("#panel .hist-row", timeout=10000)
-    assert "проводку" in master.inner_text("#panel") and "добавил" in master.inner_text("#panel")
+    assert "запись о деньгах" in master.inner_text("#panel") and "добавил" in master.inner_text("#panel")
 
 
 def test_preview_as_a_player_hides_the_masters_view(master, world):

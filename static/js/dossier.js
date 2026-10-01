@@ -178,9 +178,9 @@ async function uploadPortrait(cardId,blob,onError){
     const r=await fetch(`/api/gm/dossier/${encodeURIComponent(cardId)}/portrait`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':blob.type||'application/octet-stream',...authHeaders()},body:blob});
     let j=null;try{j=await r.json();}catch(e){}
     if(r.status===401){showLogin();return null;}
-    if(!r.ok){onError(r.status===413&&!j?'Файл слишком большой для сервера. Уменьшите картинку.':errText(j));return null;}
+    if(!r.ok){onError(r.status===413&&!j?'Файл слишком большой для портала. Уменьшите картинку.':errText(j));return null;}
     if(j&&j.state)applyState(j.state);
     return j;
-  }catch(e){onError('Нет связи с сервером. Попробуйте ещё раз.');return null;}
+  }catch(e){onError('Нет связи с порталом. Проверьте интернет и попробуйте ещё раз.');return null;}
   finally{busy=false;}
 }

@@ -142,10 +142,10 @@ def ask(prompt):
             resp = client.messages.create(model=model, max_tokens=MAX_TOKENS, system=SYSTEM, messages=messages)
     except anthropic.NotFoundError:
         log.error("Модель %s для пересказа не найдена", model)
-        raise RecapError("Модель для пересказа недоступна. Сообщите мастеру.", 502) from None
+        raise RecapError("Пересказ сейчас недоступен. Сообщите мастеру.", 502) from None
     except (anthropic.AuthenticationError, anthropic.PermissionDeniedError):
         log.error("Ключ Anthropic API не принят")
-        raise RecapError("Ключ Claude API не подошёл. Сообщите мастеру.", 502) from None
+        raise RecapError("Пересказ сейчас недоступен. Сообщите мастеру.", 502) from None
     except anthropic.RateLimitError:
         raise RecapError("Сервис пересказа сейчас перегружен. Попробуйте через несколько минут.", 503) from None
     except anthropic.APIStatusError as ex:
@@ -154,7 +154,7 @@ def ask(prompt):
     except anthropic.APIConnectionError:
         raise RecapError("Не удалось связаться с сервисом пересказа. Попробуйте позже.", 502) from None
     if resp.stop_reason == "refusal":
-        raise RecapError("Модель отказалась пересказывать этот период. Попробуйте выбрать другой.", 422)
+        raise RecapError("Не получилось пересказать этот период. Попробуйте выбрать другой.", 422)
     text = "\n".join(b.text for b in resp.content if b.type == "text").strip()
     if not text:
         raise RecapError("Пересказ получился пустым. Попробуйте ещё раз.", 502)
