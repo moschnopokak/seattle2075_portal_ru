@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+pytest_plugins = ["ui_support"]   # фикстуры браузерных тестов (Playwright подгружается только при их использовании)
+
 FIXTURES = Path(__file__).parent / "fixtures"
 _tmp = Path(tempfile.mkdtemp(prefix="portal-tests-"))
 (_tmp / "config").mkdir()
@@ -81,7 +83,7 @@ def hag(players):
     return players["hag"]
 
 
-KINDS = ("windows", "rhythm", "clocks", "plan", "past", "places", "dossier", "handouts")
+KINDS = ("windows", "rhythm", "clocks", "plan", "past", "places", "dossier", "handouts", "travel")
 
 
 @pytest.fixture

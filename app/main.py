@@ -20,7 +20,7 @@ async def lifespan(_app):
     db.init()
     if seed.seed("auto"):
         log.info("База заполнена из config/campaign.json")
-    added = seed.ensure(("places", "dnotes", "dossier"))
+    added = seed.ensure(("places", "dnotes", "dossier", "travel"))
     if added:
         log.info("Добавлены разделы из config/campaign.json: %s", ", ".join(added))
     for note in seed.migrate():

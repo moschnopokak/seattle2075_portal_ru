@@ -68,6 +68,19 @@ def one_of(value, allowed, default):
     return value if isinstance(value, str) and value in allowed else default
 
 
+def to_num(value, lo, hi, message):
+    """Число из запроса (целое или с дробью) в границах lo..hi; на мусоре отвечает 400."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        bad(message)
+    try:
+        number = float(value)
+    except (ValueError, OverflowError):
+        bad(message)
+    if not (lo <= number <= hi):   # заодно отсекает nan и бесконечности
+        bad(message)
+    return int(number) if number == int(number) else round(number, 1)
+
+
 def to_int(value, message):
     """Целое число из запроса; на мусоре отвечает 400, а не падает."""
     if isinstance(value, bool):
@@ -163,6 +176,7 @@ def state_for(v):
         "handout_usage": handouts.usage() if v.gm else None,
         "portraits": portraits.usage() if v.gm else None,
         "dnotes": [d if v.gm else {"id": d["id"], "text": d.get("text", "")} for d in db.items("dnotes")],
+        "travel": [t for t in db.items("travel") if v.gm or t.get("vis") != "мастер"],
         "clocks": db.items("clocks") if v.gm else [],
         "entries": [e for e in db.entries() if visible(e, v)],
         "characters": p["characters"],
@@ -686,7 +700,8 @@ def plan_played(v, plan_id):
 
 # ---------- редактирование этапов, регулярных событий, таймеров, плана и хроники ----------
 
-KINDS = {"windows": "w", "rhythm": "r", "clocks": "c", "plan": "g", "past": "p", "places": "m", "dossier": "n", "handouts": "h"}
+KINDS = {"windows": "w", "rhythm": "r", "clocks": "c", "plan": "g", "past": "p", "places": "m", "dossier": "n", "handouts": "h", "travel": "t"}
+MAX_TRAVEL = 12
 STANCES = {"unknown", "contact", "ally", "neutral", "hostile"}
 FACT_ID = re.compile(r"[A-Za-z0-9_-]{1,20}")
 PLACE_TYPES = {"home", "contact", "business", "corp", "danger", "checkpoint", "other"}
@@ -772,6 +787,18 @@ def _normalize(kind, b):
         return {"title": _title(b, "title", 120, "Укажите название раздатки."),
                 "date": check_date(b.get("date"), "Дата получения"), "vis": vis, "known": known if vis == "знают" else [],
                 "note": clean(b.get("note"), 3000, True), "gm_note": clean(b.get("gm_note"), 3000, True), "place": place}
+    if kind == "travel":
+        tkind = one_of(b.get("kind"), ("roads", "straight"), "roads")
+        speeds = {k: to_num(b.get(k, 0), 0, 2000, f"Скорость «{label}»: число от 0 до 2000 км/ч.")
+                  for k, label in (("motorway", "магистрали"), ("trunk", "трассы"), ("primary", "основные дороги"), ("off", "вне дорог"))}
+        if speeds["off"] <= 0:
+            bad("Скорость вне дорог (у вида «по прямой» это общая скорость) должна быть больше нуля.")
+        if tkind == "roads" and not any(speeds[k] > 0 for k in ("motorway", "trunk", "primary")):
+            bad("У вида «по дорогам» хотя бы на одном классе дорог скорость должна быть больше нуля.")
+        return {"name": _title(b, "name", 60, "Укажите название вида транспорта."), "kind": tkind, **speeds,
+                "delay": to_num(b.get("delay", 0), 0, 1440, "Задержка: число минут от 0 до 1440."),
+                "wall": to_num(b.get("wall", 0), 0, 1440, "Пропускной пункт: число минут от 0 до 1440."),
+                "vis": "мастер" if b.get("vis") == "мастер" else "стол", "note": clean(b.get("note"), 300)}
     if kind == "dossier":
         vis = b.get("vis") if b.get("vis") in ("стол", "знают", "мастер") else "мастер"
         known = listed(b.get("known"), chars)
@@ -851,6 +878,8 @@ def save_item(v, kind, b):
         old = next((x for x in items if x["id"] == item_id), None) if item_id else None
         if item_id and not old:
             bad("Запись не найдена, возможно, её уже удалили.", 404)
+        if kind == "travel" and not old and len(items) >= MAX_TRAVEL:
+            bad(f"Видов транспорта не больше {MAX_TRAVEL}.")
         item = _normalize(kind, b)
         item["id"] = old["id"] if old else KINDS[kind] + uuid.uuid4().hex[:8]
         if kind == "dossier":

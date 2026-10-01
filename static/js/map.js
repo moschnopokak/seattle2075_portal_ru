@@ -18,11 +18,6 @@ function loadAsset(tag,attrs){return new Promise((res,rej)=>{const e=document.cr
 async function ensureLeaflet(){if(window.L)return;await loadAsset('link',{rel:'stylesheet',href:'/static/vendor/leaflet.css'});await loadAsset('script',{src:'/static/vendor/leaflet.js'});}
 const LL=(x,y)=>L.latLng(-y,x);
 const square=(x,y)=>(GRID_COLS[Math.floor(x/5000)]||'?')+'-'+(Math.floor(y/5000)+1);
-function pip(x,y,g){
-  const polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;
-  for(const poly of polys){let inside=false;for(const ring of poly){for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;}}if(inside)return true;}
-  return false;
-}
 function districtAt(x,y){if(!MAPDATA)return '';for(const [slug,g] of Object.entries(MAPDATA.districts)){if(slug!=='outside'&&pip(x,y,g))return slug;}return 'outside';}
 function placesVisible(){
   const P=S.places||[];
@@ -33,10 +28,10 @@ function placesVisible(){
 const placeById=id=>(S.places||[]).find(p=>p.id===id);
 const placeTag=p=>V!=='gm'||p.vis==='стол'?'':(p.vis==='мастер'?' (скрыто от игроков)':' (знают: '+joinNames((p.known||[]).map(c=>CN[c]||c))+')');
 const placeWhere=p=>p&&(V!=='gm'||p.vis==='стол')?p.name:'';
-function rMap(){return `<div class="map-shell"><div id="leaflet" aria-label="Карта Сиэтла 2075"></div><div class="map-tools" id="map-tools"></div><div class="map-hud" id="map-hud"></div></div>`;}
+function rMap(){return `<div class="map-shell"><div id="leaflet" aria-label="Карта Сиэтла 2075"></div><div class="map-tools" id="map-tools"></div><div class="map-hud" id="map-hud"></div><div class="map-measure" id="map-measure" role="region" aria-label="Линейка и время в пути" hidden></div></div>`;}
 function updateMapTools(){
   const t=document.getElementById('map-tools');if(!t)return;
-  t.innerHTML=`${V==='gm'?`<button type="button" class="btn small ${ADDING?'primary':''}" data-act="map-add">${ADDING?'Щёлкните по карте, чтобы поставить место. Отмена':'Добавить место'}</button>`:''}
+  t.innerHTML=`<button type="button" class="btn small ${MEASURE.on?'primary':''}" data-act="map-measure" aria-pressed="${MEASURE.on}">Линейка</button>${V==='gm'?`<button type="button" class="btn small ${ADDING?'primary':''}" data-act="map-add">${ADDING?'Щёлкните по карте, чтобы поставить место. Отмена':'Добавить место'}</button>`:''}
   ${['places','roads','grid'].map(k=>`<label class="check"><input type="checkbox" data-layer="${k}" ${MAPLAYERS[k]?'checked':''}> ${{places:'Места',roads:'Дороги',grid:'Сетка'}[k]}</label>`).join('')}`;
   const el=document.getElementById('leaflet');if(el)el.classList.toggle('adding',ADDING);
 }
@@ -72,7 +67,7 @@ async function initMap(){
   MAPL.dist=L.layerGroup().addTo(MAP);
   for(const [slug,g] of Object.entries(MAPDATA.districts)){
     const lyr=gj(g,{pane:'dist',interactive:slug!=='outside',style:{className:`m-d ${slug==='outside'?'m-outside':'tone'+(TONE[slug]||1)}`,stroke:false,fillOpacity:1}});
-    if(slug!=='outside')lyr.on('click',()=>{if(!ADDING)openDistrict(slug);});
+    if(slug!=='outside')lyr.on('click',()=>{if(!ADDING&&!MEASURE.on)openDistrict(slug);});
     MAPL.dist.addLayer(lyr);
   }
   gj(MAPDATA.water,{pane:'water',interactive:true,bubblingMouseEvents:true,style:{className:'m-water m-coast',weight:.8,fillOpacity:1}}).addTo(MAP);
@@ -97,7 +92,7 @@ async function initMap(){
   if(svg&&!svg.querySelector('#dogwall'))svg.insertAdjacentHTML('afterbegin','<defs><pattern id="dogwall" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" class="dog-bg"/><rect width="3" height="9" class="dog-hatch"/></pattern></defs>');
   MAP.on('zoomend',setZoomClass);
   MAP.on('zoomend moveend',()=>requestAnimationFrame(declutter));
-  MAP.on('click',e=>{if(ADDING)mapAddAt(e.latlng);});
+  MAP.on('click',e=>{if(ADDING)mapAddAt(e.latlng);else if(MEASURE.on)measureAdd(e.latlng.lng,-e.latlng.lat);});
   const hud=document.getElementById('map-hud');
   const hudAt=ll=>{if(!hud)return;const x=ll.lng,y=-ll.lat;hud.textContent=(x<0||y<0||x>MAPDATA.W||y>MAPDATA.H)?'За краем карты':'Квадрат '+square(x,y);};
   MAP.on('mousemove',e=>hudAt(e.latlng));MAP.on('moveend',()=>hudAt(MAP.getCenter()));
@@ -105,6 +100,8 @@ async function initMap(){
   if(UI.mapView)MAP.setView(UI.mapView.c,UI.mapView.z);else MAP.fitBounds(home);
   MAP.on('moveend',()=>{UI.mapView={c:MAP.getCenter(),z:MAP.getZoom()};});
   setZoomClass();updateMapTools();refreshPlaces();hudAt(MAP.getCenter());requestAnimationFrame(declutter);
+  measureResume();
+  if(UI.measureFocus){const p=placeById(UI.measureFocus);UI.measureFocus=null;if(p)focusPlace(p);}
   if(UI.focusPlace){const p=placeById(UI.focusPlace);UI.focusPlace=null;if(p){focusPlace(p);openPlace(p.id);}}
 }
 function refreshPlaces(){
@@ -116,7 +113,7 @@ function refreshPlaces(){
     const cls='pl pl-'+p.type+(p.vis==='мастер'?' pl-hidden':'')+(p.vis==='знают'?' pl-known':'');
     const m=L.marker(LL(p.x,p.y),{title:p.name,riseOnHover:true,icon:L.divIcon({className:cls,iconSize:[0,0],
       html:`<span class="pl-ico"><svg viewBox="0 0 20 20" aria-hidden="true">${PLACE_GLYPH[p.type]||PLACE_GLYPH.other}</svg>${n?`<b class="pl-n">${n}</b>`:''}</span><span class="pl-name">${esc(p.name)}</span>`})});
-    m.on('click',()=>{if(MOVING===p.id){stopMoving('Перемещение отменено');return;}if(!ADDING&&!MOVING)openPlace(p.id);});
+    m.on('click',()=>{if(MEASURE.on&&!ADDING&&!MOVING){measureAdd(p.x,p.y,p);return;}if(MOVING===p.id){stopMoving('Перемещение отменено');return;}if(!ADDING&&!MOVING)openPlace(p.id);});
     m.on('dragend',async()=>{const q=m.getLatLng();const it=placeById(p.id);MOVING=null;PENDING_PLACES=false;
       const j=await apiPost('/api/gm/items/places',Object.assign({},it,{x:Math.round(q.lng),y:Math.round(-q.lat)}));
       refreshPlaces();if(j)toast('Место перемещено');});
@@ -131,7 +128,7 @@ function openPlace(id,keep){
   curKey='m:'+id;
   const d=districtAt(p.x,p.y);
   const es=S.entries.filter(e=>e.place===p.id&&canSee(e)).sort((a,b)=>a.from<b.from?1:-1);
-  let acts=`<button type="button" class="btn" data-act="add-at" data-id="${p.id}">Добавить запись здесь</button>`;
+  let acts=`<button type="button" class="btn" data-act="add-at" data-id="${p.id}">Добавить запись здесь</button><button type="button" class="btn" data-act="measure-from" data-id="${p.id}">Расстояние отсюда</button>`;
   if(V==='gm')acts=`<button type="button" class="btn" data-act="edit-item" data-kind="places" data-id="${p.id}">Изменить</button><button type="button" class="btn" data-act="map-move" data-id="${p.id}">Переместить</button>`+acts+`<button type="button" class="btn plain" data-act="del-item" data-kind="places" data-id="${p.id}">Удалить</button>`;
   showPanel(`<p class="kind"><span class="pl-dot pl-${p.type}"></span>${PLACE_TYPES[p.type]||'Место'}${V==='gm'?`<span class="tag">${PVIS[p.vis]||''}</span>`:''}</p><h2>${esc(p.name)}</h2>
   <dl><dt>Район</dt><dd>${DNAMES[d]||'—'}</dd><dt>Квадрат</dt><dd>${square(p.x,p.y)}</dd>${V==='gm'&&p.vis==='знают'?`<dt>Знают</dt><dd>${esc(joinNames((p.known||[]).map(c=>CN[c]||c)))}</dd>`:''}</dl>

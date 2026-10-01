@@ -20,6 +20,19 @@ from .config import CONFIG_DIR
 
 STRUCTURE = ("windows", "rhythm", "clocks")
 
+# Виды транспорта для линейки на карте (скорости в км/ч). Мастер меняет их в панели; здесь только стартовый набор.
+# kind: roads (по дорогам: motorway, trunk, primary это скорости по классам дорог, off по бездорожью и до дороги)
+#       straight (по прямой, например вертолёт: скорость в поле off).
+# delay: минут на сборы и остановки за поездку; wall: минут на пропускном пункте при въезде в Догтаун или выезде.
+DEFAULT_TRAVEL = [
+    {"id": "t1", "name": "Пешком", "kind": "roads", "motorway": 5, "trunk": 5, "primary": 5, "off": 4.5, "delay": 0, "wall": 10, "vis": "стол", "note": ""},
+    {"id": "t2", "name": "Велосипед", "kind": "roads", "motorway": 15, "trunk": 15, "primary": 15, "off": 12, "delay": 0, "wall": 10, "vis": "стол", "note": ""},
+    {"id": "t3", "name": "Мотоцикл", "kind": "roads", "motorway": 95, "trunk": 75, "primary": 50, "off": 25, "delay": 2, "wall": 20, "vis": "стол", "note": ""},
+    {"id": "t4", "name": "Автомобиль", "kind": "roads", "motorway": 80, "trunk": 60, "primary": 40, "off": 20, "delay": 3, "wall": 20, "vis": "стол", "note": "С поправкой на городской трафик."},
+    {"id": "t5", "name": "Вертолёт", "kind": "straight", "motorway": 0, "trunk": 0, "primary": 0, "off": 220, "delay": 10, "wall": 0, "vis": "стол", "note": "По прямой, без дорог."},
+]
+DEFAULTS = {"travel": DEFAULT_TRAVEL}
+
 
 def load_campaign():
     return json.loads((CONFIG_DIR / "campaign.json").read_text(encoding="utf-8"))
@@ -60,8 +73,9 @@ def ensure(kinds):
             flag = "seeded:" + kind
             if db.meta_get(flag):
                 continue
-            if not db.items(kind) and data.get(kind):
-                db.set_items(kind, data[kind])
+            source = data.get(kind) or DEFAULTS.get(kind)
+            if not db.items(kind) and source:
+                db.set_items(kind, source)
                 added.append(kind)
             db.meta_set(flag, "1")
         if added:

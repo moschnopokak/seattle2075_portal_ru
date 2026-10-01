@@ -93,3 +93,72 @@ def test_dossier_editing_keeps_image_and_fact_ids(gm):
         assert [f["id"] for f in again["facts"]] == [f["id"] for f in card["facts"]]
     finally:
         gm.post("/api/gm/items/dossier", json=dict(card))
+
+
+def travel(**kw):
+    body = {"name": "Метролинк", "kind": "roads", "motorway": 90, "trunk": 70, "primary": 45, "off": 18, "delay": 5, "wall": 12, "vis": "стол", "note": "n"}
+    body.update(kw)
+    return body
+
+
+def test_default_travel_profiles_are_seeded(gm, rig):
+    names = [t["name"] for t in gm.get("/api/state").json()["travel"]]
+    assert {"Пешком", "Автомобиль", "Вертолёт"} <= set(names)
+    heli = next(t for t in gm.get("/api/state").json()["travel"] if t["name"] == "Вертолёт")
+    assert heli["kind"] == "straight" and heli["off"] > 100
+    assert [t["name"] for t in rig.get("/api/state").json()["travel"]] == names
+
+
+def test_travel_crud_and_visibility(gm, rig, anon):
+    data = ok(gm.post("/api/gm/items/travel", json=travel(name="Секретный катер", vis="мастер")))
+    tid = next(t["id"] for t in data["state"]["travel"] if t["name"] == "Секретный катер")
+    try:
+        assert "Секретный катер" not in str(rig.get("/api/state").json()["travel"])        # скрытый вид игрок не видит
+        ok(gm.post("/api/gm/items/travel", json=travel(id=tid, name="Секретный катер", vis="стол", motorway="0", off="33.5")))
+        shown = next(t for t in rig.get("/api/state").json()["travel"] if t["id"] == tid)
+        assert shown["off"] == 33.5 and shown["motorway"] == 0
+        assert rig.post("/api/gm/items/travel", json=travel()).status_code == 403
+        assert rig.post(f"/api/gm/items/travel/{tid}/delete").status_code == 403
+    finally:
+        gm.post(f"/api/gm/items/travel/{tid}/delete")
+    assert all(t["id"] != tid for t in gm.get("/api/state").json()["travel"])
+
+
+def test_travel_validation(gm):
+    bad = [
+        travel(name=""),
+        travel(off=0),                                         # без скорости вне дорог нельзя
+        travel(off="быстро"),
+        travel(motorway=-1),
+        travel(motorway=99999),
+        travel(motorway="nan"),
+        travel(delay=-5),
+        travel(wall=1441),
+        travel(motorway=0, trunk=0, primary=0),                # «по дорогам» без единой дороги
+        travel(motorway=True),
+        travel(primary=[40]),
+    ]
+    for body in bad:
+        r = gm.post("/api/gm/items/travel", json=body)
+        assert r.status_code == 400, (body, r.status_code, r.text[:100])
+    # «по прямой»: дорожные скорости не нужны
+    data = ok(gm.post("/api/gm/items/travel", json=travel(name="Дрон", kind="straight", motorway=0, trunk=0, primary=0, off=120)))
+    tid = next(t["id"] for t in data["state"]["travel"] if t["name"] == "Дрон")
+    gm.post(f"/api/gm/items/travel/{tid}/delete")
+
+
+def test_travel_profiles_are_limited(gm):
+    created = []
+    try:
+        for i in range(30):
+            r = gm.post("/api/gm/items/travel", json=travel(name=f"Вид {i}"))
+            if r.status_code != 200:
+                assert r.status_code == 400 and "не больше" in r.text
+                break
+            created.append(next(t["id"] for t in r.json()["state"]["travel"] if t["name"] == f"Вид {i}"))
+        else:
+            raise AssertionError("лимит видов транспорта не сработал")
+        assert len(gm.get("/api/state").json()["travel"]) == 12
+    finally:
+        for tid in created:
+            gm.post(f"/api/gm/items/travel/{tid}/delete")

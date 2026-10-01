@@ -376,6 +376,7 @@ function rGM(){
   <section>${secHead('План мастера','plan','Добавить событие')}<p class="note">События плана игроки не видят. Если у события включена маска, игроки видят на эти дни общее событие с другим текстом (${EYE} на календаре). Сыгранное событие переносится в хронику, а его описание становится там заметкой мастера, которую игроки не видят.</p>${plan.length?plan.map(p=>`<div class="gm-item">${row('g:'+p.id,'k-plan',p.title,fFull(p.from),p.cover?EYE+' ':'')}<button type="button" class="btn" data-act="played" data-id="${p.id}">В хронику</button></div>`).join(''):'<p class="muted">План пуст.</p>'}</section>
   <section>${secHead('Скрытые таймеры','clocks','Добавить таймер')}<p class="note">Угрозы и сроки, которые идут независимо от пачки. Таймер со сроком появляется в строке «План мастера».</p>${S.clocks.length?S.clocks.map(c=>row('c:'+c.id,'k-clock',c.title,c.when?'срок: '+fFull(c.when):'без срока')).join(''):'<p class="muted">Таймеров нет.</p>'}</section>
   <section>${secHead('Регулярные события','rhythm','Добавить событие')}<p class="note">Расписание города и привычки персонажей. Привычка показывается в строке персонажа.</p>${S.rhythm.length?S.rhythm.map(r=>row('r:'+r.id,'k-rhythm',r.title,[r.who?CN[r.who]:'',rhythmWhen(r),r.to?'до '+fDate(r.to):'',r.vis==='мастер'?'скрыто от игроков':''].filter(Boolean).join(', '))).join(''):'<p class="muted">Регулярных событий нет.</p>'}</section>
+  <section>${secHead('Транспорт и скорости','travel','Добавить вид транспорта')}<p class="note">Нужен для линейки на карте: время в пути считается по этим скоростям (км/ч).</p>${(S.travel||[]).map(t=>`<button type="button" class="row" data-act="edit-item" data-kind="travel" data-id="${t.id}"><span class="rt">${esc(t.name)}${t.vis==='мастер'?'<span class="tag">скрыто от игроков</span>':''}</span><span class="rs">${t.kind==='straight'?'по прямой, '+t.off+' км/ч':'дороги '+t.motorway+'/'+t.trunk+'/'+t.primary+' км/ч, вне дорог '+t.off}</span></button>`).join('')||'<p class="muted">Видов транспорта нет.</p>'}</section>
   <section>${secHead('Этапы','windows','Добавить этап')}<p class="note">Арки и промежуточные арки. Игроки видят название этапа с его первого дня.</p>${S.windows.map(w=>`<div class="gm-item"><span class="wname">${esc(winName(w))}${w.gm&&w.gm!==w.name?`<span class="muted small" style="display:block">игроки видят: ${esc(w.name)}</span>`:''}</span><span class="muted small">${fRange(w.from,w.to)}</span><button type="button" class="btn" data-act="edit-item" data-kind="windows" data-id="${w.id}">Изменить</button></div>`).join('')}</section>
   <section>${secHead('Хроника','past','Добавить событие')}<p class="note">Сыгранные события. Чтобы изменить или удалить событие, откройте его в разделе «Хроника».</p></section>
   <section><h2>Выгрузка для Obsidian</h2><p class="note">Текст в формате Markdown с полями Dataview. Скопируйте его и вставьте в хранилище как новую заметку.</p><button type="button" class="btn" data-act="export">Сформировать выгрузку</button><textarea id="exp" readonly hidden aria-label="Текст выгрузки"></textarea></section>
@@ -499,17 +500,30 @@ function openDetail(key,keep){
 }
 
 /* ===== Формы мастера: этапы, регулярные события, таймеры, план, хроника ===== */
-const KIND_LABEL={dossier:'Досье',places:'Место на карте',windows:'Этап',rhythm:'Регулярное событие',clocks:'Скрытый таймер',plan:'План мастера',past:'Хроника'};
-const KIND_NEW={dossier:'Новая карточка',places:'Новое место',windows:'Новый этап',rhythm:'Новое регулярное событие',clocks:'Новый скрытый таймер',plan:'Новое событие плана',past:'Новое событие хроники'};
+const KIND_LABEL={travel:'Вид транспорта',dossier:'Досье',places:'Место на карте',windows:'Этап',rhythm:'Регулярное событие',clocks:'Скрытый таймер',plan:'План мастера',past:'Хроника'};
+const KIND_NEW={travel:'Новый вид транспорта',dossier:'Новая карточка',places:'Новое место',windows:'Новый этап',rhythm:'Новое регулярное событие',clocks:'Новый скрытый таймер',plan:'Новое событие плана',past:'Новое событие хроники'};
 function dateOpts(sel,emptyLabel){return (emptyLabel?`<option value="" ${!sel?'selected':''}>${emptyLabel}</option>`:'')+range(CAL_START,CAL_END).map(d=>`<option value="${d}" ${d===sel?'selected':''}>${fFull(d)}</option>`).join('');}
 function openItemForm(kind,id,pos){
   if(V!=='gm')return;
-  const list={dossier:S.dossier||[],places:S.places||[],windows:S.windows,rhythm:S.rhythm,clocks:S.clocks,plan:S.plan,past:S.past}[kind];
+  const list={travel:S.travel||[],dossier:S.dossier||[],places:S.places||[],windows:S.windows,rhythm:S.rhythm,clocks:S.clocks,plan:S.plan,past:S.past}[kind];
   const it=id?list.find(x=>x.id===id):null;
   if(id&&!it){toast('Запись не найдена');return;}
   const d0=clampDate(S.now.date),v=x=>esc(x||'');
   let f='';
-  if(kind==='dossier'){
+  if(kind==='travel'){
+    const roads=!it||it.kind!=='straight';
+    f=`<p class="note" style="margin:0 0 12px">Скорости в километрах в час. По ним линейка на карте считает время в пути.</p>
+    <label class="field">Название<input name="name" maxlength="60" value="${v(it&&it.name)}" placeholder="Например: Метролинк, байк, катер"></label>
+    <fieldset class="vis"><legend>Как едет</legend><label><input type="radio" name="tkind" value="roads" ${roads?'checked':''}> по дорогам</label><label><input type="radio" name="tkind" value="straight" ${roads?'':'checked'}> по прямой, без дорог (вертолёт, дрон)</label></fieldset>
+    <div id="road-speeds" ${roads?'':'hidden'}><div class="two"><label class="field">По магистралям<input name="motorway" type="number" min="0" max="2000" step="0.5" value="${it?it.motorway:60}"></label><label class="field">По трассам<input name="trunk" type="number" min="0" max="2000" step="0.5" value="${it?it.trunk:50}"></label></div>
+    <div class="two"><label class="field">По основным дорогам<input name="primary" type="number" min="0" max="2000" step="0.5" value="${it?it.primary:35}"></label><label class="field">Вне дорог и до дороги<input name="off" type="number" min="0.1" max="2000" step="0.5" value="${it?it.off:15}"></label></div>
+    <span class="sub">Ноль на каком-то классе дорог значит, что по таким дорогам этот транспорт не ездит.</span></div>
+    <label class="field" id="speed-box" ${roads?'hidden':''}>Скорость по прямой<input name="speed" type="number" min="0.1" max="2000" step="0.5" value="${it&&!roads?it.off:200}"></label>
+    <div class="two"><label class="field">Сборы и остановки, минут<input name="delay" type="number" min="0" max="1440" value="${it?it.delay:0}"><span class="sub">Прибавляются один раз за поездку.</span></label>
+    <label class="field">Пропускной пункт Догтауна, минут<input name="wall" type="number" min="0" max="1440" value="${it?it.wall:0}"><span class="sub">Если поездка начинается или кончается внутри стены.</span></label></div>
+    <fieldset class="vis"><legend>Кто видит</legend><label><input type="radio" name="vis" value="стол" ${it&&it.vis==='мастер'?'':'checked'}> Все игроки</label><label><input type="radio" name="vis" value="мастер" ${it&&it.vis==='мастер'?'checked':''}> Только мастер</label></fieldset>
+    <label class="field">Заметка<input name="note" maxlength="300" value="${v(it&&it.note)}"></label>`;
+  }else if(kind==='dossier'){
     const vis=it?it.vis:'мастер';
     const plc=(S.places||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'ru'));
     f=`<p class="note" style="margin:0 0 12px">Игроки, которым открыта карточка, видят всё, кроме заметки мастера. Сведения добавляются в окне карточки.</p>
@@ -580,6 +594,7 @@ function openItemForm(kind,id,pos){
     const nm=ev.target.name;
     if(nm==='mode'){const m=ev.target.value==='monthly';document.getElementById('wd-box').hidden=m;document.getElementById('md-box').hidden=!m;}
     if(nm==='cover_on')document.getElementById('cover-box').hidden=!ev.target.checked;
+    if(nm==='tkind'){const r=ev.target.value==='roads';document.getElementById('road-speeds').hidden=!r;document.getElementById('speed-box').hidden=r;}
     if(nm==='vis'&&document.getElementById('known-box'))document.getElementById('known-box').hidden=ev.target.value!=='знают';
     if(nm==='from'&&F('to')&&F('from').value&&F('to').value&&F('to').value<F('from').value)F('to').value=F('from').value;
   });
@@ -589,7 +604,8 @@ function collectItem(form){
   const checked=n=>[...form.querySelectorAll(`input[name="${n}"]:checked`)].map(x=>x.value);
   const radio=n=>{const x=form.querySelector(`input[name="${n}"]:checked`);return x?x.value:'';};
   const b={id:form.dataset.id||undefined};
-  if(kind==='dossier'){const old=(S.dossier||[]).find(x=>x.id===form.dataset.id);Object.assign(b,{name:val('name'),alias:val('alias'),type:radio('dtype'),role:val('role'),stance:val('stance'),org:val('org'),vis:radio('vis'),known:checked('known'),met:checked('met'),last_date:val('last_date'),last_place:val('last_place'),last_note:val('last_note'),gm_note:val('gm_note'),facts:old?old.facts:[]});}
+  if(kind==='travel'){const straight=radio('tkind')==='straight';Object.assign(b,{name:val('name'),kind:straight?'straight':'roads',motorway:straight?'0':val('motorway'),trunk:straight?'0':val('trunk'),primary:straight?'0':val('primary'),off:straight?val('speed'):val('off'),delay:val('delay')||'0',wall:val('wall')||'0',vis:radio('vis'),note:val('note')});}
+  else if(kind==='dossier'){const old=(S.dossier||[]).find(x=>x.id===form.dataset.id);Object.assign(b,{name:val('name'),alias:val('alias'),type:radio('dtype'),role:val('role'),stance:val('stance'),org:val('org'),vis:radio('vis'),known:checked('known'),met:checked('met'),last_date:val('last_date'),last_place:val('last_place'),last_note:val('last_note'),gm_note:val('gm_note'),facts:old?old.facts:[]});}
   else if(kind==='places'){Object.assign(b,{name:val('name'),type:val('type'),vis:radio('vis'),known:checked('known'),note:val('note'),gm_note:val('gm_note'),x:+form.dataset.x,y:+form.dataset.y});}
   else if(kind==='windows'){Object.assign(b,{name:val('name'),gm:val('gm'),from:val('from'),to:val('to'),inter:F('inter').checked});}
   else if(kind==='rhythm'){Object.assign(b,{title:val('title'),mode:radio('mode'),wd:checked('wd').map(Number),monthDay:+val('monthDay'),who:val('who'),from:val('from'),to:val('to'),note:val('note'),vis:radio('vis')});}

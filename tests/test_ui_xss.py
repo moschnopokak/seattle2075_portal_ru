@@ -3,22 +3,12 @@
 Запуск: pytest -m browser (нужны requirements-dev.txt и установленный Chromium: playwright install chromium).
 Если Chromium лежит в нестандартном месте, укажите путь в PORTAL_TEST_CHROMIUM.
 """
-import os
-import socket
-import threading
-import time
-
 import pytest
 
-pytest.importorskip("playwright.sync_api")
-import uvicorn  # noqa: E402
-from playwright.sync_api import sync_playwright  # noqa: E402
+from helpers import entry, ok
+from ui_support import open_page
 
-from app.main import app  # noqa: E402
-from conftest import login  # noqa: E402
-from helpers import entry, ok  # noqa: E402
-
-pytestmark = pytest.mark.browser
+pytestmark = [pytest.mark.browser, pytest.mark.usefixtures("strict_csp")]
 
 P1 = "<img src=x onerror=__xss=1>"
 P2 = '"><img src=x onerror=__xss=1>'
@@ -37,42 +27,6 @@ PROBE = ("<!doctype html><html><body><h1>Проба</h1><script>var out={};"
 CHECK = ("()=>({xss:window.__xss||0,img:document.querySelectorAll('img[src=\"x\"]').length,"
          "ev:document.body.querySelectorAll('[onerror],[onload],[onmouseover]').length})")
 CLOSE = "()=>{if(!document.getElementById('overlay').hidden)closePanel()}"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def strict_csp():
-    """Браузерные тесты идут при включённом строгом CSP: любое нарушение (inline-код, чужой хост) станет ошибкой."""
-    from app import config
-    mp = pytest.MonkeyPatch()
-    mp.setattr(config, "CSP_MODE", "enforce")
-    yield
-    mp.undo()
-
-
-@pytest.fixture(scope="module")
-def live_url():
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-    for _ in range(100):
-        if server.started:
-            break
-        time.sleep(0.1)
-    assert server.started, "сервер для браузерных тестов не запустился"
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    thread.join(timeout=10)
-
-
-@pytest.fixture(scope="module")
-def browser():
-    with sync_playwright() as p:
-        b = p.chromium.launch(executable_path=os.environ.get("PORTAL_TEST_CHROMIUM") or None, args=["--no-sandbox"])
-        yield b
-        b.close()
 
 
 @pytest.fixture
@@ -115,31 +69,6 @@ def payloads(gm, gate, rig, sandbox):
     ok(gm.post(f"/api/gm/handouts/{ids['handout']}/file", content=PROBE, headers={"X-File-Name": "probe.html"}))
     ok(gm.post("/api/gm/district/downtown", json={"text": P1 + P2, "gm_text": P4}))
     return ids
-
-
-def open_page(browser, live_url, tg_id, problems):
-    ctx = browser.new_context(viewport={"width": 1100, "height": 800})
-
-    def only_local(route):
-        if route.request.url.startswith(live_url):
-            route.continue_()
-        else:  # внешние ресурсы (Telegram) в тестах не нужны: отдаём пустышку
-            route.fulfill(status=200, body="", content_type="text/plain")
-
-    ctx.route("**/*", only_local)
-    ctx.add_cookies([{"name": "session", "value": login(tg_id).cookies["session"], "url": live_url}])
-    page = ctx.new_page()
-    page.recorded = []
-    page.on("request", lambda r: page.recorded.append(r.url))
-    page.on("pageerror", lambda e: problems.append(f"pageerror: {e}"))
-    page.on("console", lambda m: problems.append(f"console.{m.type}: {m.text}")
-            if m.type == "error" and "blocked by CORS" not in m.text and "Failed to load resource" not in m.text else None)
-    page.on("dialog", lambda d: (problems.append(f"DIALOG: {d.message}"), d.dismiss()))
-    page.add_init_script("window.addEventListener('message',e=>{if(typeof e.data==='string'&&e.data.startsWith('HO:'))window.__ho=e.data});"
-                         "document.addEventListener('securitypolicyviolation',e=>{(window.__csp=window.__csp||[]).push(e.violatedDirective+' '+e.blockedURI)})")
-    page.goto(live_url + "/", wait_until="domcontentloaded")
-    page.wait_for_selector("#nav button", timeout=15000)
-    return ctx, page
 
 
 def visit_everything(page, ids, view, problems, label):

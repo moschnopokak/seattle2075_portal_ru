@@ -24,6 +24,8 @@ ITEM_BODIES = {
                 "known": ["rig"], "met": ["rig"], "last_date": "2075-08-01", "last_place": "m1", "last_note": "n",
                 "facts": [{"id": "f9", "text": "факт", "vis": "знают", "known": ["rig"], "truth": "t", "date": "2075-08-01"}],
                 "gm_note": "g"},
+    "travel": {"name": "Транспорт", "kind": "roads", "motorway": 80, "trunk": 60, "primary": 40, "off": 20, "delay": 3, "wall": 15,
+               "vis": "стол", "note": "n"},
     "handouts": {"title": "Раздатка", "date": "2075-08-01", "vis": "знают", "known": ["rig"], "note": "n", "gm_note": "g", "place": "m1"},
 }
 

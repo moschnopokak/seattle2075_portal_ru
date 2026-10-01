@@ -13,6 +13,7 @@ document.addEventListener('click',async ev=>{
     setTimeout(()=>{if(document.body.contains(b)&&b.dataset.armed){delete b.dataset.armed;b.textContent=b.dataset.label;}},4000);
     return;
   }
+  if(a==='map-measure'||a.startsWith('measure-')){measureAct(a,b);return;}
   if(ENTRY_ACTS.includes(a)){
     const j=await apiPost(`/api/entries/${encodeURIComponent(id)}/act`,{act:a,v});
     if(j){if(a==='del')finish(j.msg);else refresh(j.msg);}
@@ -107,6 +108,7 @@ document.addEventListener('change',async ev=>{
 });
 document.addEventListener('keydown',ev=>{
   if(ev.key==='Escape'&&overlayOpen()){closePanel();return;}
+  if(ev.key==='Escape'&&UI.section==='map'&&MEASURE.on&&!ADDING&&!MOVING){measureStop(false);return;}
   if(ev.key==='Escape'&&UI.section==='map'&&(ADDING||MOVING)){if(ADDING){ADDING=false;updateMapTools();toast('Добавление места отменено');}stopMoving('Перемещение отменено');return;}
   if(ev.key==='Enter'&&(ev.ctrlKey||ev.metaKey)&&ev.target.closest&&ev.target.closest('#chat-form')){ev.preventDefault();ev.target.closest('#chat-form').requestSubmit();}
 });

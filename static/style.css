@@ -477,3 +477,32 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
   .panel{animation:none}
   .toast{transition:none}
 }
+
+/* ===== Линейка и время в пути ===== */
+#leaflet.measuring,#leaflet.measuring .leaflet-interactive{cursor:crosshair}
+.m-route{stroke:var(--sodium);stroke-linecap:round;stroke-linejoin:round;fill:none}
+.m-route-straight{stroke-dasharray:2 7}
+.mm span{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--sodium);color:#1B252C;font:600 13px/1 var(--sans);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45);transform:translate(-12px,-12px);cursor:grab}
+.map-measure{position:absolute;left:10px;bottom:44px;z-index:1000;width:min(360px,calc(100% - 20px));max-height:calc(100% - 130px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px 12px;box-shadow:0 4px 14px var(--shade);font-size:14.5px}
+.mm-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.mm-head .btn{padding:3px 8px;font-size:14px}
+.mm-hint,.mm-note{color:var(--muted);font-size:13.5px;margin:8px 0 0}
+.mm-pts{list-style:none;margin:10px 0 0;padding:0}
+.mm-pts li{display:flex;align-items:center;gap:8px;padding:3px 0}
+.mm-n{flex:none;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--sodium);color:#1B252C;font:600 12px/1 var(--sans)}
+.mm-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mm-x{padding:0 8px;font-size:18px;line-height:1.2}
+.mm-sum{margin:10px 0 0}
+.mm-times{display:grid;gap:2px;margin-top:8px}
+.mm-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:2px 10px;align-items:baseline;text-align:left;background:none;border:1px solid transparent;border-radius:4px;padding:5px 8px;cursor:pointer;font-size:14.5px}
+.mm-row:hover{background:var(--raise)}
+.mm-row[aria-pressed="true"]{background:var(--raise);border-color:var(--sodium)}
+.mm-row .mm-d{color:var(--muted);font-size:13.5px;font-variant-numeric:tabular-nums}
+.mm-row .mm-m{font-variant-numeric:tabular-nums;min-width:5.5em;text-align:right}
+.mm-row small{grid-column:1/-1;color:var(--sodium-ink);font-size:12.5px}
+.mm-legs{margin-top:8px;font-size:13.5px}
+.mm-legs summary{cursor:pointer;color:var(--muted)}
+.mm-acts{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px}
+@media (max-width:760px){
+  .map-measure{left:6px;right:6px;width:auto;bottom:40px;max-height:52%}
+}
