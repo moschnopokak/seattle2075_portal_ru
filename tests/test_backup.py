@@ -172,3 +172,138 @@ def test_cli_returns_2_when_telegram_fails_but_copy_exists(tmp_path):
 
 def test_config_flag_defaults_off():
     assert config.BACKUP_TELEGRAM is False
+
+
+# ---------- пульс healthchecks.io ----------
+
+class Recorder:
+    """Подмена urlopen: запоминает обращения."""
+    def __init__(self, fail=False):
+        self.calls, self.fail = [], fail
+
+    def __call__(self, req, timeout=0):
+        if self.fail:
+            raise backup.urllib.error.URLError("сеть недоступна")
+        self.calls.append((req.full_url, req.get_method(), (req.data or b"").decode("utf-8")))
+        return FakeResponse()
+
+
+@pytest.fixture
+def pulses(monkeypatch):
+    rec = Recorder()
+    monkeypatch.setattr(backup, "HEALTHCHECKS_URL", "https://hc-ping.com/abc-123")
+    monkeypatch.setattr(backup.urllib.request, "urlopen", rec)
+    monkeypatch.setattr(backup, "_sleep", lambda s: None)
+    return rec
+
+
+def test_pulse_start_then_success_with_summary(started, pulses, monkeypatch, tmp_path):
+    monkeypatch.setattr(backup, "folder", lambda: tmp_path)
+    assert backup.main(["3"]) == 0
+    urls = [c[0] for c in pulses.calls]
+    assert urls == ["https://hc-ping.com/abc-123/start", "https://hc-ping.com/abc-123"]
+    assert all(c[1] == "POST" for c in pulses.calls)
+    assert "карточек досье 3" in pulses.calls[1][2] and ".db" in pulses.calls[1][2]
+
+
+def test_pulse_fail_when_backup_breaks(started, pulses, monkeypatch):
+    def broken(*a, **k):
+        raise backup.BackupError("диск переполнен")
+    monkeypatch.setattr(backup, "backup", broken)
+    assert backup.main([]) == 1
+    assert [c[0] for c in pulses.calls] == ["https://hc-ping.com/abc-123/start", "https://hc-ping.com/abc-123/fail"]
+    assert "диск переполнен" in pulses.calls[1][2]
+
+
+def test_pulse_fail_on_unexpected_error_and_error_is_not_swallowed(started, pulses, monkeypatch):
+    def boom(*a, **k):
+        raise OSError("No space left on device")
+    monkeypatch.setattr(backup, "backup", boom)
+    with pytest.raises(OSError):
+        backup.main([])
+    assert pulses.calls[-1][0].endswith("/fail") and "No space left" in pulses.calls[-1][2]
+
+
+def test_pulse_fail_when_telegram_does_not_accept_the_copy(started, pulses, monkeypatch, tmp_path):
+    monkeypatch.setattr(backup, "folder", lambda: tmp_path)
+    monkeypatch.setattr(backup, "BACKUP_TELEGRAM", True)
+
+    def refuse(path):
+        raise backup.BackupError("Telegram не принял файл")
+    monkeypatch.setattr(backup, "send_to_telegram", refuse)
+    assert backup.main([]) == 2
+    assert pulses.calls[-1][0].endswith("/fail") and "в Telegram не ушла" in pulses.calls[-1][2]
+
+
+def test_no_pulse_without_url_and_for_verify(started, monkeypatch, tmp_path):
+    rec = Recorder()
+    monkeypatch.setattr(backup.urllib.request, "urlopen", rec)
+    monkeypatch.setattr(backup, "folder", lambda: tmp_path)
+    monkeypatch.setattr(backup, "HEALTHCHECKS_URL", "")
+    assert backup.main([]) == 0 and rec.calls == []
+    monkeypatch.setattr(backup, "HEALTHCHECKS_URL", "https://hc-ping.com/abc")
+    assert backup.main(["--verify"]) == 0 and rec.calls == []           # проверка копии пульс не подаёт
+
+
+def test_pulse_survives_unreachable_service(started, monkeypatch, tmp_path, capsys):
+    rec = Recorder(fail=True)
+    monkeypatch.setattr(backup, "HEALTHCHECKS_URL", "https://hc-ping.com/abc")
+    monkeypatch.setattr(backup.urllib.request, "urlopen", rec)
+    monkeypatch.setattr(backup, "_sleep", lambda s: None)
+    monkeypatch.setattr(backup, "folder", lambda: tmp_path)
+    assert backup.main([]) == 0                                          # копия сделана, несмотря на молчащий сервис
+    assert "Пульс не отправлен" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("url", ["file:///etc/passwd", "ftp://example.com/x", "hc-ping.com/abc", "javascript:alert(1)"])
+def test_pulse_refuses_odd_urls(url, monkeypatch, capsys):
+    rec = Recorder()
+    monkeypatch.setattr(backup.urllib.request, "urlopen", rec)
+    assert backup.pulse("start", url=url) is False and rec.calls == []
+    assert "должен начинаться с https://" in capsys.readouterr().err
+
+
+def test_pulse_retries_then_succeeds(monkeypatch):
+    calls = {"n": 0}
+
+    def flaky(req, timeout=0):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise backup.urllib.error.URLError("временный сбой")
+        return FakeResponse()
+    sleeps = []
+    monkeypatch.setattr(backup.urllib.request, "urlopen", flaky)
+    monkeypatch.setattr(backup, "_sleep", sleeps.append)
+    assert backup.pulse("", "ok", url="https://hc-ping.com/x") is True
+    assert calls["n"] == 3 and sleeps == [1, 2]
+
+
+def test_pulse_end_to_end_with_a_real_http_server(tmp_path):
+    """Командная строка в отдельном процессе подаёт настоящие HTTP-запросы на локальный сервер."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    got = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            got.append((self.path, self.rfile.read(int(self.headers.get("Content-Length", 0))).decode("utf-8")))
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+
+        def log_message(self, *a):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        env = dict(os.environ, DATA_DIR=str(tmp_path), CONFIG_DIR=str(tmp_path), BACKUP_TELEGRAM="0",
+                   HEALTHCHECKS_URL=f"http://127.0.0.1:{server.server_port}/ping/uuid-1")
+        env.pop("BOT_TOKEN", None)
+        subprocess.run([sys.executable, "-c", "from app import db; db.init()"], env=env, check=True)
+        result = subprocess.run([sys.executable, "-m", "app.backup"], env=env, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+    finally:
+        server.shutdown()
+    assert [p for p, _ in got] == ["/ping/uuid-1/start", "/ping/uuid-1"]
+    assert "портал-" not in got[1][1] and "portal-" in got[1][1]

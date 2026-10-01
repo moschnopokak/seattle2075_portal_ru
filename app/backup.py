@@ -7,6 +7,9 @@
 
 Код возврата: 0 всё хорошо; 1 копия не сделана или не прошла проверку; 2 копия сделана,
 но отправить её в Telegram не удалось (для cron: письмо об ошибке придёт, а локальная копия есть).
+
+Если задан HEALTHCHECKS_URL, при создании копии подаётся «пульс» (сервис healthchecks.io): сигнал о начале,
+затем об успехе или о сбое. Если сигнала об успехе нет в положенный срок, сервис сам сообщает об этом.
 """
 import argparse
 import gzip
@@ -14,10 +17,13 @@ import os
 import shutil
 import sqlite3
 import sys
+import time
+import urllib.error
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-from .config import BACKUP_TELEGRAM, BOT_TOKEN, DATA_DIR
+from .config import BACKUP_TELEGRAM, BOT_TOKEN, DATA_DIR, HEALTHCHECKS_URL
 from .db import DB_PATH
 
 TELEGRAM_LIMIT = 49 * 1024 * 1024  # Bot API принимает файлы до 50 МБ; оставляем запас
@@ -26,6 +32,34 @@ KEEP = 14
 
 class BackupError(Exception):
     pass
+
+
+_sleep = time.sleep  # подменяется в тестах
+
+
+def pulse(signal="", message="", url=None) -> bool:
+    """Сигнал в healthchecks.io: 'start' перед копией, '' (успех) или 'fail' после. Не бросает исключений:
+    недоступный сервис не должен ломать резервное копирование. Возвращает, дошёл ли сигнал."""
+    base = (HEALTHCHECKS_URL if url is None else url).rstrip("/")
+    if not base:
+        return False
+    if not base.startswith(("https://", "http://")):
+        print(f"Пульс не отправлен: HEALTHCHECKS_URL должен начинаться с https://, сейчас «{base[:40]}»", file=sys.stderr)
+        return False
+    target = base + ("/" + signal if signal else "")
+    body = message.encode("utf-8", "replace")[:10000]
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(target, data=body, method="POST", headers={"Content-Type": "text/plain; charset=utf-8"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resp.read()
+            return True
+        except (urllib.error.URLError, OSError, ValueError) as ex:
+            if attempt == 2:
+                print(f"Пульс не отправлен ({signal or 'успех'}): {ex}", file=sys.stderr)
+            else:
+                _sleep(1 + attempt)
+    return False
 
 
 def folder() -> Path:
@@ -205,15 +239,26 @@ def main(argv=None) -> int:
             safety = restore(path)
             print("База восстановлена." + (f" Прежняя сохранена как {safety.name}." if safety else ""))
             return 0
-        target = backup(args.keep)
+        pulse("start")
+        try:
+            target = backup(args.keep)
+        except BackupError as ex:
+            pulse("fail", f"Копия не сделана: {ex}")
+            raise
+        except Exception as ex:
+            pulse("fail", f"Копия не сделана: {type(ex).__name__}: {ex}")
+            raise
         print(target)
+        info = f"{target.name}: {_summary(verify(target))}"
         if BACKUP_TELEGRAM:
             try:
                 n = send_to_telegram(target)
                 print(f"Копия отправлена в Telegram ({n} чат.).")
             except BackupError as ex:
                 print(f"Внимание: {ex}", file=sys.stderr)
+                pulse("fail", f"Копия сделана ({info}), но в Telegram не ушла: {ex}")
                 return 2
+        pulse("", info)
         return 0
     except BackupError as ex:
         print(f"Ошибка: {ex}", file=sys.stderr)
