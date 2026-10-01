@@ -25,6 +25,12 @@ NOTIFY_DM = os.getenv("NOTIFY_DM", "1") == "1"
 BACKUP_TELEGRAM = os.getenv("BACKUP_TELEGRAM", "0") == "1"
 # Адрес «пульса» для healthchecks.io (или своего healthchecks): после каждой копии туда уходит сигнал, а если сигнала нет, сервис пишет вам
 HEALTHCHECKS_URL = os.getenv("HEALTHCHECKS_URL", "").strip().rstrip("/")
+# Фоновый планировщик (очередь уведомлений, напоминания, уборка): 1 включён, 0 выключен (нужно только в тестах)
+SCHEDULER = os.getenv("SCHEDULER", "1") == "1"
+# Через сколько секунд после первого нового сообщения в обсуждении уходит одно уведомление «N новых сообщений»
+CHAT_NOTIFY_DELAY = int(os.getenv("CHAT_NOTIFY_DELAY", "300"))
+# Часовой пояс по умолчанию для тихих часов и сводки, пока человек не выбрал свой (название из базы IANA, например Europe/Moscow)
+DEFAULT_TZ = os.getenv("DEFAULT_TZ", "UTC").strip() or "UTC"
 # Сколько дней хранятся удалённые записи и карточки в корзине и записи журнала изменений
 TRASH_DAYS = int(os.getenv("TRASH_DAYS", "30"))
 AUDIT_DAYS = int(os.getenv("AUDIT_DAYS", "365"))

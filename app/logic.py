@@ -282,7 +282,7 @@ def card_audience(c):
 def handout_notify(old, new):
     fresh = handout_audience(new) - handout_audience(old)
     if fresh:
-        notify.to_characters(sorted(fresh), f"Новая раздатка: «{new['title']}». Открыть можно на портале, во вкладке «Раздатки».", "handouts")
+        notify.to_characters(sorted(fresh), f"Новая раздатка: «{new['title']}». Открыть можно на портале, во вкладке «Раздатки».", "handouts", kind="handout")
 
 
 def handouts_for(v):
@@ -516,9 +516,9 @@ def create_entry(v, b):
         db.bump()
     author = char_map().get(char, {}).get("name", "Мастер")
     if invited:
-        notify.to_characters(invited, f"{author} приглашает в запись «{e['title']}», {ffull(e['from'])}. Ответить можно на портале.", "now")
+        notify.to_characters(invited, f"{author} приглашает в запись «{e['title']}», {ffull(e['from'])}. Ответить можно на портале.", "now", kind="invite")
     if e["status"] == "gm":
-        notify.to_gm(f"Заявка на развитие от {author}: «{e['title']}».", "gm")
+        notify.to_gm(f"Заявка на развитие от {author}: «{e['title']}».", "gm", kind="grow")
     return msg
 
 
@@ -566,9 +566,9 @@ def edit_entry(v, entry_id, b):
         db.bump()
     if asked:
         author = char_map().get(e["author"], {}).get("name", "Мастер")
-        notify.to_characters(asked, f"{author} изменил(а) запись «{e['title']}»: {ffull(e['from'])}. Подтвердите участие на портале.", "now")
+        notify.to_characters(asked, f"{author} изменил(а) запись «{e['title']}»: {ffull(e['from'])}. Подтвердите участие на портале.", "now", kind="invite")
     if e["type"] == "grow" and not v.gm:
-        notify.to_gm(f"Заявка на развитие изменена: «{e['title']}».", "gm")
+        notify.to_gm(f"Заявка на развитие изменена: «{e['title']}».", "gm", kind="grow")
     return "Запись обновлена"
 
 
@@ -661,7 +661,7 @@ def entry_action(v, entry_id, b):
             audit.record(v, "act:" + act, "entry", e["id"], e["title"], before=before, after=_snap(e))
         db.bump()
     if note and note[1][0] in names:
-        notify.to_characters(note[1], note[2], "now")
+        notify.to_characters(note[1], note[2], "now", kind="answer")
     return msg
 
 
@@ -680,6 +680,8 @@ def add_message(v, entry_id, b):
             bad("Пустое сообщение.")
         db.add_message(entry_id, char, v.tg_id, text)
         db.bump()
+        label = "Мастер" if char == "gm" else char_map().get(char, {}).get("name", char)
+    notify.chat_message(e, label, text, v.tg_id)
     return "Сообщение отправлено"
 
 
@@ -967,7 +969,7 @@ def save_item(v, kind, b):
                                      or (old["from"], old["to"]) != (item["from"], item["to"])):
         when = ffull(item["from"]) if item["from"] == item["to"] else f"{ffull(item['from'])} – {ffull(item['to'])}"
         targets = cover["who"] or list(char_map())
-        notify.to_characters(targets, f"Общее событие, {when}: {cover['title']}. На это время лучше не планировать других дел.", "cal")
+        notify.to_characters(targets, f"Общее событие, {when}: {cover['title']}. На это время лучше не планировать других дел.", "cal", kind="cover")
     return "Сохранено" if old else "Добавлено"
 
 

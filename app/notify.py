@@ -9,11 +9,19 @@ import threading
 import urllib.error
 import urllib.request
 
-from . import db
+from . import db, outbox
 from .config import BOT_TOKEN, NOTIFY_DM, SITE_URL, TG_CHAT_ID, people
 
 log = logging.getLogger("portal.notify")
 _pin_lock = threading.Lock()
+
+
+class TelegramError(RuntimeError):
+    """Ответ Telegram с ошибкой: код (403 бот заблокирован, 429 слишком часто и т. д.) и тело ответа."""
+
+    def __init__(self, code, body, retry_after=None):
+        super().__init__(f"Telegram {code}: {body}")
+        self.code, self.body, self.retry_after = code, body, retry_after
 
 
 def _call(method, payload):
@@ -71,21 +79,22 @@ def _keyboard():
     return None
 
 
-def _dm_keyboard(section=None):
-    """Кнопка в личном сообщении: открывает портал внутри Telegram (сразу с входом) на нужном разделе."""
-    if not SITE_URL.startswith("https://"):
-        return None
-    url = SITE_URL + "/" + (f"?open={section}" if section in SECTIONS else "")
-    return {"inline_keyboard": [[{"text": "Открыть портал", "web_app": {"url": url}}]]}
+def _dm_keyboard(section=None, buttons=None):
+    """Кнопки под личным сообщением: сначала переданные (callback), последней «Открыть портал» (внутри Telegram, сразу с входом)."""
+    rows = [list(r) for r in (buttons or [])]
+    if SITE_URL.startswith("https://"):
+        url = SITE_URL + "/" + (f"?open={section}" if section in SECTIONS else "")
+        rows.append([{"text": "Открыть портал", "web_app": {"url": url}}])
+    return {"inline_keyboard": rows} if rows else None
 
 
 def _ids(obj):
     return set(obj["ids"]) | db.login_ids(obj["usernames"])
 
 
-def _send(chat_id, text, section=None):
+def _send(chat_id, text, section=None, buttons=None):
     payload = {"chat_id": chat_id, "text": text, "disable_web_page_preview": True}
-    kb = _dm_keyboard(section)
+    kb = _dm_keyboard(section, buttons)
     if kb:
         payload["reply_markup"] = kb
     try:
@@ -93,30 +102,72 @@ def _send(chat_id, text, section=None):
     except urllib.error.HTTPError as ex:
         body = ex.read().decode(errors="replace")
         if kb and "BUTTON" in body.upper():
-            # старый клиент или запрет кнопок Mini App: отправить с обычной ссылкой
-            payload["reply_markup"] = _keyboard()
+            # старый клиент или запрет кнопок Mini App: отправить без кнопки входа
+            if buttons:
+                payload["reply_markup"] = {"inline_keyboard": [list(r) for r in buttons]}
+            else:
+                payload.pop("reply_markup", None)
             _call("sendMessage", payload)
-        else:
-            # тело ответа Telegram объясняет причину (например, «бот не может писать первым»): оно должно попасть в журнал
-            raise RuntimeError(f"Telegram {ex.code}: {body}") from None
+            return
+        retry = None
+        try:
+            retry = json.loads(body).get("parameters", {}).get("retry_after")
+        except (ValueError, AttributeError):
+            pass
+        # тело ответа Telegram объясняет причину (например, «бот не может писать первым»): оно должно попасть в журнал
+        raise TelegramError(ex.code, body, retry) from None
 
 
-def to_characters(char_ids, text, section=None):
-    """Написать игрокам, за которыми закреплены эти персонажи. section: какой раздел портала открыть кнопкой."""
-    if not (BOT_TOKEN and NOTIFY_DM):
+def deliver(tg_id, text, section=None, buttons=None):
+    """Отправка из очереди (вызывается планировщиком из своего потока, ошибки идут наверх для повтора)."""
+    _send(tg_id, text, section, buttons)
+
+
+def _recipients(char_ids=None, gm=False):
+    """Telegram ID людей: игроки, за которыми закреплены эти персонажи, и (по флагу) мастер."""
+    data = people()
+    ids = set()
+    if char_ids:
+        wanted = set(char_ids)
+        for player in data["players"]:
+            if wanted & set(player["chars"]):
+                ids |= _ids(player)
+    if gm:
+        ids |= _ids(data["gm"])
+    return ids
+
+
+def _enabled():
+    return bool(BOT_TOKEN and NOTIFY_DM)
+
+
+def to_characters(char_ids, text, section=None, kind="event", buttons=None, key=None, meta=None, exclude=()):
+    """Написать игрокам, за которыми закреплены эти персонажи. Сообщение встаёт в очередь (см. outbox):
+    уйдёт с учётом тихих часов и сводки получателя. section: какой раздел портала открыть кнопкой. buttons: кнопки-ответы."""
+    if not _enabled():
         return
-    wanted = set(char_ids)
-    for player in people()["players"]:
-        if wanted & set(player["chars"]):
-            for uid in _ids(player):
-                _background(_send, uid, text, section)
+    for uid in sorted(_recipients(char_ids) - set(exclude)):
+        outbox.enqueue(uid, kind, text, section, buttons, key, meta)
 
 
-def to_gm(text, section=None):
-    if not (BOT_TOKEN and NOTIFY_DM):
+def to_gm(text, section=None, kind="event", buttons=None, exclude=()):
+    if not _enabled():
         return
-    for uid in _ids(people()["gm"]):
-        _background(_send, uid, text, section)
+    for uid in sorted(_recipients(gm=True) - set(exclude)):
+        outbox.enqueue(uid, kind, text, section, buttons)
+
+
+def chat_message(entry, author_label, text, author_tg_id, to_gm_too=True):
+    """Новое сообщение в обсуждении записи: участникам и мастеру, кроме автора. Сообщения одной записи склеиваются в одно."""
+    if not _enabled():
+        return
+    chars = set(entry.get("who", [])) | {entry.get("author")}
+    chars.discard("gm")
+    ids = _recipients(chars, gm=to_gm_too) - {author_tg_id}
+    preview = text if len(text) <= 140 else text[:140] + "…"
+    meta = {"title": entry.get("title", ""), "last": f"{author_label}: {preview}", "entry": entry.get("id")}
+    for uid in sorted(ids):
+        outbox.enqueue(uid, "chat", "", "now", None, f"chat:{entry.get('id')}", meta, delay=outbox.chat_delay())
 
 
 def _pin(text):

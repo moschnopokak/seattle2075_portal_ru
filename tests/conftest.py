@@ -20,7 +20,7 @@ shutil.copy(FIXTURES / "players.toml", _tmp / "config" / "players.toml")
 for _name in ("BOT_TOKEN", "BOT_USERNAME", "SECRET_KEY", "SITE_URL", "TG_CHAT_ID"):
     os.environ.pop(_name, None)
 os.environ.update(DATA_DIR=str(_tmp / "data"), CONFIG_DIR=str(_tmp / "config"),
-                  DEV_LOGIN="1", COOKIE_SECURE="0", NOTIFY_DM="0")
+                  DEV_LOGIN="1", COOKIE_SECURE="0", NOTIFY_DM="0", SCHEDULER="0")
 
 from fastapi.testclient import TestClient  # noqa: E402
 

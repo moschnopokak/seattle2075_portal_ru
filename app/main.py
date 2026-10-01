@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
-from . import audit, auth, config, db, handouts, logic, portraits, seed, trash
+from . import audit, auth, config, db, handouts, logic, notify, outbox, portraits, scheduler, seed, trash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("portal")
@@ -40,7 +40,10 @@ async def lifespan(_app):
         log.error("DEV_LOGIN=1 проигнорирован: задан BOT_TOKEN, это рабочий сервер. Уберите DEV_LOGIN из .env")
     if config.DEV_LOGIN:
         log.warning("DEV_LOGIN включён: вход без Telegram. На рабочем сервере выключите")
+    if scheduler.start():
+        log.info("Планировщик запущен: уведомления, напоминания, уборка")
     yield
+    scheduler.stop()
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -292,6 +295,38 @@ def delete_item(kind: str, item_id: str, request: Request):
 def save_dnote(slug: str, request: Request, data: dict = Body(...)):
     v = viewer(request)
     return _answer(v, logic.save_dnote(v, slug, data))
+
+
+@app.get("/api/me/prefs")
+def get_prefs(request: Request):
+    v = viewer(request)
+    return {"prefs": outbox.prefs(v.tg_id), "dm": bool(config.BOT_TOKEN and config.NOTIFY_DM),
+            "chat_minutes": max(1, round(config.CHAT_NOTIFY_DELAY / 60))}
+
+
+@app.post("/api/me/prefs")
+def set_prefs(request: Request, data: dict = Body(...)):
+    v = viewer(request)
+    try:
+        return {"prefs": outbox.save_prefs(v.tg_id, data)}
+    except ValueError as ex:
+        raise HTTPException(400, str(ex))
+
+
+@app.post("/api/me/prefs/test")
+def test_notification(request: Request):
+    """Пробное личное сообщение: сразу, без очереди и тихих часов, чтобы человек увидел, работает ли связь."""
+    v = viewer(request)
+    if not (config.BOT_TOKEN and config.NOTIFY_DM):
+        raise HTTPException(400, "Личные уведомления на этом портале выключены.")
+    try:
+        notify.deliver(v.tg_id, "Проверка связи: если вы видите это сообщение, личные уведомления от портала работают.", "now")
+    except notify.TelegramError as ex:
+        hint = " Откройте бота в Telegram и нажмите «Запустить», затем повторите." if ex.code in (400, 403) else ""
+        raise HTTPException(502, f"Telegram не принял сообщение (код {ex.code}).{hint}")
+    except Exception as ex:  # noqa: BLE001
+        raise HTTPException(502, f"Не удалось связаться с Telegram: {type(ex).__name__}")
+    return {"ok": True}
 
 
 def _gm_only(request: Request):

@@ -63,8 +63,23 @@ def _m2_audit_and_trash(c):
     c.execute("ALTER TABLE handout_files ADD COLUMN trashed INTEGER NOT NULL DEFAULT 0")
 
 
+def _m3_outbox_and_prefs(c):
+    c.execute("""CREATE TABLE IF NOT EXISTS outbox (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, tg_id INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL DEFAULT '',
+        section TEXT, buttons TEXT, key TEXT, count INTEGER NOT NULL DEFAULT 1, meta TEXT,
+        created REAL NOT NULL, send_after REAL NOT NULL, attempts INTEGER NOT NULL DEFAULT 0)""")
+    c.execute("CREATE INDEX IF NOT EXISTS outbox_due ON outbox(send_after)")
+    c.execute("CREATE INDEX IF NOT EXISTS outbox_key ON outbox(tg_id, key)")
+    c.execute("""CREATE TABLE IF NOT EXISTS user_prefs (
+        tg_id INTEGER PRIMARY KEY, tz TEXT NOT NULL DEFAULT 'UTC',
+        quiet_on INTEGER NOT NULL DEFAULT 0, quiet_from INTEGER NOT NULL DEFAULT 23, quiet_to INTEGER NOT NULL DEFAULT 8,
+        digest_on INTEGER NOT NULL DEFAULT 0, digest_hour INTEGER NOT NULL DEFAULT 9,
+        chat_notify INTEGER NOT NULL DEFAULT 1, updated REAL)""")
+
+
 MIGRATIONS = [
     (2, "журнал изменений и корзина", _m2_audit_and_trash),
+    (3, "очередь уведомлений и настройки пользователей", _m3_outbox_and_prefs),
 ]
 LATEST = MIGRATIONS[-1][0]
 
