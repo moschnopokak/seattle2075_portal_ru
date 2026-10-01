@@ -26,7 +26,7 @@ def tree(path):
     """Отпечаток папки: относительные пути, права и содержимое всех файлов."""
     out = {}
     for p in sorted(Path(path).rglob("*")):
-        if p.is_file() and "__pycache__" not in p.parts:
+        if p.is_file() and "__pycache__" not in p.parts and not p.name.endswith(("-wal", "-shm")):    # служебные файлы WAL SQLite создаёт сам, при каждом чтении
             out[str(p.relative_to(path))] = (stat.S_IMODE(p.stat().st_mode), hashlib.sha256(p.read_bytes()).hexdigest())
     return out
 
@@ -71,10 +71,12 @@ class Site:
         conn = sqlite3.connect(data / "portal.db")
         conn.executescript((FIXTURES / "legacy_v1.sql").read_text(encoding="utf-8"))
         conn.commit()
+        conn.execute("PRAGMA journal_mode=WAL")                                     # как у настоящего портала: первая версия работает в WAL
         conn.close()
         (data / "secret.key").write_text(META["secret_key"])
         (data / "backups").mkdir()
         (data / "backups" / "portal-20750101.db").write_bytes("старая копия".encode())
+        self.write_manifest()                                                       # прошлое обновление записало отпечатки кода
         # заглушки
         shutil.copy(ROOT / "tests" / "tools" / "fake_docker.sh", self.bin / "docker")
         (self.bin / "docker").chmod(0o755)
@@ -84,9 +86,13 @@ class Site:
         self.original_db = hashlib.sha256((data / "portal.db").read_bytes()).hexdigest()
         self.original_tree = tree(self.srv)
 
+    def write_manifest(self):
+        out = subprocess.run([sys.executable, str(ROOT / "deploy" / "filehash.py"), str(self.srv)], capture_output=True, text=True, check=True).stdout
+        (self.srv / ".installed-files.sha256").write_text(out, encoding="utf-8")
+
     def env(self, **extra):
         env = dict(os.environ, DOCKER=str(self.bin / "docker"), PYTHON=sys.executable, ASSUME_ROOT="1", CHOWN="true", STUB_DIR=str(self.stub),
-                   STUB_CODE=str(self.new), STUB_PYTHON=sys.executable, CURL="false", CONFIG_DIR="", DEV_LOGIN="0", SCHEDULER="0")
+                   STUB_CODE=str(self.new), STUB_PYTHON=sys.executable, CURL="false", PUBLIC_CHECK_PAUSE="0", CONFIG_DIR="", DEV_LOGIN="0", SCHEDULER="0")
         env.pop("CONFIG_DIR")
         env.update(extra)
         return env
@@ -219,7 +225,8 @@ def test_full_update_leaves_a_complete_backup_outside_the_install_dir(site):
     # холодная копия data байт в байт такая, какой была база до обновления
     assert hashlib.sha256((bk / "data" / "portal.db").read_bytes()).hexdigest() == site.original_db
     assert (bk / "data" / "secret.key").read_text() == META["secret_key"]
-    assert (bk / "portal-live.db").is_file() and (bk / "portal-after.db").is_file()
+    assert (bk / "portal-live.db").is_file() and (bk / "portal-before.db").is_file() and (bk / "portal-after.db").is_file()
+    assert db_version(bk / "portal-before.db") == 0 and db_version(bk / "portal-after.db") == 7
     assert (bk / "rollback.sh").read_bytes() == (ROOT / "deploy" / "rollback.sh").read_bytes()
     assert (bk / "install-dir").read_text().strip() == str(site.srv)
     names = subprocess.run(["tar", "-tzf", str(bk / "code-before.tgz")], capture_output=True, text=True, check=True).stdout
@@ -264,6 +271,20 @@ def test_public_check_is_reported(site):
     assert r.returncode == 0 and "Портал отвечает снаружи: https://portal.example.test/healthz" in r.stdout
 
 
+def test_unreachable_public_address_is_only_a_warning(site):
+    r = site.update("--yes")                                                        # curl в заглушке всегда падает
+    assert r.returncode == 0 and "Снаружи https://portal.example.test/healthz пока не открывается" in r.stdout
+
+
+def test_public_check_can_be_skipped(site):
+    curl = site.bin / "curl"
+    log = site.base / "curl.log"
+    curl.write_text(f'#!/bin/sh\necho "$@" >> {log}\n')
+    curl.chmod(0o755)
+    r = site.update("--yes", "--skip-public-check", env=site.env(CURL=str(curl)))
+    assert r.returncode == 0 and not log.exists()
+
+
 def test_two_updates_in_a_row_make_two_backups_and_stay_healthy(site):
     assert site.update("--yes").returncode == 0
     before = site.srv / "data" / "portal.db"
@@ -274,6 +295,151 @@ def test_two_updates_in_a_row_make_two_backups_and_stay_healthy(site):
     assert r.returncode == 0, r.stdout + r.stderr
     assert len(site.backup_dirs()) == 2 and count(before, "entries") == count_before and db_version(before) == 7
     assert "Схема уже актуальна" in r.stdout
+
+
+def journal_mode(db):
+    return sqlite3.connect(db).execute("PRAGMA journal_mode").fetchone()[0]
+
+
+def note(db):
+    return sqlite3.connect(db).execute("SELECT value FROM meta WHERE key='записка'").fetchone()
+
+
+def test_copies_used_for_checks_are_single_files_readable_on_a_read_only_disk(site):
+    """Проверки идут в контейнере с диском «только чтение»: копии не должны требовать служебных файлов WAL."""
+    assert journal_mode(site.srv / "data" / "portal.db") == "wal"                  # как на настоящем сервере
+    assert site.update("--yes").returncode == 0
+    bk = site.only_backup()
+    for name in ("portal-live.db", "portal-before.db", "portal-after.db"):
+        assert journal_mode(bk / name) == "delete", name
+        assert not (bk / f"{name}-wal").exists() and not (bk / f"{name}-shm").exists(), name
+
+
+def test_a_write_still_sitting_in_the_wal_at_stop_is_not_lost(site):
+    """Портал остановили на лету: последняя запись есть только в журнале WAL. Она попадает во все копии и переживает обновление."""
+    site.flag("dirty_wal")
+    r = site.update("--yes")
+    assert r.returncode == 0, r.stdout + r.stderr
+    bk = site.only_backup()
+    assert (bk / "data" / "portal.db-wal").exists()                                 # холодная копия забрала и журнал
+    assert note(bk / "portal-before.db") == ("лежит только в WAL",)
+    assert note(site.srv / "data" / "portal.db") == ("лежит только в WAL",)         # а новая версия её видит
+
+
+def test_a_write_in_the_wal_survives_an_automatic_rollback(site):
+    site.flag("dirty_wal")
+    site.flag("fail_health")
+    r = site.update("--yes")
+    assert r.returncode != 0
+    assert note(site.srv / "data" / "portal.db") == ("лежит только в WAL",)
+    assert db_version(site.srv / "data" / "portal.db") == 0 and site.state() == ("running", "old")
+
+
+def test_files_created_by_root_in_data_are_handed_back_to_the_container_user(site):
+    log = site.base / "chown.log"
+    chown = site.bin / "chown-log"
+    chown.write_text(f'#!/bin/sh\necho "$@" >> {log}\n')
+    chown.chmod(0o755)
+    assert site.update("--yes", env=site.env(CHOWN=str(chown))).returncode == 0
+    calls = log.read_text(encoding="utf-8")
+    assert "1000:1000" in calls and str(site.srv / "data") in calls
+
+
+def test_a_dropped_ssh_connection_does_not_leave_the_portal_half_updated(site):
+    """Оборвалась связь (SIGHUP) в момент, когда портал уже остановлен: скрипт всё равно доходит до конца."""
+    import signal
+    import time
+    site.flag("slow_stop")
+    cmd = ["bash", str(site.new / "deploy" / "update.sh"), "--install-dir", str(site.srv), "--backups-dir", str(site.backups), "--health-wait", "6", "--yes"]
+    proc = subprocess.Popen(cmd, env=site.env(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True, cwd=site.base)
+    deadline = time.time() + 120
+    while "compose stop app" not in site.calls() and time.time() < deadline:
+        time.sleep(0.05)
+    assert "compose stop app" in site.calls()
+    os.killpg(proc.pid, signal.SIGHUP)                                              # как при разрыве SSH: сигнал получает вся группа процессов
+    out, _ = proc.communicate(timeout=300)
+    assert proc.returncode == 0, out
+    assert "Готово: портал обновлён" in out
+    assert db_version(site.srv / "data" / "portal.db") == 7 and site.state() == ("running", "new")
+
+
+# ---------------------------------------------------------------- ручные правки кода на сервере
+
+def test_untouched_code_is_not_flagged(site):
+    r = site.update("--rehearse-only")
+    assert r.returncode == 0 and "ручных правок нет" in r.stdout
+
+
+def test_hand_edited_files_are_reported_before_anything_is_changed(site):
+    (site.srv / "app" / "main.py").write_text("СТАРЫЙ КОД\n# моя правка\n", encoding="utf-8")
+    (site.srv / "static" / "mine.css").write_text("/* свой файл */\n", encoding="utf-8")
+    site.original_tree = tree(site.srv)
+    r = site.update("--rehearse-only")
+    assert r.returncode == 0
+    assert "app/main.py" in r.stdout and "static/mine.css" in r.stdout and "static/old.js" not in r.stdout
+    assert "code-before.tgz" in r.stdout
+    assert_everything_as_before(site)
+
+
+def test_hand_edits_need_a_confirmation_to_be_overwritten(site):
+    (site.srv / "app" / "main.py").write_text("СТАРЫЙ КОД\n# моя правка\n", encoding="utf-8")
+    site.original_tree = tree(site.srv)
+    r = site.update(input="n\n")
+    assert r.returncode == 0 and "app/main.py" in r.stdout and "Отменено" in r.stdout          # вопрос при вводе из канала не печатается, ответ «n» принят
+    assert_everything_as_before(site)
+    assert not any(c.startswith("compose stop") for c in site.calls())
+
+
+def test_hand_edits_are_kept_in_the_backup_when_overwritten(site):
+    (site.srv / "app" / "main.py").write_text("СТАРЫЙ КОД\n# моя правка\n", encoding="utf-8")
+    r = site.update("--yes")
+    assert r.returncode == 0 and "app/main.py" in r.stdout
+    bk = site.only_backup()
+    saved = subprocess.run(["tar", "-xzOf", str(bk / "code-before.tgz"), "./app/main.py"], capture_output=True, text=True, check=True).stdout
+    assert "# моя правка" in saved
+    assert "# моя правка" not in (site.srv / "app" / "main.py").read_text(encoding="utf-8")
+
+
+def test_update_records_fingerprints_so_the_next_update_is_clean(site):
+    assert site.update("--yes").returncode == 0
+    manifest = (site.srv / ".installed-files.sha256").read_text(encoding="utf-8")
+    assert "app/preflight.py" in manifest and "old.js" not in manifest
+    import time
+    time.sleep(1.1)
+    r = site.update("--yes")
+    assert r.returncode == 0 and "ручных правок нет" in r.stdout
+
+
+def test_rollback_brings_back_the_old_fingerprints(site):
+    old_manifest = (site.srv / ".installed-files.sha256").read_text(encoding="utf-8")
+    bk = update_then_use_the_new_version(site)
+    assert (site.srv / ".installed-files.sha256").read_text(encoding="utf-8") != old_manifest
+    subprocess.run(["bash", str(bk / "rollback.sh"), "--yes", "--health-wait", "6"], env=site.env(), capture_output=True, text=True, cwd=site.base, check=True)
+    assert (site.srv / ".installed-files.sha256").read_text(encoding="utf-8") == old_manifest
+
+
+def test_first_ever_update_works_without_fingerprints_by_comparing_with_known_releases(site):
+    """На сервере, который ставили по архиву, отпечатков ещё нет: сверка идёт со списком всех прежних версий (deploy/known-files.txt)."""
+    if subprocess.run(["git", "cat-file", "-e", "f9785e9"], cwd=ROOT, capture_output=True).returncode != 0:
+        pytest.skip("нет истории git")
+    (site.srv / ".installed-files.sha256").unlink()
+    shutil.rmtree(site.srv / "app")
+    shutil.rmtree(site.srv / "static")
+    archive = subprocess.run(["git", "archive", "f9785e9", "app", "static"], cwd=ROOT, capture_output=True, check=True).stdout
+    subprocess.run(["tar", "-x", "-C", str(site.srv)], input=archive, check=True)
+    site.original_tree = tree(site.srv)
+    r = site.update("--rehearse-only")
+    assert r.returncode == 0 and "ручных правок нет" in r.stdout, r.stdout
+    (site.srv / "static" / "index.html").write_text("правка", encoding="utf-8")
+    r = site.update("--rehearse-only")
+    assert "static/index.html" in r.stdout and "ручных правок нет" not in r.stdout
+
+
+def test_a_package_without_the_fingerprint_tool_is_refused(site):
+    (site.new / "deploy" / "filehash.py").unlink()
+    r = site.update("--yes")
+    assert r.returncode != 0 and "filehash.py" in r.stdout + r.stderr
+    assert_everything_as_before(site)
 
 
 # ---------------------------------------------------------------- отказы: в каждом база остаётся целой

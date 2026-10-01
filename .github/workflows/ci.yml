@@ -63,6 +63,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                  # тесты обновления сверяются с настоящим кодом первой версии из истории git
 
       - uses: actions/setup-python@v5
         with:
@@ -73,7 +75,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
 
       - name: Статический анализ
-        run: python -m pyflakes app tests add-id.py
+        run: python -m pyflakes app tests add-id.py deploy/filehash.py
 
       - name: Тесты (без браузера)
         run: python -m pytest -m "not browser" -q

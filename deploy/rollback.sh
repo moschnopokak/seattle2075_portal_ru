@@ -7,6 +7,7 @@
 # Важно: всё, что игроки и мастер записали в портал ПОСЛЕ обновления, при откате пропадёт (базу заменяет копия до обновления).
 # Но и эти данные не уничтожаются: текущая папка data переименовывается в data.after-update-<время> рядом с порталом.
 set -Eeuo pipefail
+trap '' HUP          # оборвалась связь с сервером (SSH): скрипт всё равно дойдёт до конца, а не бросит портал на полпути
 
 BK=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 INSTALL=""
@@ -30,6 +31,7 @@ say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 ok()  { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 die() { printf '  \033[31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 dc()  { (cd "$INSTALL" && "$DOCKER" compose "$@"); }
+fix_owner() { find "$INSTALL/data" ! -user 1000 -exec "$CHOWN" 1000:1000 {} + 2>/dev/null || true; }
 
 [ "${ASSUME_ROOT:-0}" = 1 ] || [ "$(id -u)" = 0 ] || die "Запускайте через sudo."
 [ -f "$BK/data/portal.db" ] || die "В $BK нет data/portal.db: это не папка резервной копии update.sh."
@@ -51,10 +53,10 @@ if [ -d "$INSTALL/data" ]; then
   ok "Текущая папка data сохранена: $AFTER"
 fi
 cp -a "$BK/data" "$INSTALL/data"
-"$CHOWN" -R 1000:1000 "$INSTALL/data"
+fix_owner
 ok "База и вся папка data возвращены из копии"
 
-rm -rf "$INSTALL/app" "$INSTALL/static"
+rm -rf "$INSTALL/app" "$INSTALL/static" "$INSTALL/.installed-files.sha256"
 tar -xzf "$BK/code-before.tgz" -C "$INSTALL" --exclude=./.env --exclude=./config/players.toml --exclude=./config/campaign.json
 ok "Старый код возвращён"
 

@@ -16,6 +16,7 @@
 #   6. Если на шагах 4–5 что-то пошло не так, сам откатывается: возвращает код и базу из копии.
 # Откат вручную: sudo bash /opt/portal-backups/<время>/rollback.sh
 set -Eeuo pipefail
+trap '' HUP          # оборвалась связь с сервером (SSH): скрипт всё равно дойдёт до конца, а не бросит портал на полпути
 
 INSTALL=/opt/seattle2075-portal
 BACKUPS=/opt/portal-backups
@@ -26,7 +27,8 @@ HEALTH_WAIT=180
 DOCKER=${DOCKER:-docker}
 PYTHON=${PYTHON:-python3}
 CURL=${CURL:-curl}
-CHOWN=${CHOWN:-chown}              # DOCKER, PYTHON, CURL, CHOWN и ASSUME_ROOT нужны только тестам скрипта (с заглушкой docker)
+CHOWN=${CHOWN:-chown}
+PUBLIC_PAUSE=${PUBLIC_CHECK_PAUSE:-5}   # DOCKER, PYTHON, CURL, CHOWN, PUBLIC_CHECK_PAUSE и ASSUME_ROOT нужны только тестам скрипта (с заглушкой docker)
 NEW=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 usage() {
@@ -59,6 +61,8 @@ ask() {
   case "$reply" in y|Y|yes|д|Д|да) return 0 ;; *) echo "Отменено, ничего не изменено."; exit 0 ;; esac
 }
 dc() { (cd "$INSTALL" && "$DOCKER" compose "$@"); }
+# Файлы в data должны принадлежать пользователю контейнера (uid 1000). Чиним только то, что создал root: остальное и группы не трогаем.
+fix_owner() { find "$INSTALL/data" ! -user 1000 -exec "$CHOWN" 1000:1000 {} + 2>/dev/null || true; }
 
 PHASE=safe        # safe: ничего не менялось; downtime: портал остановлен, но данные и код ещё целы; copied: полная копия готова, дальше можно откатываться
 BK=""
@@ -110,14 +114,30 @@ cp "$NEW/deploy/rollback.sh" "$BK/rollback.sh"
 printf '%s\n' "$INSTALL" > "$BK/install-dir"
 ok "Копии будут лежать здесь: $BK"
 
+# Новая версия заменяет app/ и static/ целиком. Если вы правили там что-то вручную, скажем об этом до остановки портала.
+KNOWN="$INSTALL/.installed-files.sha256"                      # отпечатки, записанные прошлым обновлением
+[ -f "$KNOWN" ] || KNOWN="$NEW/deploy/known-files.txt"        # иначе: отпечатки всех прежних версий портала
+[ -f "$KNOWN" ] && [ -f "$NEW/deploy/filehash.py" ] || die "В $NEW/deploy нет filehash.py или known-files.txt: распакуйте новую версию заново."
+edited=$("$PYTHON" "$NEW/deploy/filehash.py" "$INSTALL" --unknown "$KNOWN")
+if [ -n "$edited" ]; then
+  warn "В app/ или static/ есть файлы, которых нет ни в одной известной версии портала (вы правили их вручную или ставили отдельно):"
+  printf '%s\n' "$edited" | head -20 | sed 's/^/      /'
+  warn "Новая версия заменит их своими. Ваши варианты сохранятся в $BK/code-before.tgz."
+  [ "$REHEARSE_ONLY" = 1 ] || ask "Всё равно обновлять?"
+else
+  ok "Код на сервере соответствует известной версии портала, ручных правок нет"
+fi
+
 # ---------------------------------------------------------------- 1. копия живой базы
 say "1. Копия базы работающего портала (портал не останавливается)"
 "$PYTHON" - "$INSTALL/data/portal.db" "$BK/portal-live.db" <<'PY'
 import sqlite3, sys
-src = sqlite3.connect(sys.argv[1])
+from urllib.parse import quote
+src = sqlite3.connect("file:" + quote(sys.argv[1]) + "?mode=ro", uri=True)    # только чтение: живую базу не трогаем
 dst = sqlite3.connect(sys.argv[2])
 with dst:
     src.backup(dst)
+dst.execute("PRAGMA journal_mode=DELETE")                                     # копия одним файлом, без WAL: её читает контейнер с диском «только чтение»
 status = dst.execute("PRAGMA integrity_check").fetchone()[0]
 rows = dst.execute("SELECT COUNT(*) FROM entries").fetchone()[0], dst.execute("SELECT COUNT(*) FROM items").fetchone()[0]
 src.close(); dst.close()
@@ -125,6 +145,7 @@ if status != "ok":
     sys.exit("копия не прошла проверку целостности: " + status)
 print(f"  копия проверена: целостность ok, записей календаря {rows[0]}, элементов {rows[1]}")
 PY
+fix_owner
 ok "База скопирована: $BK/portal-live.db"
 
 # ---------------------------------------------------------------- 2. репетиция
@@ -150,11 +171,18 @@ PHASE=downtime
 dc stop app
 ok "Портал остановлен"
 cp -a "$INSTALL/data" "$BK/data"
-"$PYTHON" - "$BK/data/portal.db" <<'PY'
+"$PYTHON" - "$BK/data/portal.db" "$BK/portal-before.db" <<'PY'
 import sqlite3, sys
-status = sqlite3.connect(sys.argv[1]).execute("PRAGMA integrity_check").fetchone()[0]
+from urllib.parse import quote
+src = sqlite3.connect("file:" + quote(sys.argv[1]) + "?mode=ro", uri=True)    # копию data не меняем ни на байт
+status = src.execute("PRAGMA integrity_check").fetchone()[0]
 if status != "ok":
     sys.exit("холодная копия не прошла проверку: " + status)
+dst = sqlite3.connect(sys.argv[2])                                            # «снимок до» для итоговой сверки: учтено всё, что было в журнале WAL
+with dst:
+    src.backup(dst)
+dst.execute("PRAGMA journal_mode=DELETE")
+src.close(); dst.close()
 PY
 ok "Холодная копия папки data сделана и проверена: $BK/data"
 tar -C "$INSTALL" --exclude=./data -czf "$BK/code-before.tgz" .
@@ -170,8 +198,9 @@ PHASE=copied
 rm -rf "$INSTALL/app" "$INSTALL/static"
 tar -C "$NEW" --exclude=./.git --exclude=./node_modules --exclude=./tests --exclude=./.github --exclude=./data --exclude=./.env \
     --exclude=./config/players.toml --exclude=./config/campaign.json --exclude=./venv --exclude=./.venv -cf - . | tar -C "$INSTALL" -xf -
-"$CHOWN" -R 1000:1000 "$INSTALL/data"
+fix_owner
 chmod 600 "$INSTALL/.env"
+"$PYTHON" "$NEW/deploy/filehash.py" "$INSTALL" > "$INSTALL/.installed-files.sha256"      # отпечатки: в следующий раз по ним найдём ручные правки
 ok "Новый код на месте"
 dc up -d --build --force-recreate
 ok "Портал запущен, жду, пока он станет здоровым (до $HEALTH_WAIT с)"
@@ -195,12 +224,15 @@ ok "Контейнер здоров"
 say "5. Сверка базы: после запуска не должно пропасть ничего из того, что было"
 "$PYTHON" - "$INSTALL/data/portal.db" "$BK/portal-after.db" <<'PY'
 import sqlite3, sys
-src = sqlite3.connect(sys.argv[1]); dst = sqlite3.connect(sys.argv[2])
+from urllib.parse import quote
+src = sqlite3.connect("file:" + quote(sys.argv[1]) + "?mode=ro", uri=True)
+dst = sqlite3.connect(sys.argv[2])
 with dst:
     src.backup(dst)
+dst.execute("PRAGMA journal_mode=DELETE")
 src.close(); dst.close()
 PY
-"$DOCKER" run --rm --user 0:0 --network none -v "$BK:/work:ro" "$IMG" python -m app.preflight --compare /work/data/portal.db /work/portal-after.db
+"$DOCKER" run --rm --user 0:0 --network none -v "$BK:/work:ro" "$IMG" python -m app.preflight --compare /work/portal-before.db /work/portal-after.db
 ok "Сверка прошла"
 
 if [ "$SKIP_PUBLIC" = 0 ]; then
@@ -209,7 +241,7 @@ if [ "$SKIP_PUBLIC" = 0 ]; then
     reached=0
     for _ in 1 2 3 4 5 6; do
       if "$CURL" -fsS --max-time 15 "https://$domain/healthz" >"$BK/healthz.json" 2>/dev/null; then reached=1; break; fi
-      sleep 5
+      sleep "$PUBLIC_PAUSE"
     done
     if [ "$reached" = 1 ]; then ok "Портал отвечает снаружи: https://$domain/healthz $(cat "$BK/healthz.json")"
     else warn "Снаружи https://$domain/healthz пока не открывается. Внутри портал здоров, возможно, Caddy ещё получает сертификат. Проверьте через минуту: sudo docker compose logs --tail 30 caddy"; fi

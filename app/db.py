@@ -82,6 +82,17 @@ def _m4_invite_clock(c):
         entry_id TEXT NOT NULL, char TEXT NOT NULL, asked REAL NOT NULL, reminded INTEGER NOT NULL DEFAULT 0, last REAL NOT NULL,
         PRIMARY KEY (entry_id, char))""")
     c.execute("ALTER TABLE user_prefs ADD COLUMN remind INTEGER NOT NULL DEFAULT 1")
+    # Приглашения, которые к моменту обновления уже ждут ответа, отсчитывают срок от обновления, а не от своей даты:
+    # иначе первый же запуск планировщика разослал бы напоминания по всем старым приглашениям сразу.
+    now = time.time()
+    for row in c.execute("SELECT id, data FROM entries").fetchall():
+        try:
+            answers = json.loads(row["data"]).get("answers") or {}
+        except (ValueError, AttributeError):
+            continue
+        for char, answer in answers.items():
+            if answer == "ждёт":
+                c.execute("INSERT OR IGNORE INTO invite_clock(entry_id,char,asked,reminded,last) VALUES(?,?,?,0,?)", (row["id"], char, now, now))
 
 
 def _m5_handout_media(c):

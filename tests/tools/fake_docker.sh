@@ -7,7 +7,7 @@
 #   STUB_CODE     папка НОВОЙ версии: оттуда «контейнер» репетиции запускает python -m app.preflight
 #   STUB_PYTHON   какой python использовать
 # Поведение переключается файлами в STUB_DIR: fail_health (новая версия никогда не станет здоровой), fail_up (docker compose up
-# падает на новой версии), break_data (после запуска новой версии из базы пропадают сообщения), fail_old_up (падает и старая).
+# падает на новой версии), break_data (после запуска новой версии из базы пропадают сообщения), fail_old_up (падает и старая), dirty_wal (при остановке в WAL остаётся незасчитанная запись), slow_stop (остановка занимает 3 секунды).
 set -u
 echo "$*" >> "$STUB_DIR/calls.log"
 cmd=${1:-}
@@ -60,7 +60,13 @@ case "$cmd" in
     sub=${1:-}
     [ $# -gt 0 ] && shift
     case "$sub" in
-      stop) echo stopped > "$STUB_DIR/state"; exit 0 ;;
+      stop)
+        [ -f "$STUB_DIR/slow_stop" ] && sleep 3      # остановка идёт не мгновенно (тест обрыва связи)
+        if [ -f "$STUB_DIR/dirty_wal" ]; then
+          # портал убит на лету: последняя запись лежит только в журнале WAL, в основной файл не сброшена
+          "$STUB_PYTHON" -c "import sqlite3,os,sys; c=sqlite3.connect(sys.argv[1]); c.execute('PRAGMA journal_mode=WAL'); c.execute('PRAGMA wal_autocheckpoint=0'); c.execute(\"INSERT OR REPLACE INTO meta(key,value) VALUES('записка','лежит только в WAL')\"); c.commit(); os._exit(0)" "$PWD/data/portal.db"
+        fi
+        echo stopped > "$STUB_DIR/state"; exit 0 ;;
       start) echo running > "$STUB_DIR/state"; exit 0 ;;
       images) echo "sha256:oldimage"; exit 0 ;;
       ps) echo "cid-app"; exit 0 ;;

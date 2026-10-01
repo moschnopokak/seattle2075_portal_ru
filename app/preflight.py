@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import quote
 
 IGNORE_COLUMNS = {"logins": {"last_seen"}}          # меняются при каждом входе
 IGNORE_META_KEYS = {"version"}                      # счётчик «данные изменились», растёт при запуске
@@ -35,7 +36,7 @@ def _hash(row):
 def snapshot(path, columns=None):
     """Содержимое базы: по каждой таблице {ключ строки: хеш строки}. columns: какие столбцы брать (чтобы сравнивать со старой схемой)."""
     try:
-        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        conn = sqlite3.connect(f"file:{quote(str(path))}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
         integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
         version = conn.execute("PRAGMA user_version").fetchone()[0]
@@ -148,7 +149,7 @@ def rehearse(db_file, out=print):
     try:
         copy = work / "portal.db"
         try:                                                              # копия средствами SQLite: согласованная, даже если база сейчас используется
-            src = sqlite3.connect(f"file:{db_file}?mode=ro", uri=True)
+            src = sqlite3.connect(f"file:{quote(str(db_file))}?mode=ro", uri=True)
             dst = sqlite3.connect(copy)
             with dst:
                 src.backup(dst)

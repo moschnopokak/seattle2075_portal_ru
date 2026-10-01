@@ -55,7 +55,9 @@ def png():
 def main():
     with TestClient(app, raise_server_exceptions=False) as boot:
         assert boot.get("/healthz").status_code == 200
-    gm, gate, rig, hag, eli, max_ = login(GM), login(GATE), login(RIG), login(HAG), login(ELI), login(MAX)
+    gm, gate, rig, hag = login(GM), login(GATE), login(RIG), login(HAG)
+    login(ELI)                                                                      # Илайджа тоже входит (строка в logins), но сам ничего не делает
+    max_ = login(MAX)
 
     # --- записи игроков
     e1 = make(gate, char="gate", title="Встреча у моста", who=["rig"], where="Мост", cond="Без оружия", goal="Договориться об оплате")

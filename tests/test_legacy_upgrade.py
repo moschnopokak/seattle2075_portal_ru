@@ -11,11 +11,10 @@ import os
 import sqlite3
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
-
-from app import preflight
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -118,6 +117,34 @@ def test_the_new_version_can_write_on_top_of_the_old_data(upgraded):
 
 def test_secret_key_is_kept_so_sessions_survive(upgraded):
     assert (upgraded[1] / "secret.key").read_text().strip() == META["secret_key"]
+
+
+def test_invitations_already_waiting_get_their_reminder_clock_from_the_update_moment(tmp_path):
+    """Приглашения без ответа, созданные давным-давно, не должны получить напоминание в первую же минуту после обновления."""
+    data = make_data(tmp_path)
+    conn = sqlite3.connect(data / "portal.db")
+    month_ago = time.time() - 30 * 86400
+    waiting = []
+    for entry_id, raw in conn.execute("SELECT id, data FROM entries").fetchall():
+        entry = json.loads(raw)
+        entry["created"] = month_ago
+        conn.execute("UPDATE entries SET data=? WHERE id=?", (json.dumps(entry, ensure_ascii=False), entry_id))
+        waiting += [(entry_id, char) for char, answer in entry.get("answers", {}).items() if answer == "ждёт"]
+    conn.commit()
+    conn.close()
+    assert len(waiting) >= 2                                                       # в базе первой версии есть приглашения без ответа
+    script = (
+        "import json,time\nfrom app import db, reminders, startup\nstartup.prepare_data()\n"
+        "now=time.time()\n"
+        "rows=[(r['entry_id'],r['char'],now-r['asked']<60) for r in db.conn().execute('SELECT * FROM invite_clock').fetchall()]\n"
+        "print(json.dumps({'rows':rows,'due_now':[(e['id'],c) for e,c in reminders.due()],"
+        "'due_in_3_days':sorted((e['id'],c) for e,cs in reminders.due(now=now+3*86400) for c in cs)}))\n")
+    r = run_python(["-c", script], data)
+    assert r.returncode == 0, r.stderr[-1500:]
+    out = json.loads(r.stdout.strip().splitlines()[-1])
+    assert sorted((e, c) for e, c, fresh in out["rows"] if fresh) == sorted(waiting)
+    assert out["due_now"] == []                                                    # сразу после обновления напоминать не о чем
+    assert set(map(tuple, out["due_in_3_days"])) <= set(waiting) and out["due_in_3_days"]   # а через срок напоминания работают
 
 
 # ---------------------------------------------------------------- старый код на новой базе (запасной путь отката)
