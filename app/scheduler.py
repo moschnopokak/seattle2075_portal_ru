@@ -7,7 +7,7 @@ import logging
 import threading
 import time
 
-from . import audit, notify, outbox, reminders, trash
+from . import audit, notify, outbox, recap, reminders, trash
 from .config import SCHEDULER
 
 log = logging.getLogger("portal.scheduler")
@@ -37,6 +37,7 @@ def run_once(now=None, send=None) -> dict:
         audit.purge_old()
         outbox.purge_stale(now=now)
         reminders.purge_orphans()
+        recap.purge_old()
         done["maintenance"] = True
     return done
 

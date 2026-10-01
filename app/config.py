@@ -28,6 +28,17 @@ HEALTHCHECKS_URL = os.getenv("HEALTHCHECKS_URL", "").strip().rstrip("/")
 # Кнопки «Принять / Отклонить» прямо в сообщениях бота. Для них Telegram должен присылать нажатия на адрес портала (webhook),
 # поэтому нужен SITE_URL с https. 0 выключено, 1 включено. Пока включено, getUpdates у этого бота не работает
 TG_WEBHOOK = os.getenv("TG_WEBHOOK", "0") == "1"
+# Пересказ «Что было раньше» через Claude API. Включается, только если задан ключ API (без него кнопки нет и ничего никуда не отправляется).
+# В Anthropic уходит только то, что видит сам игрок (его хроника, сведения, раздатки, его записи). Модель и «глубину размышления» можно сменить.
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+RECAP_ENABLED = bool(ANTHROPIC_API_KEY) and os.getenv("RECAP", "1") != "0"
+RECAP_MODEL = os.getenv("RECAP_MODEL", "claude-opus-5-5").strip() or "claude-opus-5-5"
+RECAP_EFFORT = os.getenv("RECAP_EFFORT", "low").strip().lower()
+if RECAP_EFFORT not in ("low", "medium", "high"):
+    RECAP_EFFORT = "low"
+# Сколько новых пересказов в сутки может заказать один человек и весь портал (повторный запрос с теми же данными берётся из памяти и не считается)
+RECAP_PER_DAY = int(os.getenv("RECAP_PER_DAY", "6"))
+RECAP_DAILY_TOTAL = int(os.getenv("RECAP_DAILY_TOTAL", "40"))
 # Фоновый планировщик (очередь уведомлений, напоминания, уборка): 1 включён, 0 выключен (нужно только в тестах)
 SCHEDULER = os.getenv("SCHEDULER", "1") == "1"
 # Через сколько секунд после первого нового сообщения в обсуждении уходит одно уведомление «N новых сообщений»

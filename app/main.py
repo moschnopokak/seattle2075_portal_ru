@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
-from . import audit, auth, config, db, diary, handouts, logic, notify, outbox, portraits, scheduler, seed, telegram_bot, trash
+from . import audit, auth, config, db, diary, handouts, logic, notify, outbox, portraits, recap, scheduler, seed, telegram_bot, trash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("portal")
@@ -319,6 +319,16 @@ def my_diary(request: Request, format: str = "md", parts: str = "", char: str = 
     return Response(data, media_type=media, headers={
         "Content-Disposition": f"attachment; filename=\"diary.{format}\"; filename*=UTF-8''{quote(name)}",
         "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+
+@app.post("/api/me/recap")
+def my_recap(request: Request, data: dict = Body(...)):
+    """«Что было раньше»: пересказ хроники с даты по тому, что видит сам игрок. Пишет Claude, ключ только на сервере."""
+    v = viewer(request)
+    try:
+        return recap.generate(v, data.get("char"), data.get("since"))
+    except recap.RecapError as ex:
+        raise HTTPException(ex.code, ex.message)
 
 
 @app.post("/api/entries/{entry_id}/roll")

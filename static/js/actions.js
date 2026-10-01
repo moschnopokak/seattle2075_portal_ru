@@ -18,6 +18,8 @@ document.addEventListener('click',async ev=>{
   if(a==='free-pick'){const f=document.getElementById('entry-form');if(f)freePick(f,b.dataset.d);return;}
   if(a.startsWith('sr-')){srAct(a,b);return;}
   if(a==='open-diary'){openDiary();return;}
+  if(a==='open-recap'){openRecap();return;}
+  if(a==='recap-copy'){copyRecap(b);return;}
   if(a==='open-prefs'){openPrefs();return;}
   if(a==='prefs-test'){prefsTest();return;}
   if(ENTRY_ACTS.includes(a)){
@@ -73,6 +75,7 @@ document.addEventListener('submit',async ev=>{
   }
   if(ev.target.id==='handout-form'){ev.preventDefault();await submitHandout(ev.target);return;}
   if(ev.target.id==='prefs-form'){ev.preventDefault();await submitPrefs(ev.target);return;}
+  if(ev.target.id==='recap-form'){ev.preventDefault();await submitRecap(ev.target);return;}
   if(ev.target.id==='diary-form'){ev.preventDefault();await downloadDiary(ev.target);return;}
   if(ev.target.id==='sr-form'){ev.preventDefault();await submitSrForm(ev.target);return;}
   if(ev.target.id==='roll-form'){ev.preventDefault();await submitRoll(ev.target);return;}

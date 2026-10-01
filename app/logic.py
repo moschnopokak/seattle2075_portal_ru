@@ -208,6 +208,7 @@ def state_for(v):
         "characters": p["characters"],
         "players": [{"name": pl["name"], "chars": pl["chars"]} for pl in p["players"]],
         "me": {"gm": v.gm, "name": v.name, "chars": v.chars},
+        "recap": bool(config.RECAP_ENABLED) and not v.gm,          # кнопка «Что было раньше» есть, только если задан ключ Claude API
     }
 
 

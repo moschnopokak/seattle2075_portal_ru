@@ -338,6 +338,7 @@ function rChron(){
   const wins=S.windows.filter(w=>winVisible(w)&&w.from<=S.now.date);
   let h='<div class="chron">';
   if(V==='gm')h+='<div class="chron-top"><button type="button" class="btn" data-act="new-item" data-kind="past">Добавить событие в хронику</button><span class="muted small">Чтобы изменить или удалить событие, откройте его.</span></div>';
+  else if(S.recap&&!RO()&&(viewChars()||[]).length)h+='<div class="chron-top"><button type="button" class="btn" data-act="open-recap">Что было раньше</button><span class="muted small">Пересказ того, что вы пропустили, по вашей хронике.</span></div>';
   if(!wins.length)h+='<p class="muted">Хроника начнётся с первого этапа кампании.</p>';
   for(const w of wins){
     const ev=S.past.filter(p=>p.from>=w.from&&p.from<=w.to);

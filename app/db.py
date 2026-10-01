@@ -95,12 +95,21 @@ def _m6_dice_rolls(c):
     c.execute("ALTER TABLE messages ADD COLUMN roll TEXT")
 
 
+def _m7_recaps(c):
+    """Готовые пересказы «Что было раньше»: по хешу всего, что ушло модели, чтобы не платить дважды за один и тот же запрос."""
+    c.execute("""CREATE TABLE IF NOT EXISTS recaps (
+        hash TEXT PRIMARY KEY, tg_id INTEGER NOT NULL, char TEXT NOT NULL, text TEXT NOT NULL, created REAL NOT NULL,
+        model TEXT NOT NULL DEFAULT '', tokens_in INTEGER NOT NULL DEFAULT 0, tokens_out INTEGER NOT NULL DEFAULT 0)""")
+    c.execute("CREATE INDEX IF NOT EXISTS recaps_created ON recaps(created)")
+
+
 MIGRATIONS = [
     (2, "журнал изменений и корзина", _m2_audit_and_trash),
     (3, "очередь уведомлений и настройки пользователей", _m3_outbox_and_prefs),
     (4, "напоминания о неотвеченных приглашениях", _m4_invite_clock),
     (5, "тип файла раздатки (картинки, PDF, аудио)", _m5_handout_media),
     (6, "броски кубов в обсуждении", _m6_dice_rolls),
+    (7, "пересказы «Что было раньше»", _m7_recaps),
 ]
 LATEST = MIGRATIONS[-1][0]
 

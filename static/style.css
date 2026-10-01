@@ -504,6 +504,7 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .die.one{border-color:var(--vow);color:var(--vow)}
 .die.extra{border-style:dashed}
 .dice-plus{color:var(--muted);padding:0 2px}
+.recap-text{white-space:pre-wrap;line-height:1.55;font-size:15.5px;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin:8px 0}
 .roll-ok{color:var(--grow)}
 .roll-fail{color:var(--vow)}
 .err{color:var(--vow);min-height:1.2em;margin:8px 0 0;font-size:14.5px}
