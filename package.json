@@ -1,0 +1,14 @@
+{
+  "name": "seattle2075-portal-frontend-tools",
+  "private": true,
+  "description": "Инструменты проверки фронтенда (ESLint и тесты на node:test). Сам портал собирать не нужно: static/ отдаётся как есть.",
+  "scripts": {
+    "lint": "eslint static tests/js eslint.config.js",
+    "test": "node --test tests/js/*.test.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.13.0"
+  }
+}

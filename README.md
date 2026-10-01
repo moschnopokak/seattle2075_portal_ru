@@ -117,6 +117,8 @@ DEV_LOGIN=1 COOKIE_SECURE=0 .venv/bin/uvicorn app.main:app --port 8000
 
 ## Автотесты
 
+Интерфейс (`static/js`) проверяют отдельно: `npm ci && npm run lint && npm test`. ESLint ловит опечатки в именах и запрещённые конструкции (`eval`, `new Function`, `javascript:`), `npm test` запускает тесты чистых функций на `node:test`. Сам портал собирать не нужно: `static/` отдаётся как есть.
+
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest -m "not browser"      # быстрые проверки, около минуты
@@ -136,7 +138,9 @@ app/notify.py      сообщения бота
 app/db.py          база SQLite
 app/seed.py        начальная загрузка config/campaign.json
 app/backup.py      резервные копии
-static/index.html  интерфейс
+static/index.html  каркас страницы
+static/style.css   оформление
+static/js/         код интерфейса по разделам (util, app, map, dossier, handouts, actions, boot)
 static/vendor/     Leaflet и шрифты Jost и PT Serif (лицензии рядом с шрифтами)
 config/            campaign.json и players.toml
 tests/             автотесты и вымышленная кампания для них
@@ -180,4 +184,5 @@ Workflow `.github/workflows/ci.yml` на каждый пуш и на кажды�
 - Ссылки на раздатки и картинки досье меняются, когда доступ к ним сужается или закрывается.
 - Docker: контейнер портала работает с файловой системой только для чтения (пишет лишь в `data/`), без привилегий, с проверкой состояния и ограничением размера журналов. Без Docker: служба systemd запущена в «песочнице» (оценка `systemd-analyze security` около 3.4 из 10, чем меньше, тем лучше).
 - Запросы ограничены по размеру на уровне веб-сервера (16 МБ).
+- В `index.html` нет ни одного inline-скрипта, стиля или обработчика события (это проверяет тест), поэтому можно включить строгую политику CSP: скрипты только с нашего сервера и из `telegram.org`. Режим задаётся `CSP_MODE`: `report-only` (по умолчанию) только пишет нарушения в журнал строками «CSP: …», `enforce` блокирует. Рекомендуемый порядок: неделю поработать в `report-only`, убедиться, что в журнале нет строк «CSP:», затем поставить `CSP_MODE=enforce` и `docker compose up -d`. Кнопка входа Telegram работает через редирект (`/auth/telegram`), старый способ с JS-обработчиком включается `TG_WIDGET_MODE=callback`.
 - Если задан `BOT_TOKEN`, вход без Telegram (`DEV_LOGIN`) не работает, даже если его включили по ошибке.

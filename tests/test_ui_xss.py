@@ -39,6 +39,16 @@ CHECK = ("()=>({xss:window.__xss||0,img:document.querySelectorAll('img[src=\"x\"
 CLOSE = "()=>{if(!document.getElementById('overlay').hidden)closePanel()}"
 
 
+@pytest.fixture(scope="module", autouse=True)
+def strict_csp():
+    """Браузерные тесты идут при включённом строгом CSP: любое нарушение (inline-код, чужой хост) станет ошибкой."""
+    from app import config
+    mp = pytest.MonkeyPatch()
+    mp.setattr(config, "CSP_MODE", "enforce")
+    yield
+    mp.undo()
+
+
 @pytest.fixture(scope="module")
 def live_url():
     with socket.socket() as s:
@@ -125,7 +135,8 @@ def open_page(browser, live_url, tg_id, problems):
     page.on("console", lambda m: problems.append(f"console.{m.type}: {m.text}")
             if m.type == "error" and "blocked by CORS" not in m.text and "Failed to load resource" not in m.text else None)
     page.on("dialog", lambda d: (problems.append(f"DIALOG: {d.message}"), d.dismiss()))
-    page.add_init_script("window.addEventListener('message',e=>{if(typeof e.data==='string'&&e.data.startsWith('HO:'))window.__ho=e.data})")
+    page.add_init_script("window.addEventListener('message',e=>{if(typeof e.data==='string'&&e.data.startsWith('HO:'))window.__ho=e.data});"
+                         "document.addEventListener('securitypolicyviolation',e=>{(window.__csp=window.__csp||[]).push(e.violatedDirective+' '+e.blockedURI)})")
     page.goto(live_url + "/", wait_until="domcontentloaded")
     page.wait_for_selector("#nav button", timeout=15000)
     return ctx, page
@@ -136,6 +147,8 @@ def visit_everything(page, ids, view, problems, label):
         n = page.evaluate(CHECK)
         if n["xss"] or n["img"] or n["ev"]:
             problems.append(f"XSS {label}/{view}/{what}: {n}")
+        for v in page.evaluate("()=>window.__csp||[]"):
+            problems.append(f"CSP {label}/{view}/{what}: {v}")
 
     for section in ("now", "cal", "chron", "dossier", "handouts", "map", "gm"):
         if section == "gm" and view != "gm":

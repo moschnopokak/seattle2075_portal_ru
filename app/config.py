@@ -23,6 +23,12 @@ SITE_URL = os.getenv("SITE_URL", "").strip().rstrip("/")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID", "").strip()
 NOTIFY_DM = os.getenv("NOTIFY_DM", "1") == "1"
 BACKUP_TELEGRAM = os.getenv("BACKUP_TELEGRAM", "0") == "1"
+# Политика безопасности содержимого (CSP): off | report-only (только сообщает о нарушениях) | enforce (блокирует)
+CSP_MODE = os.getenv("CSP_MODE", "report-only").strip().lower()
+if CSP_MODE not in ("off", "report-only", "enforce"):
+    CSP_MODE = "report-only"
+# Как кнопка входа Telegram передаёт результат: redirect (переход на /auth/telegram) | callback (старый способ, нужен eval)
+TG_WIDGET_MODE = "callback" if os.getenv("TG_WIDGET_MODE", "redirect").strip().lower() == "callback" else "redirect"
 VERSION = os.getenv("PORTAL_VERSION", "dev").strip() or "dev"  # подставляется при сборке образа (хеш коммита)
 DEV_LOGIN_REQUESTED = os.getenv("DEV_LOGIN", "0") == "1"
 # Вход без Telegram только для проверки у себя. Если задан токен бота, это рабочий сервер: режим выключен.

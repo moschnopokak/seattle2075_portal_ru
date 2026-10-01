@@ -4,7 +4,7 @@ import re
 from contextlib import asynccontextmanager
 
 from fastapi import Body, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
@@ -55,13 +55,41 @@ async def unexpected_error(request: Request, exc: Exception):
 FRAME_POLICY = "frame-ancestors 'self' https://telegram.org https://*.telegram.org"
 
 
+def csp_policy() -> str:
+    """Что странице разрешено загружать и исполнять. Скрипты только с нашего сервера и из telegram.org,
+    inline-скриптов нет. 'unsafe-eval' нужен лишь старому способу входа (data-onauth) и включается вместе с ним."""
+    scripts = "'self' https://telegram.org" + (" 'unsafe-eval'" if config.TG_WIDGET_MODE == "callback" else "")
+    return "; ".join([
+        "default-src 'self'",
+        f"script-src {scripts}",
+        "style-src 'self'",
+        "style-src-attr 'unsafe-inline'",
+        "img-src 'self' data: blob: https://telegram.org https://*.telegram.org https://t.me https://*.t.me",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "media-src 'self'",
+        "frame-src 'self' https://oauth.telegram.org",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'self'",
+        "report-uri /api/csp-report",
+    ])
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
     if request.url.path == "/":
-        response.headers.setdefault("Content-Security-Policy", FRAME_POLICY)
+        mode = config.CSP_MODE
+        if mode == "enforce":
+            response.headers.setdefault("Content-Security-Policy", csp_policy() + "; " + FRAME_POLICY)
+        else:
+            # frame-ancestors в режиме «только сообщать» не работает, поэтому он всегда отдельным настоящим заголовком
+            response.headers.setdefault("Content-Security-Policy", FRAME_POLICY)
+            if mode == "report-only":
+                response.headers.setdefault("Content-Security-Policy-Report-Only", csp_policy())
     if request.url.path.startswith("/api/") or request.url.path == "/":
         response.headers["Cache-Control"] = "no-store"
     elif request.url.path.startswith("/static/vendor/fonts/"):
@@ -90,14 +118,17 @@ def viewer(request: Request) -> logic.Viewer:
     return logic.Viewer(role[0], role[1], *ident)
 
 
+def _set_session(response, token):
+    response.set_cookie("session", token, max_age=config.SESSION_DAYS * 86400, httponly=True,
+                        secure=config.COOKIE_SECURE, samesite="lax", path="/")
+    return response
+
+
 def _login(user):
     db.remember_login(user["id"], user.get("username", ""), user.get("first_name", ""))
     token = auth.make_token(user["id"], user.get("username", ""))
     listed = config.resolve(user["id"], user.get("username", "")) is not None
-    response = JSONResponse({"token": token, "listed": listed, "tg_id": user["id"]})
-    response.set_cookie("session", token, max_age=config.SESSION_DAYS * 86400, httponly=True,
-                        secure=config.COOKIE_SECURE, samesite="lax", path="/")
-    return response
+    return _set_session(JSONResponse({"token": token, "listed": listed, "tg_id": user["id"]}), token)
 
 
 # ---------- страницы и настройки ----------
@@ -114,7 +145,33 @@ def healthz():
 
 @app.get("/api/config")
 def public_config():
-    return {"bot_username": config.BOT_USERNAME, "dev_login": config.DEV_LOGIN}
+    return {"bot_username": config.BOT_USERNAME, "dev_login": config.DEV_LOGIN, "widget_mode": config.TG_WIDGET_MODE}
+
+
+# ---------- отчёты о нарушениях CSP ----------
+
+_csp_seen = {"minute": 0, "count": 0}
+
+
+@app.post("/api/csp-report", status_code=204)
+async def csp_report(request: Request):
+    """Браузер сообщает, что заблокировал (или заблокировал бы) что-то на странице. Пишем в журнал, не больше 20 в минуту."""
+    import json
+    import time
+    body = await request.body()
+    minute = int(time.time() // 60)
+    if _csp_seen["minute"] != minute:
+        _csp_seen.update(minute=minute, count=0)
+    _csp_seen["count"] += 1
+    if _csp_seen["count"] > 20 or len(body) > 8192:
+        return Response(status_code=204)
+    try:
+        data = json.loads(body).get("csp-report", {})
+        log.warning("CSP: %s заблокировано %s (страница %s, режим %s)", data.get("violated-directive", "?"),
+                    str(data.get("blocked-uri", "?"))[:120], str(data.get("document-uri", "?"))[:120], config.CSP_MODE)
+    except (ValueError, AttributeError):
+        pass
+    return Response(status_code=204)
 
 
 # ---------- вход ----------
@@ -125,6 +182,18 @@ def auth_widget(data: dict = Body(...)):
         return _login(auth.check_widget(data))
     except auth.AuthError as ex:
         raise HTTPException(401, str(ex))
+
+
+@app.get("/auth/telegram")
+def auth_telegram_redirect(request: Request):
+    """Вход через кнопку Telegram в режиме редиректа: Telegram переводит браузер сюда с подписанными данными в адресе."""
+    try:
+        user = auth.check_widget(dict(request.query_params))
+    except auth.AuthError as ex:
+        log.info("Вход через виджет не удался: %s", ex)
+        return RedirectResponse("/?auth=failed", status_code=303)
+    db.remember_login(user["id"], user.get("username", ""), user.get("first_name", ""))
+    return _set_session(RedirectResponse("/", status_code=303), auth.make_token(user["id"], user.get("username", "")))
 
 
 @app.post("/api/auth/webapp")
