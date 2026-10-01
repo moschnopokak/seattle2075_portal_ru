@@ -1,5 +1,12 @@
 /* ===== Раздатки ===== */
 const HVIS={'стол':'Вся пачка','знают':'Только отмеченные персонажи','мастер':'Черновик: игроки не видят'};
+const HO_KIND={html:'страница',image:'картинка',pdf:'PDF',audio:'аудио'};
+const hoKind=h=>HO_KIND[h.kind]?h.kind:'html';
+const HO_ICON={
+  html:'<svg viewBox="0 0 20 20"><path d="M5 2.5h7l3.5 3.5V17.5H5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M12 2.5V6h3.5M7.5 10h5M7.5 13h5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
+  image:'<svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="7.5" cy="8.4" r="1.3" fill="currentColor"/><path d="M3.5 14l4-3.5 3 2.5 2.5-2 3.5 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  pdf:'<svg viewBox="0 0 20 20"><path d="M5 2.5h7l3.5 3.5V17.5H5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M12 2.5V6h3.5" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="10.2" y="14.6" font-size="5.2" font-weight="700" text-anchor="middle" fill="currentColor">PDF</text></svg>',
+  audio:'<svg viewBox="0 0 20 20"><path d="M3.5 8v4h3l4 3.2V4.8L6.5 8z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M13.2 7.4a3.6 3.6 0 010 5.2M15.4 5.2a6.6 6.6 0 010 9.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'};
 const HOUT_SANDBOX='allow-scripts allow-popups allow-popups-to-escape-sandbox allow-modals allow-forms allow-downloads';
 Object.assign(UI,{hq:''});
 const seenKey=()=>'seattle2075-seen-handouts:'+(S&&S.me?S.me.name:'');
@@ -19,9 +26,9 @@ function unseenHandouts(){if(!S||S.me.gm)return 0;const s=seenSet();return hando
 function hCard(h){
   const gm=V==='gm',pl=h.place?placeById(h.place):null;
   return `<button type="button" class="hc ${gm&&h.vis==='мастер'?'hc-draft':''}" data-open="h:${h.id}">
-    <span class="hc-ico" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M5 2.5h7l3.5 3.5V17.5H5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M12 2.5V6h3.5M7.5 10h5M7.5 13h5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></span>
+    <span class="hc-ico" aria-hidden="true">${HO_ICON[hoKind(h)]}</span>
     <span class="hc-main"><span class="hc-title">${esc(h.title)}${hNew(h)?' <b class="hc-new">новое</b>':''}</span>
-    <span class="hc-meta">${esc(fFull(h.date))} · ${esc(hWho(h))}${pl?' · '+esc(pl.name):''}</span>
+    <span class="hc-meta">${esc(fFull(h.date))} · ${esc(hWho(h))}${hoKind(h)!=='html'?' · '+HO_KIND[hoKind(h)]:''}${pl?' · '+esc(pl.name):''}</span>
     ${h.note?`<span class="hc-note">${esc(h.note)}</span>`:''}
     ${gm?`<span class="hc-gm">${h.file?hSize(h.size||0):'<b>файл не загружен</b>'}</span>`:''}</span></button>`;
 }
@@ -38,20 +45,28 @@ function rHandouts(){
   for(const g of groups)h+=`<h2 class="h-group">${esc(g.k)}</h2><div class="hgrid">${g.items.map(hCard).join('')}</div>`;
   return h+'</section>';
 }
+/* Содержимое окна просмотра: HTML и PDF в рамке (HTML в песочнице), картинка, звук. */
+function hBody(h,src,kind){
+  const t=esc(h.title);
+  if(kind==='image')return `<div class="hv-media"><img class="hv-img" src="${src}" alt="${t}" data-hv="imgzoom" title="Нажмите, чтобы увеличить"></div>`;
+  if(kind==='audio')return `<div class="hv-media"><audio class="hv-audio" controls preload="metadata" src="${src}" aria-label="${t}"></audio></div>`;
+  if(kind==='pdf')return `<iframe class="hv-frame" src="${src}" referrerpolicy="no-referrer" title="${t}"></iframe>`;
+  return `<iframe class="hv-frame" src="${src}" sandbox="${HOUT_SANDBOX}" referrerpolicy="no-referrer" title="${t}"></iframe>`;
+}
 let HV=null;
 function closeHandout(){if(!HV)return;const {el,back,onKey,onMsg}=HV;HV=null;el.remove();document.removeEventListener('keydown',onKey,true);window.removeEventListener('message',onMsg);document.body.classList.remove('hv-open');if(back&&document.body.contains(back))back.focus();if(UI.section==='handouts')render(true);}
 function openHandout(id){
   const h=handoutsVisible().find(x=>x.id===id);if(!h)return;
   closePanel();if(HV)closeHandout();
-  const gm=V==='gm',pl=h.place?placeById(h.place):null,src=h.file?`/handout/${h.file}/view`:'';
+  const gm=V==='gm',pl=h.place?placeById(h.place):null,src=h.file?`/handout/${h.file}/view`:'',kind=hoKind(h);
   if(h.file&&!S.me.gm)markSeen(h.id);
   const el=document.createElement('div');el.className='hv';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label',h.title);el.tabIndex=-1;
   el.innerHTML=`<header class="hv-top"><div class="hv-row">
     <div class="hv-t"><h2>${esc(h.title)}</h2><p class="hv-meta">Получено ${esc(fFull(h.date))} <button type="button" class="btn plain mini" data-hv="day">день в календаре</button> · ${esc(hWho(h))}${pl?` · ${esc(pl.name)} <button type="button" class="btn plain mini" data-hv="place">на карте</button>`:''}</p></div>
-    <div class="hv-acts"><div class="hv-zoom" role="group" aria-label="Масштаб" hidden><button type="button" class="btn" data-hv="zout" aria-label="Уменьшить">−</button><button type="button" class="btn hv-pct" data-hv="zfit" title="Вписать в ширину экрана">100%</button><button type="button" class="btn" data-hv="zin" aria-label="Увеличить">+</button></div>${src?`<a class="btn" href="${src}" target="_blank" rel="noopener">Открыть отдельно</a>`:''}${gm?'<button type="button" class="btn" data-hv="edit">Изменить</button>':''}</div><button type="button" class="btn hv-x" data-hv="close">Закрыть</button></div>
+    <div class="hv-acts"><div class="hv-zoom" role="group" aria-label="Масштаб" hidden><button type="button" class="btn" data-hv="zout" aria-label="Уменьшить">−</button><button type="button" class="btn hv-pct" data-hv="zfit" title="Вписать в ширину экрана">100%</button><button type="button" class="btn" data-hv="zin" aria-label="Увеличить">+</button></div>${src?`<a class="btn" href="${src}" target="_blank" rel="noopener">Открыть отдельно</a>`:''}${src&&kind!=='html'?`<a class="btn" href="${src}" download="${esc(h.fname||h.title)}">Скачать</a>`:''}${gm?'<button type="button" class="btn" data-hv="edit">Изменить</button>':''}</div><button type="button" class="btn hv-x" data-hv="close">Закрыть</button></div>
     </header>
     ${h.note||(gm&&h.gm_note)?`<div class="hv-notes">${h.note?`<p class="hv-note">${esc(h.note)}</p>`:''}${gm&&h.gm_note?`<p class="hv-gmnote"><b>Заметка мастера:</b> ${esc(h.gm_note)}</p>`:''}</div>`:''}
-    ${src?`<iframe class="hv-frame" src="${src}" sandbox="${HOUT_SANDBOX}" referrerpolicy="no-referrer" title="${esc(h.title)}"></iframe>`:`<div class="hv-empty"><p>Файл раздатки ещё не загружен.</p>${gm?'<button type="button" class="btn primary" data-hv="edit">Загрузить файл</button>':''}</div>`}`;
+    ${src?hBody(h,src,kind):`<div class="hv-empty"><p>Файл раздатки ещё не загружен.</p>${gm?'<button type="button" class="btn primary" data-hv="edit">Загрузить файл</button>':''}</div>`}`;
   const back=document.activeElement;
   const frame=()=>el.querySelector('.hv-frame');
   const zoomCmd=cmd=>{const f=frame();if(f&&f.contentWindow)f.contentWindow.postMessage({kind:'seattle2075-handout',cmd},'*');};
@@ -69,13 +84,14 @@ function openHandout(id){
     if(e.key==='+'||e.key==='='){e.preventDefault();zoomCmd('in');}else if(e.key==='-'){e.preventDefault();zoomCmd('out');}else if(e.key==='0'){e.preventDefault();zoomCmd('fit');}};
   el.addEventListener('click',e=>{const b=e.target.closest('[data-hv]');if(!b)return;const a=b.dataset.hv;
     if(a==='close')closeHandout();
+    else if(a==='imgzoom')b.classList.toggle('full');
     else if(a==='edit'){closeHandout();openHandoutForm(h.id);}
     else if(a==='zin'||a==='zout'||a==='zfit')zoomCmd(a.slice(1));
     else if(a==='day'){closeHandout();UI.section='cal';UI.cal='lanes';UI.span='week';UI.stage=null;UI.anchor=clampDate(addDays(h.date,-1));render();window.scrollTo(0,0);}
     else if(a==='place'&&pl){closeHandout();UI.focusPlace=pl.id;UI.section='map';render();}
   });
   document.addEventListener('keydown',onKey,true);document.body.appendChild(el);document.body.classList.add('hv-open');el.focus();
-  const fr=frame();if(fr)fr.addEventListener('load',()=>zoomCmd('hello'));
+  const fr=frame();if(fr&&kind==='html')fr.addEventListener('load',()=>zoomCmd('hello'));
   HV={el,back,onKey,onMsg,id};
 }
 function openHandoutForm(id){
@@ -85,7 +101,7 @@ function openHandoutForm(id){
   const plc=(S.places||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'ru'));
   curKey=null;
   showPanel(`<p class="kind">Раздатка</p><h2>${it?'Изменить':'Новая раздатка'}</h2><form id="handout-form" data-id="${it?it.id:''}" novalidate>
-  <label class="field">Файл HTML<input type="file" name="file" accept=".html,.htm,text/html"><span class="sub">${it&&it.file?`Сейчас: ${esc(it.fname||'раздатка.html')}, ${hSize(it.size||0)}. Выберите файл, только если хотите заменить.`:`Страница, которую я собрал для вас. До ${fmtMB(lim)}.`}</span></label>
+  <label class="field">Файл<input type="file" name="file" accept=".html,.htm,.pdf,.png,.jpg,.jpeg,.gif,.webp,.mp3,.m4a,.ogg,.opus,.wav,.flac,text/html,application/pdf,image/png,image/jpeg,image/gif,image/webp,audio/*"><span class="sub">${it&&it.file?`Сейчас: ${esc(it.fname||HO_KIND[hoKind(it)])}, ${HO_KIND[hoKind(it)]}, ${hSize(it.size||0)}. Выберите файл, только если хотите заменить.`:`Подходят HTML-страницы, картинки (PNG, JPEG, GIF, WebP), PDF и аудио (MP3, M4A, OGG, WAV, FLAC). До ${fmtMB(lim)}.`}</span></label>
   <label class="field">Название<input name="title" maxlength="120" value="${esc(it?it.title:'')}" placeholder="Возьмётся из файла, если оставить пустым"></label>
   <label class="field">Когда получена<select name="date">${dateOpts(it?it.date:S.now.date)}</select></label>
   <fieldset class="vis"><legend>Кому выдана</legend>${Object.entries(HVIS).map(([k,t])=>`<label><input type="radio" name="vis" value="${k}" ${vis===k?'checked':''}> ${t}</label>`).join('')}</fieldset>
@@ -103,8 +119,8 @@ function openHandoutForm(id){
     if(ev.target.name==='file'){
       const f=ev.target.files[0];if(!f)return;
       if(f.size>lim){err(`Файл больше ${fmtMB(lim)}. Уменьшите его, например сожмите картинки внутри.`);ev.target.value='';return;}
-      if(!F('title').value.trim()){try{const t=new DOMParser().parseFromString(await f.slice(0,200000).text(),'text/html').title.trim();if(t)F('title').value=t.slice(0,120);}catch(e){}}
-      if(!F('title').value.trim())F('title').value=f.name.replace(/\.html?$/i,'').slice(0,120);
+      if(!F('title').value.trim()&&/\.html?$/i.test(f.name)){try{const t=new DOMParser().parseFromString(await f.slice(0,200000).text(),'text/html').title.trim();if(t)F('title').value=t.slice(0,120);}catch(e){}}
+      if(!F('title').value.trim())F('title').value=f.name.replace(/\.[a-z0-9]{2,5}$/i,'').slice(0,120);
     }
   });
 }
@@ -112,7 +128,7 @@ async function submitHandout(form){
   const F=n=>form.elements.namedItem(n),err=m=>{document.getElementById('form-err').textContent=m;};
   const file=F('file').files[0],id=form.dataset.id;
   const old=id?(S.handouts||[]).find(x=>x.id===id):null;
-  if(!id&&!file)return err('Выберите HTML-файл раздатки.');
+  if(!id&&!file)return err('Выберите файл раздатки: HTML-страницу, картинку, PDF или аудио.');
   const vis=form.querySelector('input[name="vis"]:checked').value;
   const b={id:id||undefined,title:F('title').value.trim(),date:F('date').value,vis,known:[...form.querySelectorAll('input[name="known"]:checked')].map(x=>x.value),
     note:F('note').value.trim(),gm_note:F('gm_note').value.trim(),place:F('place').value};
@@ -138,7 +154,7 @@ async function uploadHandout(hid,file,onError){
   if(RO()){toast('Предпросмотр: действия отключены');return null;}
   if(busy)return null;busy=true;
   try{
-    const r=await fetch(`/api/gm/handouts/${encodeURIComponent(hid)}/file`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'text/html','X-File-Name':encodeURIComponent(file.name),...authHeaders()},body:file});
+    const r=await fetch(`/api/gm/handouts/${encodeURIComponent(hid)}/file`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':file.type||'application/octet-stream','X-File-Name':encodeURIComponent(file.name),...authHeaders()},body:file});
     let j=null;try{j=await r.json();}catch(e){}
     if(r.status===401){showLogin();return null;}
     if(!r.ok){onError(r.status===413&&!j?'Файл слишком большой для сервера.':errText(j));return null;}

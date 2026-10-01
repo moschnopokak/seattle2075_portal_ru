@@ -404,6 +404,10 @@ a.btn:visited{color:var(--ink)}
 .hv-note{margin:0;white-space:pre-wrap;font-size:15px}
 .hv-gmnote{margin:6px 0 0;font-size:14px;white-space:pre-wrap;border-left:3px solid var(--vow);padding-left:8px}
 .hv-frame{flex:1;width:100%;border:0;background:#fff;min-height:0}
+.hv-media{flex:1;min-height:0;display:flex;overflow:auto;background:var(--surface);padding:12px}
+.hv-img{margin:auto;max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in;background:#fff}
+.hv-img.full{max-width:none;max-height:none;object-fit:none;cursor:zoom-out}
+.hv-audio{margin:auto;width:min(560px,100%)}
 .hv-empty{flex:1;display:grid;place-content:center;justify-items:center;gap:12px;color:var(--muted)}
 body.hv-open #toast{z-index:1600}
 @media (max-width:760px){.hgrid{grid-template-columns:1fr}.hv-top{padding:6px 10px}.hv-row{flex-wrap:wrap}.hv-t{flex:1 1 60%}.hv-x{order:2}.hv-acts{order:3;flex-basis:100%}.hv-t h2{font-size:17px}.hv-acts .btn{font-size:14px;padding:5px 10px}}

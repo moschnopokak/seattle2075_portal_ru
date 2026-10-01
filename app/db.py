@@ -84,10 +84,17 @@ def _m4_invite_clock(c):
     c.execute("ALTER TABLE user_prefs ADD COLUMN remind INTEGER NOT NULL DEFAULT 1")
 
 
+def _m5_handout_media(c):
+    """Раздатками могут быть не только HTML-страницы: у файла теперь есть тип и способ хранения (gzip или как есть)."""
+    c.execute("ALTER TABLE handout_files ADD COLUMN mime TEXT NOT NULL DEFAULT 'text/html'")
+    c.execute("ALTER TABLE handout_files ADD COLUMN encoding TEXT NOT NULL DEFAULT 'gzip'")
+
+
 MIGRATIONS = [
     (2, "журнал изменений и корзина", _m2_audit_and_trash),
     (3, "очередь уведомлений и настройки пользователей", _m3_outbox_and_prefs),
     (4, "напоминания о неотвеченных приглашениях", _m4_invite_clock),
+    (5, "тип файла раздатки (картинки, PDF, аудио)", _m5_handout_media),
 ]
 LATEST = MIGRATIONS[-1][0]
 

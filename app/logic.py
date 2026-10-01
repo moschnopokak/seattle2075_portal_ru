@@ -294,7 +294,7 @@ def handouts_for(v):
     for h in items:
         if not (mine & handout_audience(h)):
             continue
-        card = {k: h[k] for k in ("id", "title", "date", "vis", "note", "file", "size", "uploaded") if k in h}
+        card = {k: h[k] for k in ("id", "title", "date", "vis", "note", "file", "kind", "size", "uploaded") if k in h}
         if h.get("vis") == "знают":
             card["known"] = [c for c in h.get("known", []) if c in mine]
         if h.get("place") and any(p["id"] == h["place"] for p in places_for(v)):
@@ -308,7 +308,7 @@ def save_handout_file(v, item_id, raw, fname):
         bad("Только для мастера.", 403)
     _card(db.items("handouts"), item_id)
     try:
-        packed, raw_bytes = handouts.check(raw)
+        prepared = handouts.prepare(raw)
     except handouts.HandoutError as e:
         bad(e.message, e.code)
     with db.lock:
@@ -316,12 +316,13 @@ def save_handout_file(v, item_id, raw, fname):
         h = _card(items, item_id)
         old = dict(h)
         used = handouts.usage()["used"] - handouts.item_bytes(item_id)
-        if used + len(packed) > handouts.quota_bytes():
+        if used + len(prepared["data"]) > handouts.quota_bytes():
             bad(f"Хранилище раздаток заполнено: занято {portraits.mb(used)} МБ из {portraits.mb(handouts.quota_bytes())} МБ. "
                 "Удалите ненужные раздатки и попробуйте снова.", 413)
-        h["file"] = handouts.store(item_id, packed, raw_bytes)
-        h["size"] = raw_bytes
-        h["fname"] = clean(fname, 120) or "раздатка.html"
+        h["file"] = handouts.store(item_id, prepared)
+        h["kind"] = prepared["kind"]
+        h["size"] = prepared["raw_bytes"]
+        h["fname"] = clean(fname, 120) or handouts.DEFAULT_NAMES[prepared["kind"]]
         h["uploaded"] = int(time.time())
         db.set_items("handouts", items)
         audit.record(v, "upload", "handouts", item_id, h["title"])
@@ -945,7 +946,7 @@ def save_item(v, kind, b):
         if kind == "dossier":
             item["img"] = (old or {}).get("img", "")
         if kind == "handouts":
-            for k in ("file", "size", "fname", "uploaded"):
+            for k in ("file", "kind", "size", "fname", "uploaded"):
                 if old and k in old:
                     item[k] = old[k]
         _rotate_if_narrowed(kind, old, item)

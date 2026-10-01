@@ -38,12 +38,19 @@ function declaredNames(line) {
   return names;
 }
 
-const shared = {};
+// Скрипты делят одну глобальную область, поэтому одно и то же имя верхнего уровня в двух файлах (const или let) ломает
+// второй файл целиком: браузер не запустит его вообще. Ловим это здесь, а не в браузере у пользователя.
+const shared = {}, owner = {};
+function declare(name, file) {
+  if (owner[name]) throw new Error(`Имя «${name}» объявлено в двух местах верхнего уровня: static/js/${owner[name]} и static/js/${file}. Скрипты делят общую область, второй не загрузится.`);
+  owner[name] = file;
+  shared[name] = "writable";
+}
 for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".js"))) {
   for (const line of fs.readFileSync(path.join(dir, file), "utf8").split("\n")) {
     const fn = line.match(/^(?:async\s+)?function\*?\s+([A-Za-z_$][\w$]*)/);
-    if (fn) { shared[fn[1]] = "writable"; continue; }
-    if (/^(?:const|let|var)\s/.test(line)) for (const n of declaredNames(line)) shared[n] = "writable";
+    if (fn) { declare(fn[1], file); continue; }
+    if (/^(?:const|let|var)\s/.test(line)) for (const n of declaredNames(line)) declare(n, file);
   }
 }
 

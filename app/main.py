@@ -455,19 +455,41 @@ async def upload_handout(item_id: str, request: Request):
     return _answer(v, msg)
 
 
+def _ranged(data: bytes, mime: str, header: str, headers: dict) -> Response:
+    """Ответ на запрос части файла (Range: bytes=…). Без заголовка или с непонятным значением отдаётся весь файл."""
+    size = len(data)
+    m = re.fullmatch(r"bytes=(\d*)-(\d*)", header.strip())
+    if not m or not (m.group(1) or m.group(2)):
+        return Response(data, media_type=mime, headers=headers)
+    if m.group(1):
+        start, end = int(m.group(1)), min(int(m.group(2)) if m.group(2) else size - 1, size - 1)
+    else:                                                  # «последние N байт»
+        n = int(m.group(2))
+        start, end = max(size - n, 0), size - 1
+    if size == 0 or start >= size or start > end:
+        return Response(status_code=416, headers={**headers, "Content-Range": f"bytes */{size}"})
+    return Response(data[start:end + 1], status_code=206, media_type=mime,
+                    headers={**headers, "Content-Range": f"bytes {start}-{end}/{size}"})
+
+
 @app.get("/handout/{token}/view")
 def view_handout(token: str, request: Request):
     """Раздатка по секретному токену. Заголовок sandbox изолирует её от портала даже при прямом открытии."""
     if not re.fullmatch(r"[0-9a-f]{32}", token):
         raise HTTPException(404)
-    data = handouts.get(token)
-    if data is None:
+    found = handouts.get(token)
+    if found is None:
         raise HTTPException(404)
-    headers = {"Content-Security-Policy": handouts.SANDBOX, "Cache-Control": "private, max-age=31536000, immutable",
-               "Referrer-Policy": "no-referrer", "Vary": "Accept-Encoding"}
-    if "gzip" in request.headers.get("accept-encoding", "").lower():
-        headers["Content-Encoding"] = "gzip"
-        return Response(data, media_type="text/html; charset=utf-8", headers=headers)
-    import gzip as _gzip
-    return Response(_gzip.decompress(data), media_type="text/html; charset=utf-8", headers=headers)
+    headers = {"Cache-Control": "private, max-age=31536000, immutable", "Referrer-Policy": "no-referrer"}
+    if found["encoding"] == "gzip":                       # HTML: в песочнице, сжатым, если браузер умеет
+        headers.update({"Content-Security-Policy": handouts.SANDBOX, "Vary": "Accept-Encoding"})
+        if "gzip" in request.headers.get("accept-encoding", "").lower():
+            headers["Content-Encoding"] = "gzip"
+            return Response(found["data"], media_type="text/html; charset=utf-8", headers=headers)
+        import gzip as _gzip
+        return Response(_gzip.decompress(found["data"]), media_type="text/html; charset=utf-8", headers=headers)
+    # картинки, PDF, звук: точный тип без угадывания, с поддержкой Range (иначе звук нельзя перематывать)
+    headers.update({"X-Content-Type-Options": "nosniff", "Content-Disposition": "inline", "Accept-Ranges": "bytes",
+                    "Cross-Origin-Resource-Policy": "same-origin"})
+    return _ranged(found["data"], found["mime"], request.headers.get("range", ""), headers)
 
