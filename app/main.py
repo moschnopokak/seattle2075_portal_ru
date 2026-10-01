@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, config, db, handouts, logic, portraits, seed
+from . import audit, auth, config, db, handouts, logic, portraits, seed, trash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("portal")
@@ -25,6 +25,10 @@ async def lifespan(_app):
         log.info("Добавлены разделы из config/campaign.json: %s", ", ".join(added))
     for note in seed.migrate():
         log.info("Обновление данных: %s", note)
+    gone = trash.purge_expired()
+    audit.purge_old()
+    if gone:
+        log.info("Из корзины удалено окончательно (вышел срок хранения): %s", gone)
     try:
         config.people()  # ошибка в players.toml видна сразу при запуске
     except FileNotFoundError as ex:
@@ -288,6 +292,49 @@ def delete_item(kind: str, item_id: str, request: Request):
 def save_dnote(slug: str, request: Request, data: dict = Body(...)):
     v = viewer(request)
     return _answer(v, logic.save_dnote(v, slug, data))
+
+
+def _gm_only(request: Request):
+    v = viewer(request)
+    if not v.gm:
+        raise HTTPException(403, "Только для мастера.")
+    return v
+
+
+@app.get("/api/gm/history")
+def gm_history(request: Request, limit: int = 50, before: int = 0, kind: str = "", item: str = "", q: str = ""):
+    _gm_only(request)
+    return {"items": audit.listing(limit, before or None, kind[:20], item[:40], q[:60])}
+
+
+@app.get("/api/gm/trash")
+def gm_trash(request: Request):
+    _gm_only(request)
+    return {"items": trash.listing(), "days": config.TRASH_DAYS}
+
+
+@app.post("/api/gm/trash/empty")
+def gm_trash_empty(request: Request):
+    v = _gm_only(request)
+    return _answer(v, logic.empty_trash(v))
+
+
+@app.post("/api/gm/trash/{trash_id}/restore")
+def gm_trash_restore(trash_id: int, request: Request):
+    v = _gm_only(request)
+    return _answer(v, logic.restore_trash(v, trash_id))
+
+
+@app.post("/api/gm/trash/{trash_id}/purge")
+def gm_trash_purge(trash_id: int, request: Request):
+    v = _gm_only(request)
+    return _answer(v, logic.purge_trash(v, trash_id))
+
+
+@app.post("/api/gm/history/{audit_id}/revert")
+def gm_history_revert(audit_id: int, request: Request):
+    v = _gm_only(request)
+    return _answer(v, logic.revert_change(v, audit_id))
 
 
 @app.post("/api/gm/dossier/{card_id}/portrait")

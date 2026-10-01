@@ -25,6 +25,9 @@ NOTIFY_DM = os.getenv("NOTIFY_DM", "1") == "1"
 BACKUP_TELEGRAM = os.getenv("BACKUP_TELEGRAM", "0") == "1"
 # Адрес «пульса» для healthchecks.io (или своего healthchecks): после каждой копии туда уходит сигнал, а если сигнала нет, сервис пишет вам
 HEALTHCHECKS_URL = os.getenv("HEALTHCHECKS_URL", "").strip().rstrip("/")
+# Сколько дней хранятся удалённые записи и карточки в корзине и записи журнала изменений
+TRASH_DAYS = int(os.getenv("TRASH_DAYS", "30"))
+AUDIT_DAYS = int(os.getenv("AUDIT_DAYS", "365"))
 # Политика безопасности содержимого (CSP): off | report-only (только сообщает о нарушениях) | enforce (блокирует)
 CSP_MODE = os.getenv("CSP_MODE", "report-only").strip().lower()
 if CSP_MODE not in ("off", "report-only", "enforce"):

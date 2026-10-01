@@ -47,9 +47,45 @@ def conn() -> sqlite3.Connection:
     return _conn
 
 
+# Версионные миграции. SCHEMA выше это исходная схема (версия 1); всё новое добавляется сюда, и каждая миграция
+# выполняется один раз (номер хранится в PRAGMA user_version). Новая база и старая приходят к одной схеме.
+def _m2_audit_and_trash(c):
+    c.execute("""CREATE TABLE IF NOT EXISTS audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, actor_id INTEGER, actor TEXT NOT NULL, role TEXT NOT NULL,
+        action TEXT NOT NULL, kind TEXT NOT NULL, item_id TEXT NOT NULL DEFAULT '', title TEXT NOT NULL DEFAULT '',
+        before TEXT, after TEXT)""")
+    c.execute("CREATE INDEX IF NOT EXISTS audit_ts ON audit(ts)")
+    c.execute("CREATE INDEX IF NOT EXISTS audit_item ON audit(kind, item_id)")
+    c.execute("""CREATE TABLE IF NOT EXISTS trash (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, item_id TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
+        data TEXT NOT NULL, extra TEXT, deleted_at REAL NOT NULL, deleted_by TEXT NOT NULL DEFAULT '')""")
+    c.execute("ALTER TABLE portraits ADD COLUMN trashed INTEGER NOT NULL DEFAULT 0")
+    c.execute("ALTER TABLE handout_files ADD COLUMN trashed INTEGER NOT NULL DEFAULT 0")
+
+
+MIGRATIONS = [
+    (2, "журнал изменений и корзина", _m2_audit_and_trash),
+]
+LATEST = MIGRATIONS[-1][0]
+
+
+def schema_version() -> int:
+    return conn().execute("PRAGMA user_version").fetchone()[0]
+
+
+def migrate():
+    current = schema_version()
+    for version, _name, fn in MIGRATIONS:
+        if version > current:
+            with tx() as c:
+                fn(c)
+                c.execute(f"PRAGMA user_version={int(version)}")
+
+
 def init():
     with lock:
         conn().executescript(SCHEMA)
+        migrate()
 
 
 @contextmanager
@@ -157,10 +193,17 @@ def delete_entry(entry_id):
         c.execute("DELETE FROM entries WHERE id=?", (entry_id,))
 
 
-def add_message(entry_id, author, user_id, text):
+def add_message(entry_id, author, user_id, text, ts=None):
     with lock:
         conn().execute("INSERT INTO messages(entry_id,author,user_id,text,ts) VALUES(?,?,?,?,?)",
-                       (entry_id, author, user_id, text, time.time()))
+                       (entry_id, author, user_id, text, time.time() if ts is None else ts))
+
+
+def raw_messages(entry_id):
+    """Сообщения обсуждения как есть (для корзины)."""
+    with lock:
+        rows = conn().execute("SELECT author, user_id, text, ts FROM messages WHERE entry_id=? ORDER BY id", (entry_id,)).fetchall()
+    return [{"author": r["author"], "user_id": r["user_id"], "text": r["text"], "ts": r["ts"]} for r in rows]
 
 
 # ---------- входы ----------

@@ -47,13 +47,13 @@ def check(raw):
 
 def usage():
     with db.lock:
-        row = db.conn().execute("SELECT COALESCE(SUM(bytes),0) AS b FROM handout_files").fetchone()
+        row = db.conn().execute("SELECT COALESCE(SUM(bytes),0) AS b FROM handout_files WHERE trashed=0").fetchone()
     return {"used": int(row["b"]), "quota": quota_bytes(), "limit": upload_limit_bytes()}
 
 
 def item_bytes(item_id):
     with db.lock:
-        row = db.conn().execute("SELECT COALESCE(SUM(bytes),0) AS b FROM handout_files WHERE item_id=?", (item_id,)).fetchone()
+        row = db.conn().execute("SELECT COALESCE(SUM(bytes),0) AS b FROM handout_files WHERE item_id=? AND trashed=0", (item_id,)).fetchone()
     return int(row["b"])
 
 
@@ -74,6 +74,23 @@ def rotate(item_id):
     return token if changed else None
 
 
+def trash(item_id):
+    """Раздатка в корзине: файл остаётся в базе, но по ссылке не открывается и в лимит не входит."""
+    with db.tx() as c:
+        c.execute("UPDATE handout_files SET trashed=1 WHERE item_id=?", (item_id,))
+
+
+def untrash(item_id):
+    with db.tx() as c:
+        c.execute("UPDATE handout_files SET trashed=0 WHERE item_id=?", (item_id,))
+
+
+def trashed_bytes(item_id):
+    with db.lock:
+        row = db.conn().execute("SELECT COALESCE(SUM(bytes),0) AS b FROM handout_files WHERE item_id=? AND trashed=1", (item_id,)).fetchone()
+    return int(row["b"])
+
+
 def remove(item_id):
     with db.tx() as c:
         c.execute("DELETE FROM handout_files WHERE item_id=?", (item_id,))
@@ -81,5 +98,5 @@ def remove(item_id):
 
 def get(token):
     with db.lock:
-        row = db.conn().execute("SELECT data FROM handout_files WHERE token=?", (token,)).fetchone()
+        row = db.conn().execute("SELECT data FROM handout_files WHERE token=? AND trashed=0", (token,)).fetchone()
     return bytes(row["data"]) if row else None

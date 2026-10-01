@@ -126,6 +126,7 @@ function render(keepScroll){
   const html=f(),sec=SECTIONS.find(x=>x.id===UI.section);
   document.getElementById('main').innerHTML=(html.includes('<h1')?'':`<h1 class="sr-only">${sec?sec.name:''}</h1>`)+html;
   if(dqFocus){const n=document.getElementById('dq');if(n){n.focus();try{n.setSelectionRange(dqPos,dqPos);}catch(e){}}}
+  if(UI.section==='gm')gmLoadExtras();
   if(UI.section==='cal'&&UI.cal==='lanes'){fitLanes();if(keepScroll){const w=document.getElementById('lanes-wrap');if(w)w.scrollLeft=sl;}else scrollToNow();}
   if(keepScroll)window.scrollTo(0,sy);
 }
@@ -379,6 +380,7 @@ function rGM(){
   <section>${secHead('Транспорт и скорости','travel','Добавить вид транспорта')}<p class="note">Нужен для линейки на карте: время в пути считается по этим скоростям (км/ч).</p>${(S.travel||[]).map(t=>`<button type="button" class="row" data-act="edit-item" data-kind="travel" data-id="${t.id}"><span class="rt">${esc(t.name)}${t.vis==='мастер'?'<span class="tag">скрыто от игроков</span>':''}</span><span class="rs">${t.kind==='straight'?'по прямой, '+t.off+' км/ч':'дороги '+t.motorway+'/'+t.trunk+'/'+t.primary+' км/ч, вне дорог '+t.off}</span></button>`).join('')||'<p class="muted">Видов транспорта нет.</p>'}</section>
   <section>${secHead('Этапы','windows','Добавить этап')}<p class="note">Арки и промежуточные арки. Игроки видят название этапа с его первого дня.</p>${S.windows.map(w=>`<div class="gm-item"><span class="wname">${esc(winName(w))}${w.gm&&w.gm!==w.name?`<span class="muted small" style="display:block">игроки видят: ${esc(w.name)}</span>`:''}</span><span class="muted small">${fRange(w.from,w.to)}</span><button type="button" class="btn" data-act="edit-item" data-kind="windows" data-id="${w.id}">Изменить</button></div>`).join('')}</section>
   <section>${secHead('Хроника','past','Добавить событие')}<p class="note">Сыгранные события. Чтобы изменить или удалить событие, откройте его в разделе «Хроника».</p></section>
+  ${gmExtrasHTML()}
   <section><h2>Выгрузка для Obsidian</h2><p class="note">Текст в формате Markdown с полями Dataview. Скопируйте его и вставьте в хранилище как новую заметку.</p><button type="button" class="btn" data-act="export">Сформировать выгрузку</button><textarea id="exp" readonly hidden aria-label="Текст выгрузки"></textarea></section>
   </div>`;
 }
@@ -457,6 +459,7 @@ function dEntry(e){
   if(V==='gm'&&e.to&&e.to<S.now.date&&e.status==='ok')acts+=`<button type="button" class="btn" data-act="outcome" data-id="${e.id}" data-v="done">Состоялось</button><button type="button" class="btn" data-act="outcome" data-id="${e.id}" data-v="failed">Сорвано</button>`;
   if(manage&&live)acts+=`<button type="button" class="btn" data-act="edit-entry" data-id="${e.id}">Изменить запись</button>`;
   if(manage&&live)acts+=`<button type="button" class="btn" data-act="talk" data-id="${e.id}">${talk==='open'?'Завершить обсуждение':'Возобновить обсуждение'}</button>`;
+  if(V==='gm')acts+=`<button type="button" class="btn plain" data-act="item-history" data-kind="entry" data-id="${e.id}">История</button>`;
   if(manage&&live)acts+=`<button type="button" class="btn plain" data-act="del" data-id="${e.id}">Удалить запись</button>`;
 
   let star='';
@@ -477,7 +480,7 @@ function dEntry(e){
   <h3>Анкета</h3><dl class="anketa-dl"><dt>Кто</dt><dd>${esc(whoText(e))||'не указано'}</dd><dt>Где</dt><dd>${esc(e.where)||'<span class="muted">не указано</span>'}${e.place&&placesVisible().some(p=>p.id===e.place)?` <button type="button" class="btn plain mini" data-act="show-place" data-id="${e.place}">на карте</button>`:''}</dd><dt>Условие</dt><dd>${esc(e.cond)||'<span class="muted">не указано</span>'}</dd><dt>Цель</dt><dd class="goal">${esc(e.goal)||'<span class="muted">не указано</span>'}</dd></dl>
   <h3>Участники</h3><ul class="plist">${parts}</ul>${star}<div class="acts">${acts}</div>${chatH}`;
 }
-function gmBtns(kind,id,extra){return V==='gm'?`<div class="acts">${extra||''}<button type="button" class="btn" data-act="edit-item" data-kind="${kind}" data-id="${id}">Изменить</button><button type="button" class="btn plain" data-act="del-item" data-kind="${kind}" data-id="${id}">Удалить</button></div>`:'';}
+function gmBtns(kind,id,extra){return V==='gm'?`<div class="acts">${extra||''}<button type="button" class="btn" data-act="edit-item" data-kind="${kind}" data-id="${id}">Изменить</button><button type="button" class="btn plain" data-act="item-history" data-kind="${kind}" data-id="${id}">История</button><button type="button" class="btn plain" data-act="del-item" data-kind="${kind}" data-id="${id}">Удалить</button></div>`:'';}
 function openDetail(key,keep){
   const i=key.indexOf(':'),k=key.slice(0,i),id=key.slice(i+1);
   if(k==='h'){if(!keep)openHandout(id);return;}

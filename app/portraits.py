@@ -117,14 +117,14 @@ def process(raw):
 def usage():
     with db.lock:
         row = db.conn().execute(
-            "SELECT COALESCE(SUM(bytes),0) AS b, COUNT(DISTINCT card_id) AS n FROM portraits").fetchone()
+            "SELECT COALESCE(SUM(bytes),0) AS b, COUNT(DISTINCT card_id) AS n FROM portraits WHERE trashed=0").fetchone()
     return {"used": int(row["b"]), "quota": quota_bytes(), "count": int(row["n"])}
 
 
 def card_bytes(card_id):
     with db.lock:
         row = db.conn().execute(
-            "SELECT COALESCE(SUM(bytes),0) AS b FROM portraits WHERE card_id=?", (card_id,)).fetchone()
+            "SELECT COALESCE(SUM(bytes),0) AS b FROM portraits WHERE card_id=? AND trashed=0", (card_id,)).fetchone()
     return int(row["b"])
 
 
@@ -147,6 +147,23 @@ def rotate(card_id):
     return token if changed else None
 
 
+def trash(card_id):
+    """Карточка в корзине: картинка остаётся в базе, но по ссылке больше не открывается и в лимит не входит."""
+    with db.tx() as c:
+        c.execute("UPDATE portraits SET trashed=1 WHERE card_id=?", (card_id,))
+
+
+def untrash(card_id):
+    with db.tx() as c:
+        c.execute("UPDATE portraits SET trashed=0 WHERE card_id=?", (card_id,))
+
+
+def trashed_bytes(card_id):
+    with db.lock:
+        row = db.conn().execute("SELECT COALESCE(SUM(bytes),0) AS b FROM portraits WHERE card_id=? AND trashed=1", (card_id,)).fetchone()
+    return int(row["b"])
+
+
 def remove(card_id):
     with db.tx() as c:
         c.execute("DELETE FROM portraits WHERE card_id=?", (card_id,))
@@ -154,5 +171,5 @@ def remove(card_id):
 
 def get(token, size):
     with db.lock:
-        row = db.conn().execute("SELECT data FROM portraits WHERE token=? AND size=?", (token, size)).fetchone()
+        row = db.conn().execute("SELECT data FROM portraits WHERE token=? AND size=? AND trashed=0", (token, size)).fetchone()
     return bytes(row["data"]) if row else None

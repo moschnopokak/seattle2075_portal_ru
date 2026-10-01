@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 from fastapi import HTTPException
 
-from . import config, db, handouts, notify, portraits
+from . import audit, config, db, handouts, notify, portraits, trash
 from .config import people
 
 TYPES = {"meet": "Встреча", "grow": "Развитие", "deal": "Дело", "vow": "Обещание"}
@@ -54,6 +54,30 @@ def clean(value, limit, multiline=False):
     else:
         text = CTRL.sub("", text.replace("\n", " "))
     return text.strip()[:limit]
+
+
+def _snap(e):
+    """Копия записи без обсуждения: для журнала и корзины."""
+    return json.loads(json.dumps({k: v for k, v in e.items() if k != "chat"}, ensure_ascii=False))
+
+
+def _item_title(item):
+    return item.get("title") or item.get("name") or item.get("id", "")
+
+
+def _actor_name(v):
+    return "Мастер" if v.gm else v.name
+
+
+AUDIT_ACTS = {"ans", "join", "kick", "approve", "reject", "outcome"}   # действия над записью, которые попадают в журнал
+
+
+def _trash_entry(v, e):
+    """Удалить запись в корзину вместе с обсуждением (db.lock должен быть взят)."""
+    data = _snap(e)
+    trash.put("entry", e["id"], e["title"], data, {"chat": db.raw_messages(e["id"])}, by=_actor_name(v))
+    db.delete_entry(e["id"])
+    audit.record(v, "delete", "entry", e["id"], e["title"], before=data)
 
 
 def listed(value, allowed):
@@ -177,6 +201,7 @@ def state_for(v):
         "portraits": portraits.usage() if v.gm else None,
         "dnotes": [d if v.gm else {"id": d["id"], "text": d.get("text", "")} for d in db.items("dnotes")],
         "travel": [t for t in db.items("travel") if v.gm or t.get("vis") != "мастер"],
+        "trash": trash.count() if v.gm else None,
         "clocks": db.items("clocks") if v.gm else [],
         "entries": [e for e in db.entries() if visible(e, v)],
         "characters": p["characters"],
@@ -299,6 +324,7 @@ def save_handout_file(v, item_id, raw, fname):
         h["fname"] = clean(fname, 120) or "раздатка.html"
         h["uploaded"] = int(time.time())
         db.set_items("handouts", items)
+        audit.record(v, "upload", "handouts", item_id, h["title"])
         db.bump()
     handout_notify(old, h)
     return "Файл раздатки загружен"
@@ -329,6 +355,7 @@ def save_portrait(v, card_id, raw):
                 "Уберите ненужные картинки и попробуйте снова.", 413)
         card["img"] = portraits.store(card_id, full, thumb)
         db.set_items("dossier", cards)
+        audit.record(v, "upload", "dossier", card_id, card["name"])
         db.bump()
     return "Картинка сохранена"
 
@@ -342,6 +369,7 @@ def delete_portrait(v, card_id):
         portraits.remove(card_id)
         card["img"] = ""
         db.set_items("dossier", cards)
+        audit.record(v, "file-delete", "dossier", card_id, card["name"])
         db.bump()
     return "Картинка убрана"
 
@@ -352,9 +380,12 @@ def save_dnote(v, slug, b):
     if slug not in DISTRICTS:
         bad("Неизвестный район.", 404)
     with db.lock:
+        old = next((d for d in db.items("dnotes") if d["id"] == slug), None)
         items = [d for d in db.items("dnotes") if d["id"] != slug]
-        items.append({"id": slug, "text": clean(b.get("text"), 3000, True), "gm_text": clean(b.get("gm_text"), 3000, True)})
+        new = {"id": slug, "text": clean(b.get("text"), 3000, True), "gm_text": clean(b.get("gm_text"), 3000, True)}
+        items.append(new)
         db.set_items("dnotes", items)
+        audit.record(v, "edit", "dnote", slug, slug, before=old, after=new)
         db.bump()
     return "Описание района сохранено"
 
@@ -481,6 +512,7 @@ def create_entry(v, b):
         else:
             e["answers"] = {c: "да" for c in e["who"]}
         db.save_entry(e)
+        audit.record(v, "create", "entry", e["id"], e["title"], after=_snap(e))
         db.bump()
     author = char_map().get(char, {}).get("name", "Мастер")
     if invited:
@@ -501,6 +533,7 @@ def edit_entry(v, entry_id, b):
             bad("Изменить запись может только автор или мастер.", 403)
         if e["status"] in CLOSED:
             bad("Закрытую запись изменить нельзя.")
+        before = _snap(e)
         fields = _entry_fields(b, e["type"], e["author"])
         moved = (fields["from"], fields["to"], fields["tod"]) != (e["from"], e["to"], e.get("tod", ""))
         old = e.get("answers", {})
@@ -529,6 +562,7 @@ def edit_entry(v, entry_id, b):
         else:
             recompute(e)
         db.save_entry(e)
+        audit.record(v, "edit", "entry", e["id"], e["title"], before=before, after=_snap(e))
         db.bump()
     if asked:
         author = char_map().get(e["author"], {}).get("name", "Мастер")
@@ -546,6 +580,7 @@ def entry_action(v, entry_id, b):
         if not e or not visible(e, v):
             bad("Запись не найдена.", 404)
         today, _ = now()
+        before = _snap(e)
         char = v.acting(b.get("char"))
         manage = v.gm or e["author"] in v.chars
         live = e["status"] not in CLOSED
@@ -616,12 +651,14 @@ def entry_action(v, entry_id, b):
         elif act == "del":
             if not manage or not live:
                 bad("Удалить запись может только автор или мастер.", 403)
-            db.delete_entry(entry_id)
+            _trash_entry(v, e)
             db.bump()
             return "Запись удалена"
         else:
             bad("Неизвестное действие.")
         db.save_entry(e)
+        if act in AUDIT_ACTS:
+            audit.record(v, "act:" + act, "entry", e["id"], e["title"], before=before, after=_snap(e))
         db.bump()
     if note and note[1][0] in names:
         notify.to_characters(note[1], note[2], "now")
@@ -654,6 +691,7 @@ def gm_time(v, b):
     with db.lock:
         today, _ = now()
         cs, ce = cal()
+        before = {"date": today, "tod": now()[1], "quiet": db.meta_get("quiet_until", "") or ""}
         if b.get("date"):
             db.meta_set("now_date", check_date(b["date"], "Дата"))
         elif "shift" in b:
@@ -669,6 +707,9 @@ def gm_time(v, b):
         if "quiet" in b:
             q = b["quiet"] or ""
             db.meta_set("quiet_until", check_date(q, "Свободное время") if q else "")
+        after = {"date": now()[0], "tod": now()[1], "quiet": db.meta_get("quiet_until", "") or ""}
+        if after != before:
+            audit.record(v, "time", "time", "", "Время в игре", before=before, after=after)
         db.bump()
     notify.pin_status(status_text())
     return "Сохранено"
@@ -694,6 +735,7 @@ def plan_played(v, plan_id):
         past.sort(key=lambda x: x["from"])
         db.set_items("plan", plan)
         db.set_items("past", past)
+        audit.record(v, "played", "plan", item["id"], item["title"], before=item, after=next(x for x in past if x.get("plan_id") == item["id"]))
         db.bump()
     return "Событие перенесено в хронику"
 
@@ -867,6 +909,20 @@ def _normalize(kind, b):
     bad("Неизвестный раздел.")
 
 
+def _rotate_if_narrowed(kind, old, item):
+    """Кто потерял доступ к карточке или раздатке, не должен открывать файл по старой ссылке: токен меняется."""
+    if kind == "dossier" and old and item.get("img") and card_audience(old) - card_audience(item):
+        item["img"] = portraits.rotate(item["id"]) or item["img"]
+    if kind == "handouts" and old and item.get("file") and handout_audience(old) - handout_audience(item):
+        item["file"] = handouts.rotate(item["id"]) or item["file"]
+
+
+def _check_windows(items, item):
+    for w in items:
+        if w["id"] != item["id"] and not (item["to"] < w["from"] or item["from"] > w["to"]):
+            bad(f"Этап пересекается с этапом «{w.get('gm') or w['name']}».", 409)
+
+
 def save_item(v, kind, b):
     if not v.gm:
         bad("Только для мастера.", 403)
@@ -884,15 +940,11 @@ def save_item(v, kind, b):
         item["id"] = old["id"] if old else KINDS[kind] + uuid.uuid4().hex[:8]
         if kind == "dossier":
             item["img"] = (old or {}).get("img", "")
-            # Кто потерял доступ к карточке, не должен открывать картинку по старой ссылке: токен меняется.
-            if old and item["img"] and card_audience(old) - card_audience(item):
-                item["img"] = portraits.rotate(item["id"]) or item["img"]
         if kind == "handouts":
             for k in ("file", "size", "fname", "uploaded"):
                 if old and k in old:
                     item[k] = old[k]
-            if old and item.get("file") and handout_audience(old) - handout_audience(item):
-                item["file"] = handouts.rotate(item["id"]) or item["file"]
+        _rotate_if_narrowed(kind, old, item)
         if kind == "past" and old and old.get("plan_id"):
             item["plan_id"] = old["plan_id"]
         if kind == "windows":
@@ -906,6 +958,7 @@ def save_item(v, kind, b):
         if kind in ("windows", "plan", "past"):
             items.sort(key=lambda x: x["from"])
         db.set_items(kind, items)
+        audit.record(v, "edit" if old else "create", kind, item["id"], _item_title(item), before=old, after=item)
         db.bump()
     if kind == "handouts":
         handout_notify(old, item)
@@ -918,20 +971,170 @@ def save_item(v, kind, b):
     return "Сохранено" if old else "Добавлено"
 
 
+def _delete_item_locked(v, kind, item_id):
+    """Убрать элемент в корзину (db.lock должен быть взят). Картинка и файл раздатки остаются в базе, но закрыты."""
+    items = db.items(kind)
+    item = next((x for x in items if x["id"] == item_id), None)
+    if not item:
+        bad("Запись не найдена.", 404)
+    db.set_items(kind, [x for x in items if x["id"] != item_id])
+    if kind == "dossier":
+        portraits.trash(item_id)
+    if kind == "handouts":
+        handouts.trash(item_id)
+    trash.put(kind, item_id, _item_title(item), item, by=_actor_name(v))
+    audit.record(v, "delete", kind, item_id, _item_title(item), before=item)
+
+
 def delete_item(v, kind, item_id):
     if not v.gm:
         bad("Только для мастера.", 403)
     if kind not in KINDS:
         bad("Неизвестный раздел.", 404)
     with db.lock:
-        items = db.items(kind)
-        rest = [x for x in items if x["id"] != item_id]
-        if len(rest) == len(items):
-            bad("Запись не найдена.", 404)
-        db.set_items(kind, rest)
-        if kind == "dossier":
-            portraits.remove(item_id)
-        if kind == "handouts":
-            handouts.remove(item_id)
+        _delete_item_locked(v, kind, item_id)
         db.bump()
-    return "Удалено"
+    return "Удалено. Восстановить можно из корзины в панели мастера"
+
+
+# ---------- корзина, журнал, откат ----------
+
+def _check_insert(kind, item):
+    items = db.items(kind)
+    if any(x["id"] == item["id"] for x in items):
+        bad("Элемент с таким номером уже существует.", 409)
+    if kind == "windows":
+        _check_windows(items, item)
+    if kind == "travel" and len(items) >= MAX_TRAVEL:
+        bad(f"Видов транспорта не больше {MAX_TRAVEL}.")
+
+
+def _insert_item(kind, item):
+    items = db.items(kind)
+    items.append(item)
+    if kind in ("windows", "plan", "past"):
+        items.sort(key=lambda x: x["from"])
+    db.set_items(kind, items)
+
+
+def restore_trash(v, trash_id):
+    if not v.gm:
+        bad("Только для мастера.", 403)
+    with db.lock:
+        row = trash.get(trash_id)
+        if not row:
+            bad("Этого уже нет в корзине: возможно, вышел срок хранения.", 404)
+        kind, data = row["kind"], row["data"]
+        if kind == "entry":
+            if db.entry(data["id"]):
+                bad("Запись с таким номером уже существует.", 409)
+            db.save_entry(data)
+            for m in (row["extra"] or {}).get("chat", []):
+                db.add_message(data["id"], m["author"], m["user_id"], m["text"], m["ts"])
+        else:
+            _check_insert(kind, data)
+            if kind == "dossier" and data.get("img"):
+                if portraits.usage()["used"] + portraits.trashed_bytes(data["id"]) > portraits.quota_bytes():
+                    bad("Не хватает места в хранилище картинок: освободите место и попробуйте снова.", 413)
+                portraits.untrash(data["id"])
+                data["img"] = portraits.rotate(data["id"]) or ""      # старая ссылка к тому времени могла разойтись
+            if kind == "handouts" and data.get("file"):
+                if handouts.usage()["used"] + handouts.trashed_bytes(data["id"]) > handouts.quota_bytes():
+                    bad("Не хватает места в хранилище раздаток: освободите место и попробуйте снова.", 413)
+                handouts.untrash(data["id"])
+                data["file"] = handouts.rotate(data["id"]) or ""
+            _insert_item(kind, data)
+        trash.remove(trash_id, drop_blobs=False)
+        audit.record(v, "restore", kind, data["id"], row["title"], after=data)
+        db.bump()
+    return f"Восстановлено: «{row['title']}»"
+
+
+def purge_trash(v, trash_id):
+    if not v.gm:
+        bad("Только для мастера.", 403)
+    with db.lock:
+        if not trash.remove(trash_id):
+            bad("Этого уже нет в корзине.", 404)
+        db.bump()
+    return "Удалено окончательно"
+
+
+def empty_trash(v):
+    if not v.gm:
+        bad("Только для мастера.", 403)
+    with db.lock:
+        n = trash.empty()
+        db.bump()
+    return f"Корзина очищена, удалено: {n}"
+
+
+def revert_change(v, audit_id):
+    """Откатить правку из журнала: вернуть прежнее состояние, отменить добавление или вернуть удалённое."""
+    if not v.gm:
+        bad("Только для мастера.", 403)
+    with db.lock:
+        row = audit.get(audit_id)
+        if not row:
+            bad("Запись журнала не найдена.", 404)
+        action, kind, item_id, before = row["action"], row["kind"], row["item_id"], row["before"]
+        if action == "delete":
+            tid = trash.latest_for(kind, item_id)
+            if not tid:
+                bad("В корзине этого уже нет.", 404)
+            return restore_trash(v, tid)
+        if action == "create":
+            if kind == "entry":
+                e = db.entry(item_id)
+                if not e:
+                    bad("Запись уже удалена.", 404)
+                _trash_entry(v, e)
+            elif kind in KINDS:
+                _delete_item_locked(v, kind, item_id)
+            else:
+                bad("Это добавление отменить нельзя.")
+            db.bump()
+            return "Добавление отменено, запись в корзине"
+        if action == "time":
+            for key, meta in (("date", "now_date"), ("tod", "now_tod"), ("quiet", "quiet_until")):
+                db.meta_set(meta, before.get(key, ""))
+            audit.record(v, "revert", "time", "", "Время в игре", before=row["after"], after=before)
+            db.bump()
+            return "Время в игре возвращено"
+        if action != "edit" or not isinstance(before, dict):
+            bad("Эту правку откатить нельзя.")
+        if kind == "entry":
+            current = db.entry(item_id)
+            if not current:
+                bad("Запись удалена: сначала восстановите её из корзины.", 409)
+            now_state = _snap(current)
+            db.save_entry(dict(before))
+            audit.record(v, "revert", "entry", item_id, before.get("title", ""), before=now_state, after=before)
+        elif kind == "dnote":
+            old = next((d for d in db.items("dnotes") if d["id"] == item_id), None)
+            items = [d for d in db.items("dnotes") if d["id"] != item_id] + [before]
+            db.set_items("dnotes", items)
+            audit.record(v, "revert", "dnote", item_id, item_id, before=old, after=before)
+        elif kind in KINDS:
+            items = db.items(kind)
+            current = next((x for x in items if x["id"] == item_id), None)
+            if not current:
+                bad("Элемент удалён: сначала восстановите его из корзины.", 409)
+            restored = dict(before)
+            for k in ("img", "file", "size", "fname", "uploaded", "plan_id"):     # ссылки на файлы не откатываются
+                if k in current:
+                    restored[k] = current[k]
+                else:
+                    restored.pop(k, None)
+            if kind == "windows":
+                _check_windows(items, restored)
+            _rotate_if_narrowed(kind, current, restored)
+            items[items.index(current)] = restored
+            if kind in ("windows", "plan", "past"):
+                items.sort(key=lambda x: x["from"])
+            db.set_items(kind, items)
+            audit.record(v, "revert", kind, item_id, _item_title(restored), before=current, after=restored)
+        else:
+            bad("Эту правку откатить нельзя.")
+        db.bump()
+    return "Правка откатена"

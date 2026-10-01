@@ -506,3 +506,15 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 @media (max-width:760px){
   .map-measure{left:6px;right:6px;width:auto;bottom:40px;max-height:52%}
 }
+
+/* ===== Корзина и история ===== */
+.hist-row{border-top:1px solid var(--line);padding:9px 0}
+.hist-top{line-height:1.45}
+.hist-time{color:var(--muted);font-size:13.5px;margin-right:6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hist-ch{margin-top:6px;font-size:13.5px}
+.hist-ch summary{cursor:pointer;color:var(--muted)}
+.hist-ch table{border-collapse:collapse;margin-top:6px;width:100%}
+.hist-ch th{text-align:left;font-weight:500;color:var(--muted);vertical-align:top;padding:3px 10px 3px 0;white-space:nowrap}
+.hist-ch td{vertical-align:top;padding:3px 8px 3px 0;word-break:break-word;max-width:260px}
+.hist-ch .was{color:var(--vow)}.hist-ch .now{color:var(--grow)}
+.hist-row .acts{margin-top:8px}

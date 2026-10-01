@@ -70,7 +70,7 @@ function openDossier(id,keep){
   <h3>Что известно</h3>${facts.length?`<ul class="facts">${fh}</ul>`:'<p class="muted" style="margin:0">Пока ничего конкретного.</p>'}
   ${gm?`<div class="acts" style="margin-top:12px"><button type="button" class="btn" data-act="fact-add" data-card="${c.id}">Добавить сведение</button></div>
   ${c.gm_note?`<h3>Заметка мастера</h3><p class="prose" style="margin-top:0;white-space:pre-wrap">${esc(c.gm_note)}</p>`:''}
-  <div class="acts"><button type="button" class="btn primary" data-act="dcard-vis" data-id="${c.id}">${c.vis==='стол'?'Скрыть от игроков':'Открыть всем игрокам'}</button><button type="button" class="btn" data-act="edit-item" data-kind="dossier" data-id="${c.id}">Изменить карточку</button><button type="button" class="btn plain" data-act="del-item" data-kind="dossier" data-id="${c.id}">Удалить</button></div>`:''}`,keep);
+  <div class="acts"><button type="button" class="btn primary" data-act="dcard-vis" data-id="${c.id}">${c.vis==='стол'?'Скрыть от игроков':'Открыть всем игрокам'}</button><button type="button" class="btn" data-act="edit-item" data-kind="dossier" data-id="${c.id}">Изменить карточку</button><button type="button" class="btn plain" data-act="item-history" data-kind="dossier" data-id="${c.id}">История</button><button type="button" class="btn plain" data-act="del-item" data-kind="dossier" data-id="${c.id}">Удалить</button></div>`:''}`,keep);
 }
 function openFactForm(cardId,factId){
   const c=(S.dossier||[]).find(x=>x.id===cardId);if(!c)return;

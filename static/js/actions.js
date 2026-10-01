@@ -8,12 +8,13 @@ document.addEventListener('click',async ev=>{
   if(op){openDetail(op.dataset.open);return;}
   const b=ev.target.closest('[data-act]');if(!b||b.disabled)return;
   const a=b.dataset.act,v=b.dataset.v,id=b.dataset.id;
-  if((a==='del'||a==='del-item'||a==='fact-del'||a==='portrait-del')&&!b.dataset.armed){
+  if((a==='del'||a==='del-item'||a==='fact-del'||a==='portrait-del'||a==='trash-purge'||a==='trash-empty')&&!b.dataset.armed){
     b.dataset.armed='1';b.dataset.label=b.textContent;b.textContent='Нажмите ещё раз, чтобы удалить'+(a==='del-item'&&b.dataset.kind==='places'?placeLinks(id):'');
     setTimeout(()=>{if(document.body.contains(b)&&b.dataset.armed){delete b.dataset.armed;b.textContent=b.dataset.label;}},4000);
     return;
   }
   if(a==='map-measure'||a.startsWith('measure-')){measureAct(a,b);return;}
+  if(a.startsWith('hist-')||a.startsWith('trash-')||a==='item-history'){historyAct(a,b);return;}
   if(ENTRY_ACTS.includes(a)){
     const j=await apiPost(`/api/entries/${encodeURIComponent(id)}/act`,{act:a,v});
     if(j){if(a==='del')finish(j.msg);else refresh(j.msg);}
