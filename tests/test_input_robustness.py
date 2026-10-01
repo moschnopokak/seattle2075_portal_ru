@@ -141,5 +141,5 @@ def test_unexpected_error_returns_clean_json(gm, monkeypatch):
     monkeypatch.setattr(logic, "state_for", boom)
     r = gm.get("/api/state")
     assert r.status_code == 500
-    assert r.json() == {"detail": "Внутренняя ошибка сервера. Попробуйте ещё раз."}
+    assert r.json() == {"detail": "Что-то пошло не так на портале. Попробуйте ещё раз."}
     assert "секретные" not in r.text
