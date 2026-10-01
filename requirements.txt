@@ -1,4 +1,4 @@
-fastapi>=0.110,<1
-uvicorn>=0.29,<1
-pillow>=10.3,<13
-tomli>=2.0; python_version < "3.11"
+fastapi>=0.141.1,<1
+uvicorn>=0.54.0,<1
+pillow>=12.3.0,<13
+tomli>=2.4.1; python_version < "3.11"
