@@ -153,6 +153,7 @@ bd51b4cc7bc3eca2  static/js/prefs.js
 41bbd42a571752e4  static/style.css
 4a28769ffd2fdad5  static/style.css
 5fc49451debfcff7  static/style.css
+97968ab6199096bb  static/style.css
 c24bb73f90b3d532  static/style.css
 c38c1d4cb99818c9  static/style.css
 536533cad95838e1  static/vendor/fonts/LICENSE-Jost.txt

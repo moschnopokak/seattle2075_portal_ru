@@ -328,7 +328,8 @@ path.m-d.leaflet-interactive:hover{filter:brightness(.97)}
 .imp-dup{font-size:12.5px;color:var(--vow)}
 .imp-seg{margin-bottom:12px}
 .imp-intro{margin-top:0}
-.imp-bgbox{margin:4px 0 12px}
+.imp-bgbox{display:block;margin:4px 0 12px}
+.imp-bgbox input{margin-right:8px;vertical-align:-2px}
 @media (max-width:760px){.map-tools{left:56px;right:8px;max-width:none;justify-content:flex-start;padding:5px 8px}.map-tools .btn.small{font-size:13px}}
 
 /* ===== Досье ===== */
@@ -530,6 +531,13 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:4px;font-size:15px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1}
 
+/* Вкладки и кнопки шапки вместе занимают около 1280 px: на планшете и в узком окне меню уходит на вторую строку, а не прячется за край */
+@media (max-width:1279px){
+  .top{gap:8px 14px}
+  #nav{order:3;flex-basis:100%;margin:0 -6px}
+  .who-box{margin-left:auto}
+}
+
 @media (max-width:760px){
   :root{--label:90px;--day:104px}
   .lanes-wrap.span-stage{--day:92px}
@@ -537,6 +545,10 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
   .brand{font-size:18px}
   #nav{order:3;flex-basis:100%;margin:0 -6px}
   .viewas{margin-left:auto}
+  .viewas select{min-width:0;max-width:30vw;text-overflow:ellipsis}      /* иначе «Выйти» уезжает на отдельную строку и шапка становится выше */
+  .who-box{gap:4px 8px;flex:1 1 100%;justify-content:flex-end}                /* кнопки шапки (имя, «Мой дневник», «Уведомления», «Выйти») укладываются в одну строку */
+  .who-box .btn.plain{padding:4px 2px;font-size:13px}
+  .who-box .viewas{font-size:13px;margin-left:0;margin-right:auto}
   .now-hero,.now-body,.gm-grid{grid-template-columns:minmax(0,1fr)}
   .now-hero{gap:22px;padding-top:24px}
   .now-body{gap:10px}
