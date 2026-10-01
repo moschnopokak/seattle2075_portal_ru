@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 
 from . import db, outbox
-from .config import BOT_TOKEN, NOTIFY_DM, SITE_URL, TG_CHAT_ID, people
+from .config import BOT_TOKEN, NOTIFY_DM, SITE_URL, TG_CHAT_ID, TG_WEBHOOK, people
 
 log = logging.getLogger("portal.notify")
 _pin_lock = threading.Lock()
@@ -148,6 +148,54 @@ def to_characters(char_ids, text, section=None, kind="event", buttons=None, key=
         return
     for uid in sorted(_recipients(char_ids) - set(exclude)):
         outbox.enqueue(uid, kind, text, section, buttons, key, meta, now=now)
+
+
+# ---------- кнопки-ответы под сообщением ----------
+# callback_data: «e:<действие>:<номер записи>[:<персонаж>]», у Telegram предел 64 байта. Разбор и выполнение: telegram_bot.py
+
+def webhook_on():
+    """Кнопки работают, только если Telegram присылает нажатия на портал: нужны токен, https-адрес и TG_WEBHOOK=1."""
+    return bool(BOT_TOKEN and TG_WEBHOOK and SITE_URL.startswith("https://"))
+
+
+def _cb(*parts):
+    data = ":".join(parts)
+    return data if len(data.encode()) <= 64 else None
+
+
+def _label(prefix, title):
+    title = " ".join(str(title).split())
+    return f"{prefix} {title[:24] + '…' if len(title) > 25 else title}"
+
+
+def invite_buttons(entry, char):
+    """«Принять» и «Отклонить» под приглашением в запись. None, если кнопки выключены."""
+    if not webhook_on():
+        return None
+    yes, no = _cb("e", "y", entry["id"], char), _cb("e", "n", entry["id"], char)
+    if not (yes and no):
+        return None
+    return [[{"text": _label("✅ Принять:", entry.get("title", "")), "callback_data": yes}],
+            [{"text": _label("❌ Отклонить:", entry.get("title", "")), "callback_data": no}]]
+
+
+def grow_buttons(entry):
+    """«Подтвердить» и «Отклонить» мастеру под заявкой на развитие."""
+    if not webhook_on():
+        return None
+    yes, no = _cb("e", "ok", entry["id"]), _cb("e", "no", entry["id"])
+    if not (yes and no):
+        return None
+    return [[{"text": _label("✅ Подтвердить:", entry.get("title", "")), "callback_data": yes}],
+            [{"text": _label("❌ Отклонить:", entry.get("title", "")), "callback_data": no}]]
+
+
+def invite(entry, chars, text, kind="invite", now=None):
+    """Приглашение или напоминание по записи: у каждого персонажа свои кнопки (ответ даётся за конкретного персонажа)."""
+    names = {c["id"]: c["name"] for c in people()["characters"]}
+    for c in chars:
+        line = text if len(chars) == 1 else f"{text} Для персонажа: {names.get(c, c)}."
+        to_characters([c], line, "now", kind=kind, buttons=invite_buttons(entry, c), now=now)
 
 
 def to_gm(text, section=None, kind="event", buttons=None, exclude=()):

@@ -36,8 +36,8 @@ def purge_orphans():
         db.conn().execute("DELETE FROM invite_clock WHERE entry_id NOT IN (SELECT id FROM entries)")
 
 
-def due(now=None) -> list:
-    """Что пора напомнить: [(запись, [персонажи])]. Ничего не меняет."""
+def due(now=None, only=None) -> list:
+    """Что пора напомнить: [(запись, [персонажи])]. Ничего не меняет. only: смотреть только записи с этими номерами."""
     from . import logic  # поздний импорт: logic сам использует этот модуль
     now = time.time() if now is None else now
     if REMIND_DAYS <= 0 or REMIND_MAX <= 0:
@@ -46,7 +46,7 @@ def due(now=None) -> list:
     clock = clocks()
     result = []
     for e in db.entries():
-        if e.get("type") == "grow" or not logic.is_active(e, today):
+        if (only is not None and e["id"] not in only) or e.get("type") == "grow" or not logic.is_active(e, today):
             continue
         chars = []
         for c, answer in e.get("answers", {}).items():
@@ -62,11 +62,11 @@ def due(now=None) -> list:
     return result
 
 
-def run(now=None) -> int:
+def run(now=None, only=None) -> int:
     """Поставить в очередь все созревшие напоминания. Возвращает, сколько приглашений напомнено."""
     from . import logic
     now = time.time() if now is None else now
-    todo = due(now)
+    todo = due(now, only)
     count = 0
     for e, chars in todo:
         names = logic.char_map()
@@ -80,6 +80,6 @@ def run(now=None) -> int:
                     "INSERT INTO invite_clock(entry_id,char,asked,reminded,last) VALUES(?,?,?,?,?) "
                     "ON CONFLICT(entry_id,char) DO UPDATE SET reminded=excluded.reminded,last=excluded.last",
                     (e["id"], c, e.get("created", now), (row["reminded"] if row else 0) + 1, now))
-        notify.to_characters(chars, text, "now", kind="remind", now=now)
+        notify.invite(e, chars, text, kind="remind", now=now)
         count += len(chars)
     return count

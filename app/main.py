@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
-from . import audit, auth, config, db, handouts, logic, notify, outbox, portraits, scheduler, seed, trash
+from . import audit, auth, config, db, handouts, logic, notify, outbox, portraits, scheduler, seed, telegram_bot, trash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("portal")
@@ -42,6 +42,12 @@ async def lifespan(_app):
         log.warning("DEV_LOGIN включён: вход без Telegram. На рабочем сервере выключите")
     if scheduler.start():
         log.info("Планировщик запущен: уведомления, напоминания, уборка")
+    if config.TG_WEBHOOK:
+        if notify.webhook_on():
+            notify._background(telegram_bot.register)       # в фоне: если Telegram недоступен, портал всё равно стартует
+            log.info("Кнопки в сообщениях бота включены: webhook %s", telegram_bot.webhook_url())
+        else:
+            log.error("TG_WEBHOOK=1 не работает: нужны BOT_TOKEN и SITE_URL с https://")
     yield
     scheduler.stop()
 
@@ -158,6 +164,23 @@ def public_config():
 # ---------- отчёты о нарушениях CSP ----------
 
 _csp_seen = {"minute": 0, "count": 0}
+
+
+@app.post("/api/telegram/webhook")
+async def telegram_webhook(request: Request):
+    """Сюда Telegram присылает нажатия на кнопки в сообщениях бота. Подлинность по секретному заголовку."""
+    if not notify.webhook_on():
+        raise HTTPException(404, "Не найдено.")
+    if not telegram_bot.check_secret(request.headers.get("x-telegram-bot-api-secret-token")):
+        raise HTTPException(403, "Неверный секрет.")
+    if len(await request.body()) > 65536:
+        raise HTTPException(413, "Слишком большой запрос.")
+    try:
+        update = await request.json()
+    except ValueError:
+        raise HTTPException(400, "Нужен JSON.")
+    await run_in_threadpool(telegram_bot.handle_update, update)
+    return {"ok": True}
 
 
 @app.post("/api/csp-report", status_code=204)

@@ -517,9 +517,9 @@ def create_entry(v, b):
         db.bump()
     author = char_map().get(char, {}).get("name", "Мастер")
     if invited:
-        notify.to_characters(invited, f"{author} приглашает в запись «{e['title']}», {ffull(e['from'])}. Ответить можно на портале.", "now", kind="invite")
+        notify.invite(e, invited, f"{author} приглашает в запись «{e['title']}», {ffull(e['from'])}. Ответить можно на портале.")
     if e["status"] == "gm":
-        notify.to_gm(f"Заявка на развитие от {author}: «{e['title']}».", "gm", kind="grow")
+        notify.to_gm(f"Заявка на развитие от {author}: «{e['title']}».", "gm", kind="grow", buttons=notify.grow_buttons(e))
     return msg
 
 
@@ -568,9 +568,9 @@ def edit_entry(v, entry_id, b):
         db.bump()
     if asked:
         author = char_map().get(e["author"], {}).get("name", "Мастер")
-        notify.to_characters(asked, f"{author} изменил(а) запись «{e['title']}»: {ffull(e['from'])}. Подтвердите участие на портале.", "now", kind="invite")
+        notify.invite(e, asked, f"{author} изменил(а) запись «{e['title']}»: {ffull(e['from'])}. Подтвердите участие на портале.")
     if e["type"] == "grow" and not v.gm:
-        notify.to_gm(f"Заявка на развитие изменена: «{e['title']}».", "gm", kind="grow")
+        notify.to_gm(f"Заявка на развитие изменена: «{e['title']}».", "gm", kind="grow", buttons=notify.grow_buttons(e))
     return "Запись обновлена"
 
 
