@@ -640,21 +640,25 @@ def gm_time(v, b):
     with db.lock:
         today, _ = now()
         cs, ce = cal()
+        # Сначала проверяем всё, потом пишем: при ошибке в одном поле остальные не должны сохраниться.
+        changes = {}
         if b.get("date"):
-            db.meta_set("now_date", check_date(b["date"], "Дата"))
+            changes["now_date"] = check_date(b["date"], "Дата")
         elif "shift" in b:
             n = to_int(b["shift"], "Сдвиг времени: нужно число дней.")
             if abs(n) > 400:
                 bad("Слишком большой сдвиг.")
             d = add_days(today, n)
-            db.meta_set("now_date", min(max(d, cs), ce))
+            changes["now_date"] = min(max(d, cs), ce)
         if "tod" in b:
-            if b["tod"] not in TOD:
+            if not isinstance(b["tod"], str) or b["tod"] not in TOD:
                 bad("Неизвестное время суток.")
-            db.meta_set("now_tod", b["tod"])
+            changes["now_tod"] = b["tod"]
         if "quiet" in b:
             q = b["quiet"] or ""
-            db.meta_set("quiet_until", check_date(q, "Свободное время") if q else "")
+            changes["quiet_until"] = check_date(q, "Свободное время") if q else ""
+        for key, value in changes.items():
+            db.meta_set(key, value)
         db.bump()
     notify.pin_status(status_text())
     return "Сохранено"
@@ -889,6 +893,21 @@ def save_item(v, kind, b):
     return "Сохранено" if old else "Добавлено"
 
 
+def _unlink_place(place_id):
+    """Удалённое место не должно оставаться в записях, досье и раздатках (интерфейс обещает, что привязка пропадёт)."""
+    for e in db.entries():
+        if e.get("place") == place_id:
+            e["place"] = ""
+            db.save_entry(e)
+    for kind, key in (("dossier", "last_place"), ("handouts", "place")):
+        items = db.items(kind)
+        if any(x.get(key) == place_id for x in items):
+            for x in items:
+                if x.get(key) == place_id:
+                    x[key] = ""
+            db.set_items(kind, items)
+
+
 def delete_item(v, kind, item_id):
     if not v.gm:
         bad("Только для мастера.", 403)
@@ -904,5 +923,7 @@ def delete_item(v, kind, item_id):
             portraits.remove(item_id)
         if kind == "handouts":
             handouts.remove(item_id)
+        if kind == "places":
+            _unlink_place(item_id)
         db.bump()
     return "Удалено"

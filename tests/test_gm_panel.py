@@ -93,3 +93,25 @@ def test_dossier_editing_keeps_image_and_fact_ids(gm):
         assert [f["id"] for f in again["facts"]] == [f["id"] for f in card["facts"]]
     finally:
         gm.post("/api/gm/items/dossier", json=dict(card))
+
+
+def test_time_change_is_all_or_nothing(gm):
+    before = gm.get("/api/state").json()
+    assert gm.post("/api/gm/time", json={"shift": 2, "tod": "полдень"}).status_code == 400
+    assert gm.post("/api/gm/time", json={"tod": ["день"]}).status_code == 400
+    after = gm.get("/api/state").json()
+    assert after["now"] == before["now"] and after["version"] == before["version"]
+
+
+def test_deleting_a_place_unlinks_it(gm):
+    from helpers import entry
+    data = ok(gm.post("/api/gm/items/places", json={"name": "Временное", "x": 1000, "y": 1000, "vis": "стол"}))
+    pid = next(p["id"] for p in data["state"]["places"] if p["name"] == "Временное")
+    data = ok(gm.post("/api/entries", json=entry(title="С местом", place=pid, who=[], open=True)))
+    eid = next(e["id"] for e in data["state"]["entries"] if e["title"] == "С местом")
+    try:
+        ok(gm.post(f"/api/gm/items/places/{pid}/delete"))
+        state = gm.get("/api/state").json()
+        assert next(e for e in state["entries"] if e["id"] == eid)["place"] == ""
+    finally:
+        gm.post(f"/api/entries/{eid}/act", json={"act": "del"})
