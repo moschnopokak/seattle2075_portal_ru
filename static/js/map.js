@@ -1,13 +1,15 @@
 /* ===== Карта ===== */
-const PLACE_TYPES={home:'Жильё и убежища',contact:'Контакты',business:'Бары, клубы, бизнес',corp:'Корпорации и ориентиры',danger:'Опасные места',checkpoint:'Пропускные пункты',other:'Другое'};
-const PLACE_GLYPH={home:'<path d="M3.5 10.5 10 4.5l6.5 6V16h-13z"/>',contact:'<circle cx="10" cy="7.3" r="3"/><path d="M4.5 16.5c.5-3.3 2.7-5 5.5-5s5 1.7 5.5 5z"/>',business:'<rect x="4.5" y="5" width="11" height="10.5" rx="1.5"/>',corp:'<path d="M10 3.5 16.5 10 10 16.5 3.5 10z"/>',danger:'<path d="M10 3.5 17 16H3z"/>',checkpoint:'<rect x="3.5" y="7.5" width="13" height="5" rx="1"/>',other:'<circle cx="10" cy="10" r="5"/>'};
+const PLACE_TYPES={home:'Жильё и убежища',contact:'Контакты',business:'Бары, клубы, бизнес',corp:'Корпорации и ориентиры',medical:'Медицина',security:'Полиция и тюрьмы',shop:'Магазины',leisure:'Еда и отдых',danger:'Опасные места',checkpoint:'Пропускные пункты',other:'Другое'};
+const PLACE_GLYPH={home:'<path d="M3.5 10.5 10 4.5l6.5 6V16h-13z"/>',contact:'<circle cx="10" cy="7.3" r="3"/><path d="M4.5 16.5c.5-3.3 2.7-5 5.5-5s5 1.7 5.5 5z"/>',business:'<rect x="4.5" y="5" width="11" height="10.5" rx="1.5"/>',corp:'<path d="M10 3.5 16.5 10 10 16.5 3.5 10z"/>',danger:'<path d="M10 3.5 17 16H3z"/>',checkpoint:'<rect x="3.5" y="7.5" width="13" height="5" rx="1"/>',medical:'<path d="M8 4h4v4h4v4h-4v4H8v-4H4V8h4z"/>',security:'<path d="M10 3l6 2.5V10c0 3.6-2.6 6.3-6 7.5C6.6 16.3 4 13.6 4 10V5.5z"/>',shop:'<path d="M4.5 7.5h11l-1 9h-9z"/><path d="M7.5 7.5V6a2.5 2.5 0 015 0v1.5h-1.4V6a1.1 1.1 0 00-2.2 0v1.5z"/>',leisure:'<path d="M5 5.5h8V11a4 4 0 01-8 0z"/><path d="M13 6.5h1.4a2.1 2.1 0 010 4.2H13V9.4h1.4a.8.8 0 000-1.6H13z"/><rect x="4" y="15.5" width="10" height="1.6" rx=".8"/>',other:'<circle cx="10" cy="10" r="5"/>'};
 const DNAMES={downtown:'Даунтаун',bellevue:'Беллвью',tacoma:'Такома',auburn:'Оберн',renton:'Рентон',everett:'Эверетт',snohomish:'Сноухомиш',redmond:'Редмонд',puyallup:'Пуйаллап',council:'Совет-Айленд',dogtown:'Догтаун',fortlewis:'Форт-Льюис',outremer:'Аутремер',outside:'за пределами метроплекса'};
 const TONE={downtown:1,bellevue:3,tacoma:2,auburn:1,renton:4,everett:2,snohomish:3,redmond:2,puyallup:3,fortlewis:4,council:5,outremer:6,dogtown:7};
 const GRID_COLS='АБВГДЕЖЗИКЛМНОПРСТУФ';
 const PVIS={'стол':'все игроки','знают':'только знающие персонажи','мастер':'скрыто от игроков'};
 let MAPDATA=null,MAP=null,MAPL={},PMARK={},ADDING=false,MOVING=null,PENDING_PLACES=false;
 function stopMoving(msg){if(!MOVING)return;const m=PMARK[MOVING];if(m&&m.dragging)m.dragging.disable();MOVING=null;if(PENDING_PLACES){PENDING_PLACES=false;refreshPlaces();}if(msg)toast(msg);}
-const MAPLAYERS={places:true,roads:true,grid:true};
+const MAPLAYERS={places:true,bg:true,roads:true,grid:true};
+try{Object.assign(MAPLAYERS,JSON.parse(localStorage.getItem('seattle2075-map-layers')||'{}'));}catch(e){}
+const saveLayers=()=>{try{localStorage.setItem('seattle2075-map-layers',JSON.stringify(MAPLAYERS));}catch(e){}};
 let resizeT=null;
 window.addEventListener('resize',()=>{clearTimeout(resizeT);resizeT=setTimeout(()=>{
   if(UI.section!=='map')return;
@@ -31,8 +33,8 @@ const placeWhere=p=>p&&(V!=='gm'||p.vis==='стол')?p.name:'';
 function rMap(){return `<div class="map-shell"><div id="leaflet" aria-label="Карта Сиэтла 2075"></div><div class="map-tools" id="map-tools"></div><div class="map-hud" id="map-hud"></div><div class="map-measure" id="map-measure" role="region" aria-label="Линейка и время в пути" hidden></div></div>`;}
 function updateMapTools(){
   const t=document.getElementById('map-tools');if(!t)return;
-  t.innerHTML=`<button type="button" class="btn small ${MEASURE.on?'primary':''}" data-act="map-measure" aria-pressed="${MEASURE.on}">Линейка</button>${V==='gm'?`<button type="button" class="btn small ${ADDING?'primary':''}" data-act="map-add">${ADDING?'Щёлкните по карте, чтобы поставить место. Отмена':'Добавить место'}</button>`:''}
-  ${['places','roads','grid'].map(k=>`<label class="check"><input type="checkbox" data-layer="${k}" ${MAPLAYERS[k]?'checked':''}> ${{places:'Места',roads:'Дороги',grid:'Сетка'}[k]}</label>`).join('')}`;
+  t.innerHTML=`<button type="button" class="btn small ${MEASURE.on?'primary':''}" data-act="map-measure" aria-pressed="${MEASURE.on}">Линейка</button>${V==='gm'?`<button type="button" class="btn small ${ADDING?'primary':''}" data-act="map-add">${ADDING?'Щёлкните по карте, чтобы поставить место. Отмена':'Добавить место'}</button><button type="button" class="btn small" data-act="map-import">Импорт мест</button>`:''}
+  ${['places','bg','roads','grid'].map(k=>`<label class="check" ${k==='bg'?'title="Фоновые места: магазины, еда, ночлег, досуг"':''}><input type="checkbox" data-layer="${k}" ${MAPLAYERS[k]?'checked':''}> ${{places:'Места',bg:'Фон',roads:'Дороги',grid:'Сетка'}[k]}</label>`).join('')}`;
   const el=document.getElementById('leaflet');if(el)el.classList.toggle('adding',ADDING);
 }
 function declutter(){
@@ -41,6 +43,11 @@ function declutter(){
   const free=r=>!taken.some(t=>r.left<t.right+4&&r.right>t.left-4&&r.top<t.bottom+3&&r.bottom>t.top-3);
   const inView=r=>r.width>0&&r.right>vw.left&&r.left<vw.right&&r.bottom>vw.top&&r.top<vw.bottom;
   el.querySelectorAll('.ml-d span,.ml-w span').forEach(sp=>{const r=sp.getBoundingClientRect();if(inView(r))taken.push(r);});
+  // подписи мест: сначала места пачки, потом остальные; значки не трогаем
+  const PRI={home:0,contact:1,checkpoint:2,business:3,danger:4,medical:5,security:6,corp:7,other:8,shop:9,leisure:9};
+  const names=[...el.querySelectorAll('.pl')].map(m=>({m,sp:m.querySelector('.pl-name'),k:(PRI[(m.className.match(/pl-(home|contact|checkpoint|business|danger|medical|security|corp|other|shop|leisure)\b/)||[])[1]]??9)+(m.classList.contains('pl-bg')?10:0)})).filter(o=>o.sp);
+  names.sort((a,b)=>a.k-b.k);
+  for(const o of names){o.sp.style.visibility='';const r=o.sp.getBoundingClientRect();if(!inView(r))continue;if(free(r))taken.push(r);else o.sp.style.visibility='hidden';}
   el.querySelectorAll('.ml-r').forEach(m=>{
     const r=m.firstElementChild.getBoundingClientRect();
     if(!inView(r)){m.style.visibility='';return;}
@@ -87,7 +94,7 @@ async function initMap(){
   MAPDATA.water_labels.forEach(l=>labels.addLayer(lbl(l.xy[0],l.xy[1],'ml-w s'+l.size,esc(l.name))));
   MAPDATA.zone_labels.forEach(l=>labels.addLayer(lbl(l.xy[0],l.xy[1],'ml-o',esc(l.name))));
   MAPL.places=L.layerGroup();
-  for(const k of Object.keys(MAPLAYERS))if(MAPLAYERS[k])MAP.addLayer(MAPL[k]);
+  for(const k of ['places','roads','grid'])if(MAPLAYERS[k])MAP.addLayer(MAPL[k]);
   const svg=MAP.getPane('dist').querySelector('svg');
   if(svg&&!svg.querySelector('#dogwall'))svg.insertAdjacentHTML('afterbegin','<defs><pattern id="dogwall" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" class="dog-bg"/><rect width="3" height="9" class="dog-hatch"/></pattern></defs>');
   MAP.on('zoomend',setZoomClass);
@@ -109,8 +116,9 @@ function refreshPlaces(){
   if(MOVING){PENDING_PLACES=true;return;}
   MAPL.places.clearLayers();PMARK={};
   for(const p of placesVisible()){
+    if(p.bg&&!MAPLAYERS.bg)continue;
     const n=S.entries.filter(e=>e.place===p.id&&canSee(e)&&isActive(e)).length;
-    const cls='pl pl-'+p.type+(p.vis==='мастер'?' pl-hidden':'')+(p.vis==='знают'?' pl-known':'');
+    const cls='pl pl-'+p.type+(p.vis==='мастер'?' pl-hidden':'')+(p.vis==='знают'?' pl-known':'')+(p.bg?' pl-bg':'');
     const m=L.marker(LL(p.x,p.y),{title:p.name,riseOnHover:true,icon:L.divIcon({className:cls,iconSize:[0,0],
       html:`<span class="pl-ico"><svg viewBox="0 0 20 20" aria-hidden="true">${PLACE_GLYPH[p.type]||PLACE_GLYPH.other}</svg>${n?`<b class="pl-n">${n}</b>`:''}</span><span class="pl-name">${esc(p.name)}</span>`})});
     m.on('click',()=>{if(MEASURE.on&&!ADDING&&!MOVING){measureAdd(p.x,p.y,p);return;}if(MOVING===p.id){stopMoving('Перемещение отменено');return;}if(!ADDING&&!MOVING)openPlace(p.id);});
@@ -119,6 +127,7 @@ function refreshPlaces(){
       refreshPlaces();if(j)toast('Место перемещено');});
     MAPL.places.addLayer(m);PMARK[p.id]=m;
   }
+  requestAnimationFrame(declutter);
 }
 function focusPlace(p){MAP.setView(LL(p.x,p.y),Math.max(MAP.getZoom(),-4),{animate:false});if(innerWidth<=760)MAP.panBy([0,Math.round(innerHeight*0.22)],{animate:false});}
 function placeLinks(id){const e=S.entries.filter(x=>x.place===id).length,d=(S.dossier||[]).filter(x=>x.last_place===id).length;const t=[e?`записей: ${e}`:'',d?`карточек досье: ${d}`:''].filter(Boolean).join(', ');return t?`. Привязано ${t}, привязка пропадёт`:'';}
@@ -130,7 +139,7 @@ function openPlace(id,keep){
   const es=S.entries.filter(e=>e.place===p.id&&canSee(e)).sort((a,b)=>a.from<b.from?1:-1);
   let acts=`<button type="button" class="btn" data-act="add-at" data-id="${p.id}">Добавить запись здесь</button><button type="button" class="btn" data-act="measure-from" data-id="${p.id}">Расстояние отсюда</button>`;
   if(V==='gm')acts=`<button type="button" class="btn" data-act="edit-item" data-kind="places" data-id="${p.id}">Изменить</button><button type="button" class="btn" data-act="map-move" data-id="${p.id}">Переместить</button>`+acts+`<button type="button" class="btn plain" data-act="del-item" data-kind="places" data-id="${p.id}">Удалить</button>`;
-  showPanel(`<p class="kind"><span class="pl-dot pl-${p.type}"></span>${PLACE_TYPES[p.type]||'Место'}${V==='gm'?`<span class="tag">${PVIS[p.vis]||''}</span>`:''}</p><h2>${esc(p.name)}</h2>
+  showPanel(`<p class="kind"><span class="pl-dot pl-${p.type}"></span>${PLACE_TYPES[p.type]||'Место'}${p.bg?'<span class="tag">фон</span>':''}${V==='gm'?`<span class="tag">${PVIS[p.vis]||''}</span>`:''}</p><h2>${esc(p.name)}</h2>
   <dl><dt>Район</dt><dd>${DNAMES[d]||'—'}</dd><dt>Квадрат</dt><dd>${square(p.x,p.y)}</dd>${V==='gm'&&p.vis==='знают'?`<dt>Знают</dt><dd>${esc(joinNames((p.known||[]).map(c=>CN[c]||c)))}</dd>`:''}</dl>
   ${p.note?`<p class="prose">${rich(p.note)}</p>`:''}${V==='gm'&&p.gm_note?`<h3>Заметка мастера</h3><p class="prose" style="margin-top:0">${rich(p.gm_note)}</p>`:''}
   ${(()=>{const seen=dossierVisible().filter(c=>c.last_place===p.id);return seen.length?`<h3>Видели здесь</h3>`+seen.map(c=>`<button type="button" class="row" data-open="n:${c.id}"><span class="rt">${esc(c.name)}</span><span class="rs">${c.last_date?fDate(c.last_date):''}</span></button>`).join(''):'';})()}

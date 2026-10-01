@@ -33,6 +33,10 @@ document.addEventListener('click',async ev=>{
     case 'edit-entry':{const e=S.entries.find(x=>x.id===id);if(e)openForm(e.from,e);break;}
     case 'new-item':openItemForm(b.dataset.kind);break;
     case 'edit-item':openItemForm(b.dataset.kind,id);break;
+    case 'map-import':stopMoving();ADDING=false;if(MEASURE.on)measureStop(false);updateMapTools();openImport('canon');break;
+    case 'imp-src':openImport(v);break;
+    case 'imp-tog':if(IMP){IMP.open.has(v)?IMP.open.delete(v):IMP.open.add(v);renderImport();}break;
+    case 'imp-go':await submitImport(b);break;
     case 'map-add':stopMoving();ADDING=!ADDING;updateMapTools();if(ADDING)toast('Щёлкните по карте в нужной точке');break;
     case 'map-move':{const m=PMARK[id];if(m&&m.dragging){closePanel();stopMoving();ADDING=false;updateMapTools();MOVING=id;m.dragging.enable();toast('Перетащите метку и отпустите. Отмена: щелчок по метке или Esc');}break;}
     case 'open-place':openPlace(id);break;
@@ -115,7 +119,7 @@ document.addEventListener('submit',async ev=>{
   const ta2=document.querySelector('#chat-form textarea');ta2&&ta2.focus();
 });
 document.addEventListener('change',async ev=>{
-  if(ev.target.dataset&&ev.target.dataset.layer){const k=ev.target.dataset.layer;MAPLAYERS[k]=ev.target.checked;if(MAP&&MAPL[k]){ev.target.checked?MAP.addLayer(MAPL[k]):MAP.removeLayer(MAPL[k]);}return;}
+  if(ev.target.dataset&&ev.target.dataset.layer){const k=ev.target.dataset.layer;MAPLAYERS[k]=ev.target.checked;saveLayers();if(k==='bg')refreshPlaces();else if(MAP&&MAPL[k]){ev.target.checked?MAP.addLayer(MAPL[k]):MAP.removeLayer(MAPL[k]);}return;}
   if(ev.target.id==='who-select'){V=ev.target.value;UI.stage=null;if(!S.me.gm){try{localStorage.setItem(STORE_CHAR,V);}catch(e){}}render();if(curKey&&overlayOpen())openDetail(curKey,true);}
   if(ev.target.id==='quiet'){const j=await apiPost('/api/gm/time',{quiet:ev.target.value||''});if(j)render(true);}
 });

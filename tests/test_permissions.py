@@ -11,6 +11,7 @@ GM_POSTS = [
     ("/api/gm/dossier/n1/portrait", None),
     ("/api/gm/dossier/n1/portrait/delete", None),
     ("/api/gm/handouts/h1/file", None),
+    ("/api/gm/places/import", {"items": [{"name": "x", "x": 1, "y": 1}]}),
 ]
 
 

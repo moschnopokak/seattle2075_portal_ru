@@ -1,7 +1,7 @@
 """Отпечатки файлов портала: чтобы update.sh заметил, что вы правили код на сервере вручную, прежде чем заменять его.
 
     python deploy/filehash.py ПАПКА_ПОРТАЛА                    печатает отпечатки файлов app/ и static/ (так пишется .installed-files.sha256)
-    python deploy/filehash.py ПАПКА_ПОРТАЛА --unknown СПИСОК   печатает файлы, которых нет в СПИСКЕ известных версий
+    python deploy/filehash.py ПАПКА_ПОРТАЛА --unknown СПИСОК [СПИСОК...]   печатает файлы, которых нет ни в одном из СПИСКОВ известных версий
     python deploy/filehash.py --from-git                       собирает СПИСОК из всей истории git и текущей папки (запускать перед выпуском: deploy/known-files.txt)
 
 Строка списка: первые 16 символов sha256, два пробела, путь. Файл считается известным, если его отпечаток встречается в СПИСКЕ
@@ -42,8 +42,11 @@ def load(path):
     return known
 
 
-def unknown(root, known_file):
-    known = load(known_file)
+def unknown(root, *known_files):
+    known = {}
+    for known_file in known_files:
+        for rel, hashes in load(known_file).items():
+            known.setdefault(rel, set()).update(hashes)
     return [rel for rel, p in files(root) if digest(p.read_bytes()) not in known.get(rel, set())]
 
 
@@ -67,8 +70,8 @@ def main(argv):
         lines = from_git()
     elif len(argv) == 1:
         lines = manifest(argv[0])
-    elif len(argv) == 3 and argv[1] == "--unknown":
-        lines = unknown(argv[0], argv[2])
+    elif len(argv) >= 3 and argv[1] == "--unknown":
+        lines = unknown(argv[0], *argv[2:])
     else:
         print(__doc__)
         return 2

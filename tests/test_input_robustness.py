@@ -91,6 +91,12 @@ def test_gm_item_endpoints_survive_garbage(gm, sandbox, kind):
     assert not failures, "500 на некорректных данных:\n" + "\n".join(failures[:40])
 
 
+def test_place_import_survives_garbage(gm, sandbox):
+    body = {"items": [{"name": "Импорт", "type": "shop", "x": 31000, "y": 41000, "vis": "знают", "known": ["rig"], "note": "n", "gm_note": "g", "bg": True}]}
+    failures = run(gm, "/api/gm/places/import", body)
+    assert not failures, "500 на некорректных данных:\n" + "\n".join(failures[:40])
+
+
 def test_dice_endpoint_survives_garbage(gate, rig, gm, sandbox):
     base = gate.post("/api/entries", json=entry(char="gate", title="Для кубов", who=["rig"])).json()["state"]
     eid = next(e["id"] for e in base["entries"] if e["title"] == "Для кубов")

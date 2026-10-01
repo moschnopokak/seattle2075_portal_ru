@@ -407,7 +407,7 @@ function exportMd(){
   s+='\n## Этапы\n\n';
   S.windows.forEach(w=>{s+=`- ${w.from}..${w.to}. ${w.gm||w.name}${w.gm&&w.gm!==w.name?` (игроки видят: ${w.name})`:''}${w.inter?', промежуточная':''}\n`;});
   s+='\n## Места на карте\n\n';
-  (S.places||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'ru')).forEach(p=>{s+=`- ${p.name} (${PLACE_TYPES[p.type]||p.type}; ${DNAMES[districtAt(p.x,p.y)]||'район не определён'}; квадрат ${square(p.x,p.y)}; ${p.vis==='знают'?'знают: '+who(p.known):PVIS[p.vis]||''})${p.note?`. ${one(p.note)}`:''}${p.gm_note?` [мастер: ${one(p.gm_note)}]`:''}\n`;});
+  (S.places||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'ru')).forEach(p=>{s+=`- ${p.name} (${PLACE_TYPES[p.type]||p.type}${p.bg?', фон':''}; ${DNAMES[districtAt(p.x,p.y)]||'район не определён'}; квадрат ${square(p.x,p.y)}; ${p.vis==='знают'?'знают: '+who(p.known):PVIS[p.vis]||''})${p.note?`. ${one(p.note)}`:''}${p.gm_note?` [мастер: ${one(p.gm_note)}]`:''}\n`;});
   s+='\n## Районы\n\n';
   (S.dnotes||[]).forEach(d=>{s+=`- ${DNAMES[d.id]||d.id}${d.text?`: ${one(d.text)}`:''}${d.gm_text?` [мастер: ${one(d.gm_text)}]`:''}\n`;});
   s+='\n## Раздатки\n\n';
@@ -553,6 +553,7 @@ function openItemForm(kind,id,pos){
     <fieldset class="vis"><legend>Кто видит</legend>${Object.entries(PVIS).map(([k,t])=>`<label><input type="radio" name="vis" value="${k}" ${vis===k?'checked':''}> ${cap(t)}</label>`).join('')}</fieldset>
     <fieldset class="who" id="known-box" ${vis==='знают'?'':'hidden'}><legend>Кто из персонажей знает</legend>${CHARS.map(c=>`<label><input type="checkbox" name="known" value="${c.id}" ${it&&(it.known||[]).includes(c.id)?'checked':''}> ${esc(c.name)}</label>`).join('')}</fieldset>
     <label class="field">Описание для игроков<textarea name="note" rows="3" maxlength="2000">${v(it&&it.note)}</textarea></label>
+    <label class="check imp-bgbox"><input type="checkbox" name="bg" ${it&&it.bg?'checked':''}> Фоновое место <span class="muted">(магазин, еда, ночлег; прячется переключателем «Фон» на карте)</span></label>
     <label class="field">Заметка мастера<textarea name="gm_note" rows="3" maxlength="2000">${v(it&&it.gm_note)}</textarea><span class="sub">Игроки её не видят.</span></label>`;
   }else if(kind==='windows'){
     f=`<label class="field">Название для игроков<input name="name" maxlength="80" value="${v(it&&it.name)}" placeholder="Например: Арка 3"></label>
@@ -612,7 +613,7 @@ function collectItem(form){
   const b={id:form.dataset.id||undefined};
   if(kind==='travel'){const straight=radio('tkind')==='straight';Object.assign(b,{name:val('name'),kind:straight?'straight':'roads',motorway:straight?'0':val('motorway'),trunk:straight?'0':val('trunk'),primary:straight?'0':val('primary'),off:straight?val('speed'):val('off'),delay:val('delay')||'0',wall:val('wall')||'0',vis:radio('vis'),note:val('note')});}
   else if(kind==='dossier'){const old=(S.dossier||[]).find(x=>x.id===form.dataset.id);Object.assign(b,{name:val('name'),alias:val('alias'),type:radio('dtype'),role:val('role'),stance:val('stance'),org:val('org'),vis:radio('vis'),known:checked('known'),met:checked('met'),last_date:val('last_date'),last_place:val('last_place'),last_note:val('last_note'),gm_note:val('gm_note'),facts:old?old.facts:[]});}
-  else if(kind==='places'){Object.assign(b,{name:val('name'),type:val('type'),vis:radio('vis'),known:checked('known'),note:val('note'),gm_note:val('gm_note'),x:+form.dataset.x,y:+form.dataset.y});}
+  else if(kind==='places'){Object.assign(b,{name:val('name'),type:val('type'),vis:radio('vis'),known:checked('known'),note:val('note'),gm_note:val('gm_note'),bg:!!(form.elements.namedItem('bg')&&form.elements.namedItem('bg').checked),x:+form.dataset.x,y:+form.dataset.y});}
   else if(kind==='windows'){Object.assign(b,{name:val('name'),gm:val('gm'),from:val('from'),to:val('to'),inter:F('inter').checked});}
   else if(kind==='rhythm'){Object.assign(b,{title:val('title'),mode:radio('mode'),wd:checked('wd').map(Number),monthDay:+val('monthDay'),who:val('who'),from:val('from'),to:val('to'),note:val('note'),vis:radio('vis')});}
   else if(kind==='clocks'){Object.assign(b,{title:val('title'),when:val('when'),note:val('note')});}

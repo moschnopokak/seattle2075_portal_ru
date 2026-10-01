@@ -265,7 +265,7 @@ def places_for(v):
             continue
         if p.get("vis") == "мастер" or (p.get("vis") == "знают" and not mine & set(p.get("known", []))):
             continue
-        out.append({k: p[k] for k in ("id", "name", "type", "x", "y", "note") if k in p})
+        out.append({k: p[k] for k in ("id", "name", "type", "x", "y", "note", "bg") if k in p})
     return out
 
 
@@ -823,13 +823,14 @@ KINDS = {"windows": "w", "rhythm": "r", "clocks": "c", "plan": "g", "past": "p",
          "money": "y", "factions": "f", "standing": "s", "contacts": "k"}
 MAX_TRAVEL = 12
 # Лист персонажа (Shadowrun): нуйены (проводки), фракции, репутация персонажа у фракции, контакты. Пишет только мастер.
-MAX_ITEMS = {"money": 3000, "factions": 60, "standing": 600, "contacts": 300}
+MAX_ITEMS = {"money": 3000, "factions": 60, "standing": 600, "contacts": 300, "places": 1500}
+IMPORT_PLACES_AT_ONCE = 600
 FACTION_KINDS = {"corp", "gang", "gov", "org", "other"}
 STANDING_RANGE = (-5, 5)
 MONEY_LIMIT = 1_000_000_000
 STANCES = {"unknown", "contact", "ally", "neutral", "hostile"}
 FACT_ID = re.compile(r"[A-Za-z0-9_-]{1,20}")
-PLACE_TYPES = {"home", "contact", "business", "corp", "danger", "checkpoint", "other"}
+PLACE_TYPES = {"home", "contact", "business", "corp", "danger", "checkpoint", "other", "medical", "security", "shop", "leisure"}
 DISTRICTS = {"downtown", "bellevue", "tacoma", "auburn", "renton", "everett", "snohomish", "redmond",
              "puyallup", "council", "dogtown", "fortlewis", "outremer"}
 
@@ -1040,7 +1041,7 @@ def _normalize(kind, b):
             bad("Отметьте, кто из персонажей знает об этом месте.")
         return {"name": _title(b, "name", 80, "Укажите название места."), "type": typ, "x": x, "y": y, "vis": vis,
                 "known": known if vis == "знают" else [], "note": clean(b.get("note"), 2000, True),
-                "gm_note": clean(b.get("gm_note"), 2000, True)}
+                "gm_note": clean(b.get("gm_note"), 2000, True), "bg": b.get("bg") is True}
     if kind in ("plan", "past"):
         start, end = _span(b)
         item = {"title": _title(b), "from": start, "to": end,
@@ -1068,6 +1069,42 @@ def _check_windows(items, item):
     for w in items:
         if w["id"] != item["id"] and not (item["to"] < w["from"] or item["from"] > w["to"]):
             bad(f"Этап пересекается с этапом «{w.get('gm') or w['name']}».", 409)
+
+
+def import_places(v, items):
+    """Пакетное добавление мест на карту одной операцией (набор из «Seattle 2072» или KML из Google My Maps).
+    Каждое место проходит ту же проверку, что и при ручном добавлении; существующие места не меняются.
+    В журнал уходит одна запись об импорте: отменяется он удалением мест на карте (или из корзины)."""
+    if not v.gm:
+        bad("Только для мастера.", 403)
+    if not isinstance(items, list) or not items:
+        bad("Не выбрано ни одного места.")
+    if len(items) > IMPORT_PLACES_AT_ONCE:
+        bad(f"За один раз можно добавить не больше {IMPORT_PLACES_AT_ONCE} мест.")
+    fresh = []
+    for n, it in enumerate(items, 1):
+        if not isinstance(it, dict):
+            bad(f"Место №{n} заполнено неверно.")
+        try:
+            fresh.append(_normalize("places", it))
+        except HTTPException as e:
+            bad(f"Место №{n} («{clean(it.get('name'), 80)}»): {e.detail}")
+    with db.lock:
+        places = db.items("places")
+        if len(places) + len(fresh) > MAX_ITEMS["places"]:
+            bad(f"На карте не больше {MAX_ITEMS['places']} мест: сейчас {len(places)}, добавляется {len(fresh)}. Удалите ненужные.", 409)
+        taken = {p["id"] for p in places}
+        for it in fresh:
+            while True:
+                it["id"] = KINDS["places"] + uuid.uuid4().hex[:8]
+                if it["id"] not in taken:
+                    break
+            taken.add(it["id"])
+            places.append(it)
+        db.set_items("places", places)
+        audit.record(v, "import", "places", "", f"Импорт мест: {len(fresh)}", after={"count": len(fresh), "names": [it["name"] for it in fresh[:20]]})
+        db.bump()
+    return f"Добавлено мест: {len(fresh)}"
 
 
 def save_item(v, kind, b):

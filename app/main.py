@@ -338,6 +338,12 @@ def plan_played(plan_id: str, request: Request):
     return _answer(v, logic.plan_played(v, plan_id))
 
 
+@app.post("/api/gm/places/import")
+def import_places(request: Request, data: dict = Body(...)):
+    v = viewer(request)
+    return _answer(v, logic.import_places(v, data.get("items")))
+
+
 @app.post("/api/gm/items/{kind}")
 def save_item(kind: str, request: Request, data: dict = Body(...)):
     v = viewer(request)

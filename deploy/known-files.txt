@@ -33,6 +33,7 @@ ab287cb41ff89d9e  app/handouts.py
 bfe7bc257a2d655f  app/handouts.py
 c5fcd5bdde5a9e4d  app/handouts.py
 d0fa6ccfa76a5082  app/handouts.py
+022870230ef43667  app/logic.py
 0edd0fadeab2c31d  app/logic.py
 29c5ee768b569b8d  app/logic.py
 2eead5f232e70747  app/logic.py
@@ -58,6 +59,7 @@ ba345e10c58e67cf  app/main.py
 d68254a14d222a24  app/main.py
 e5b5c37c2486046d  app/main.py
 e85daa5172a98813  app/main.py
+edd3aca82531bda8  app/main.py
 fef4cb5535bbc6f7  app/main.py
 5ec93186f3a110e2  app/notify.py
 6a3f63a8dda91cd6  app/notify.py
@@ -93,6 +95,7 @@ ca2ec1b8371d0b86  app/telegram_bot.py
 63a2fe738dc68a7d  static/index.html
 66f9728af1978376  static/index.html
 a28a78b345844612  static/index.html
+ba3eddcadae11489  static/index.html
 e329078fe3c2e060  static/index.html
 e57dfde2ed6eb29f  static/index.html
 0cfe5e6b75def066  static/js/actions.js
@@ -101,6 +104,7 @@ e57dfde2ed6eb29f  static/index.html
 9154bb7f60caa2fa  static/js/actions.js
 9849d46b0a4e95f7  static/js/actions.js
 bedf7bc8b06723f1  static/js/actions.js
+c80987929e1007d7  static/js/actions.js
 f810a773e9202b11  static/js/actions.js
 fb8f91d1621f582c  static/js/actions.js
 201eec585993fa84  static/js/app.js
@@ -108,6 +112,7 @@ fb8f91d1621f582c  static/js/actions.js
 442269458de0e1f8  static/js/app.js
 8d99018371552612  static/js/app.js
 8df5d499e4ab4d1e  static/js/app.js
+99ed7678208fc5f5  static/js/app.js
 b1d9db7ad6afe3fc  static/js/app.js
 d27f0fbcb6b6f034  static/js/app.js
 d43a25e9ef115e1f  static/js/app.js
@@ -124,9 +129,11 @@ b884f4cd53fbf9bc  static/js/diary.js
 578d916ef062e1b8  static/js/handouts.js
 4aab5e77bfb77448  static/js/history.js
 7e888ed756489149  static/js/history.js
+44948e9d0878d80a  static/js/import.js
 5ab89535f95fff4a  static/js/links.js
 386fa487695e8db0  static/js/map.js
 450130584d3c2468  static/js/map.js
+c4d34b61d0063767  static/js/map.js
 d8a7797cb79b138e  static/js/map.js
 8ab8427e6da65578  static/js/measure.js
 988add4dbb434226  static/js/prefs.js
@@ -134,13 +141,17 @@ bd51b4cc7bc3eca2  static/js/prefs.js
 749f904d4338d85a  static/js/recap.js
 788500215ea58804  static/js/sheet.js
 3603f5d949dddada  static/js/util.js
+0fdec3f254c9ab56  static/map/POI_LICENSE.txt
+9c91669adde9b560  static/map/llgrid.json
 391a51d0f47b853a  static/map/map.json
+7ccca570ea602357  static/map/poi_seattle2072.json
 080898aeb8a86d8b  static/style.css
 0a1de591c1416344  static/style.css
 250dde515aac2c19  static/style.css
 2a3c976fdce7e25f  static/style.css
 2f2bf46ae560499a  static/style.css
 41bbd42a571752e4  static/style.css
+4a28769ffd2fdad5  static/style.css
 5fc49451debfcff7  static/style.css
 c24bb73f90b3d532  static/style.css
 c38c1d4cb99818c9  static/style.css

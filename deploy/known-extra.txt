@@ -1,0 +1,6 @@
+a41521612655cd62  app/logic.py
+4eac63760c656585  app/main.py
+1fa45b799c853a0a  static/index.html
+0fdec3f254c9ab56  static/map/POI_LICENSE.txt
+9c91669adde9b560  static/map/llgrid.json
+7ccca570ea602357  static/map/poi_seattle2072.json

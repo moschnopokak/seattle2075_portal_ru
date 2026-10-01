@@ -115,18 +115,25 @@ printf '%s\n' "$INSTALL" > "$BK/install-dir"
 ok "Копии будут лежать здесь: $BK"
 
 # Новая версия заменяет app/ и static/ целиком. Если вы правили там что-то вручную, скажем об этом до остановки портала.
-KNOWN="$INSTALL/.installed-files.sha256"                      # отпечатки, записанные прошлым обновлением
-[ -f "$KNOWN" ] || KNOWN="$NEW/deploy/known-files.txt"        # иначе: отпечатки всех прежних версий портала
-[ -f "$KNOWN" ] && [ -f "$NEW/deploy/filehash.py" ] || die "В $NEW/deploy нет filehash.py или known-files.txt: распакуйте новую версию заново."
-edited=$("$PYTHON" "$NEW/deploy/filehash.py" "$INSTALL" --unknown "$KNOWN")
+KNOWN=("$INSTALL/.installed-files.sha256")                    # отпечатки, записанные прошлым обновлением
+if [ ! -f "${KNOWN[0]}" ]; then                               # иначе: отпечатки всех прежних версий портала и перенесённых вариантов
+  KNOWN=("$NEW/deploy/known-files.txt")
+  [ ! -f "$NEW/deploy/known-extra.txt" ] || KNOWN+=("$NEW/deploy/known-extra.txt")
+fi
+[ -f "${KNOWN[0]}" ] && [ -f "$NEW/deploy/filehash.py" ] || die "В $NEW/deploy нет filehash.py или known-files.txt: распакуйте новую версию заново."
+edited=$("$PYTHON" "$NEW/deploy/filehash.py" "$INSTALL" --unknown "${KNOWN[@]}")
 if [ -n "$edited" ]; then
   warn "В app/ или static/ есть файлы, которых нет ни в одной известной версии портала (вы правили их вручную или ставили отдельно):"
-  printf '%s\n' "$edited" | head -20 | sed 's/^/      /'
-  warn "Новая версия заменит их своими. Ваши варианты сохранятся в $BK/code-before.tgz."
+  printf '%s\n' "$edited" | sed -n '1,20p' | sed 's/^/      /'
+  warn "Файлы, которые есть и в новой версии, она заменит своими (ваши варианты сохранятся в $BK/code-before.tgz)."
+  warn "Файлы, которых в новой версии нет, останутся на месте."
   [ "$REHEARSE_ONLY" = 1 ] || ask "Всё равно обновлять?"
 else
   ok "Код на сервере соответствует известной версии портала, ручных правок нет"
 fi
+kept=""                                                       # добавленные вами файлы, которых в новой версии нет: их не стираем
+while IFS= read -r f; do [ -z "$f" ] || [ -e "$NEW/$f" ] || kept+="$f"$'\n'; done <<< "$edited"
+printf '%s' "$kept" > "$BK/kept-files.txt"
 
 # ---------------------------------------------------------------- 1. копия живой базы
 say "1. Копия базы работающего портала (портал не останавливается)"
@@ -200,7 +207,11 @@ tar -C "$NEW" --exclude=./.git --exclude=./node_modules --exclude=./tests --excl
     --exclude=./config/players.toml --exclude=./config/campaign.json --exclude=./venv --exclude=./.venv -cf - . | tar -C "$INSTALL" -xf -
 fix_owner
 chmod 600 "$INSTALL/.env"
-"$PYTHON" "$NEW/deploy/filehash.py" "$INSTALL" > "$INSTALL/.installed-files.sha256"      # отпечатки: в следующий раз по ним найдём ручные правки
+"$PYTHON" "$NEW/deploy/filehash.py" "$INSTALL" > "$INSTALL/.installed-files.sha256"      # отпечатки только файлов новой версии: в следующий раз по ним найдём ручные правки
+if [ -s "$BK/kept-files.txt" ]; then
+  while IFS= read -r f; do [ -z "$f" ] || tar -xzf "$BK/code-before.tgz" -C "$INSTALL" "./$f"; done < "$BK/kept-files.txt"
+  ok "Сохранены ваши файлы, которых нет в новой версии: $(tr '\n' ' ' < "$BK/kept-files.txt")"
+fi
 ok "Новый код на месте"
 dc up -d --build --force-recreate
 ok "Портал запущен, жду, пока он станет здоровым (до $HEALTH_WAIT с)"

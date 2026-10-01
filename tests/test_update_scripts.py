@@ -435,6 +435,79 @@ def test_first_ever_update_works_without_fingerprints_by_comparing_with_known_re
     assert "static/index.html" in r.stdout and "ручных правок нет" not in r.stdout
 
 
+def test_files_you_added_yourself_are_kept_when_the_new_version_has_no_such_file(site):
+    (site.srv / "static" / "map").mkdir()
+    (site.srv / "static" / "map" / "mine.json").write_text('{"мои": "данные"}', encoding="utf-8")
+    (site.srv / "app" / "extra_tool.py").write_text("# мой скрипт\n", encoding="utf-8")
+    r = site.update("--rehearse-only")
+    assert "static/map/mine.json" in r.stdout and "останутся на месте" in r.stdout
+    r = site.update("--yes")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "Сохранены ваши файлы" in r.stdout and "static/map/mine.json" in r.stdout and "app/extra_tool.py" in r.stdout
+    assert (site.srv / "static" / "map" / "mine.json").read_text(encoding="utf-8") == '{"мои": "данные"}'
+    assert (site.srv / "app" / "extra_tool.py").read_text(encoding="utf-8") == "# мой скрипт\n"
+    assert (site.srv / "app" / "preflight.py").is_file() and not (site.srv / "static" / "old.js").exists()     # а прежний код заменён
+    manifest = (site.srv / ".installed-files.sha256").read_text(encoding="utf-8")
+    assert "mine.json" not in manifest and "extra_tool" not in manifest          # отпечатки только у файлов новой версии
+    import time
+    time.sleep(1.1)
+    r = site.update("--yes")                                                      # и при следующем обновлении они снова не пропадают
+    assert r.returncode == 0 and (site.srv / "static" / "map" / "mine.json").is_file() and "mine.json" in r.stdout
+
+
+def test_kept_files_come_back_after_a_rollback_too(site):
+    (site.srv / "static" / "map").mkdir()
+    (site.srv / "static" / "map" / "mine.json").write_text("{}", encoding="utf-8")
+    site.write_manifest()
+    site.original_tree = tree(site.srv)
+    bk = update_then_use_the_new_version(site)
+    subprocess.run(["bash", str(bk / "rollback.sh"), "--yes", "--health-wait", "6"], env=site.env(), capture_output=True, text=True, cwd=site.base, check=True)
+    assert (site.srv / "static" / "map" / "mine.json").read_text(encoding="utf-8") == "{}"
+
+
+def test_listed_variants_of_your_files_are_not_flagged(site):
+    """deploy/known-extra.txt: варианты файлов с вашего сервера, правки из которых перенесены в эту версию."""
+    (site.srv / ".installed-files.sha256").unlink()
+    shutil.rmtree(site.srv / "app")
+    (site.srv / "app").mkdir()
+    (site.srv / "static" / "old.js").unlink()                                    # в этой «установке» только один нестандартный файл
+    (site.srv / "app" / "main.py").write_text("мой вариант main.py\n", encoding="utf-8")
+    r = site.update("--rehearse-only")
+    assert "app/main.py" in r.stdout and "ручных правок нет" not in r.stdout       # пока вариант никому не известен, он отмечен
+    digest = subprocess.run([sys.executable, "-c", f"import sys; sys.path.insert(0, {str(ROOT / 'deploy')!r}); import filehash; print(filehash.digest(open({str(site.srv / 'app' / 'main.py')!r}, 'rb').read()))"],
+                            capture_output=True, text=True, check=True).stdout.strip()
+    (site.new / "deploy" / "known-extra.txt").write_text(f"{digest}  app/main.py\n", encoding="utf-8")
+    r = site.update("--rehearse-only")
+    assert r.returncode == 0 and "ручных правок нет" in r.stdout, r.stdout
+
+
+def test_known_extra_file_is_well_formed():
+    lines = (ROOT / "deploy" / "known-extra.txt").read_text(encoding="utf-8").splitlines()
+    assert lines
+    for line in lines:
+        digest, _, rel = line.partition("  ")
+        assert len(digest) == 16 and all(c in "0123456789abcdef" for c in digest), line
+        assert rel.startswith(("app/", "static/")), line
+
+
+def test_fingerprint_tool_merges_several_known_lists(tmp_path):
+    sys.path.insert(0, str(ROOT / "deploy"))
+    try:
+        import filehash
+    finally:
+        sys.path.pop(0)
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "a.py").write_text("a", encoding="utf-8")
+    (tmp_path / "app" / "b.py").write_text("b", encoding="utf-8")
+    one, two = tmp_path / "one.txt", tmp_path / "two.txt"
+    one.write_text(f"{filehash.digest(b'a')}  app/a.py\n", encoding="utf-8")
+    two.write_text(f"{filehash.digest(b'b')}  app/b.py\n{filehash.digest(b'zzz')}  app/a.py\n", encoding="utf-8")
+    assert filehash.unknown(tmp_path, one) == ["app/b.py"]
+    assert filehash.unknown(tmp_path, one, two) == []
+    (tmp_path / "app" / "a.py").write_text("изменён", encoding="utf-8")
+    assert filehash.unknown(tmp_path, one, two) == ["app/a.py"]
+
+
 def test_a_package_without_the_fingerprint_tool_is_refused(site):
     (site.new / "deploy" / "filehash.py").unlink()
     r = site.update("--yes")
