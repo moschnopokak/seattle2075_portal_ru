@@ -1,7 +1,7 @@
-fastapi>=0.110,<1
-uvicorn>=0.29,<1
-pillow>=10.3,<13
-tomli>=2.0; python_version < "3.11"
-tzdata>=2024.1
-fpdf2>=2.8,<3
+fastapi>=0.142.2,<1
+uvicorn>=0.54.0,<1
+pillow>=12.3.0,<13
+tomli>=2.4.1; python_version < "3.11"
+tzdata>=2026.4
+fpdf2>=2.8.9,<3
 anthropic>=1.11,<2
