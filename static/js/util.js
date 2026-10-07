@@ -30,8 +30,24 @@ const joinNames=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' и '+a[a.len
 const plural=(n,one,few,many)=>{const m10=n%10,m100=n%100;return m10===1&&m100!==11?one:m10>=2&&m10<=4&&(m100<12||m100>14)?few:many;};
 function buildMonths(){const r=[];let y=yOf(CAL_START),m=mOf(CAL_START);while(y<yOf(CAL_END)||(y===yOf(CAL_END)&&m<=mOf(CAL_END))){r.push(y+'-'+pad(m));m++;if(m>12){m=1;y++;}}return r;}
 
+/* Что видят игроки вперёд: строки для панели мастера и подсказка игроку. h: поле horizon из состояния. */
+function horizonCounts(hidden){
+  const kinds=[['entries','запись','записи','записей'],['blocks','общее событие','общих события','общих событий'],['rhythm','регулярное событие','регулярных события','регулярных событий'],['handouts','раздатка','раздатки','раздаток']];
+  return kinds.filter(([k])=>hidden&&hidden[k]).map(([k,one,few,many])=>`${hidden[k]} ${plural(hidden[k],one,few,many)}`).join(', ');
+}
+function horizonLine(h,fmt){
+  if(!h)return '';
+  const when=h.until?fmt(h.until)+(h.window?` («${h.window}»)`:''):'';
+  if(h.mode==='window'){
+    if(!h.until)return 'Сегодняшний день не входит ни в один этап, поэтому ограничение пока не действует. Добавьте этап на эту дату.';
+    const c=horizonCounts(h.hidden);
+    return `Игроки видят календарь до ${when}.${c?` Скрыто от них: ${c}.`:' Пока ничего не скрыто.'}`;
+  }
+  return h.until?`Игроки видят календарь до конца кампании. Если включить ограничение, они будут видеть до ${when}.`:'Игроки видят календарь до конца кампании.';
+}
+
 /* Для автотестов в Node. В браузере переменной module нет, и этот блок пропускается. */
 if(typeof module!=='undefined'&&module.exports){
-  module.exports={pad,toT,fromT,addDays,wdi,yOf,mOf,dOf,fDate,fFull,range,clampDate,fSpan,fRange,cap,esc,joinNames,plural,buildMonths,
+  module.exports={pad,toT,fromT,addDays,wdi,yOf,mOf,dOf,fDate,fFull,range,clampDate,fSpan,fRange,cap,esc,joinNames,plural,buildMonths,horizonCounts,horizonLine,
     setCalendar:(start,end)=>{CAL_START=start;CAL_END=end;}};
 }

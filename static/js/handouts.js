@@ -16,7 +16,7 @@ function handoutsVisible(){
   const H=S.handouts||[];
   if(!S.me.gm||V==='gm')return H;
   const vc=viewChars()||[];
-  return H.filter(h=>h.file&&(h.vis==='стол'||(h.vis==='знают'&&(h.known||[]).some(c=>vc.includes(c)))))
+  return H.filter(h=>h.file&&!(hzPreview()&&h.date>hzPreview())&&(h.vis==='стол'||(h.vis==='знают'&&(h.known||[]).some(c=>vc.includes(c)))))
     .map(h=>Object.assign({},h,{gm_note:'',fname:'',known:h.vis==='знают'?(h.known||[]).filter(c=>vc.includes(c)):[]}));
 }
 const hNew=h=>V!=='gm'&&!S.me.gm&&!seenSet().has(h.id);

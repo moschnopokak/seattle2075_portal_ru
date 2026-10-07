@@ -335,6 +335,13 @@ def my_recap_requests(request: Request):
         raise HTTPException(ex.code, ex.message)
 
 
+@app.post("/api/gm/horizon")
+def gm_horizon(request: Request, data: dict = Body(...)):
+    """Что видят игроки вперёд: до конца текущего этапа или без ограничения."""
+    v = _gm_only(request)
+    return _answer(v, logic.set_horizon(v, data))
+
+
 @app.post("/api/gm/arc/preview")
 def gm_arc_preview(request: Request, data: dict = Body(...)):
     """Разбор арки из другого чата: что будет добавлено, что пропущено и почему. Ничего не записывает."""

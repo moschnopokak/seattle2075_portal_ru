@@ -545,6 +545,7 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .arc-row.merge .arc-st{color:var(--sodium-ink);border-color:var(--sodium-ink)}
 .arc-row.skip .arc-st{color:var(--muted)}
 .arc-q{margin:4px 0 0;padding-left:22px;line-height:1.5}
+.hz-note{margin:0 0 8px}
 .roll-ok{color:var(--grow)}
 .roll-fail{color:var(--vow)}
 .err{color:var(--vow);min-height:1.2em;margin:8px 0 0;font-size:14.5px}

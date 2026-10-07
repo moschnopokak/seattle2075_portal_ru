@@ -152,9 +152,27 @@ def involves(e, c):
     return c in e["who"] or e["author"] == c
 
 
+def horizon(v=None):
+    """Последний день, который видят игроки: конец текущего этапа. Пусто, если ограничение выключено («Панель мастера, Что видят игроки
+    вперёд»), сегодняшний день не входит ни в один этап или смотрит мастер. Для одного зрителя считается один раз."""
+    if v is not None:
+        if v.gm:
+            return ""
+        if not hasattr(v, "_horizon"):
+            v._horizon = horizon()
+        return v._horizon
+    if db.meta_get("horizon", "off") != "window":
+        return ""
+    w = window_of(now()[0])
+    return w["to"] if w else ""
+
+
 def visible(e, v):
     if v.gm:
         return True
+    hz = horizon(v)
+    if hz and e["from"] > hz:                      # запись о том, что дальше текущего этапа, игроку не видна и не открывается
+        return False
     mine = set(v.chars)
     return e["vis"] != "лично" or e["author"] in mine or bool(mine & set(e["who"]))
 
@@ -183,20 +201,32 @@ def state_for(v):
         windows = [{k: w[k] for k in ("id", "from", "to", "name", "inter") if k in w}
                    for w in windows if w["from"] <= today]
     rhythm = [r for r in db.items("rhythm") if v.gm or r.get("vis") != "мастер"]
+    hz = horizon(v)
+    blocks = [] if v.gm else [b for b in cover_blocks() if not b["who"] or set(b["who"]) & set(v.chars)]
+    past = db.items("past") if v.gm else [{k: x[k] for k in PAST_PUBLIC if k in x} for x in db.items("past")]
+    handouts_list, dossier_list = handouts_for(v), dossier_for(v)
+    entries = [e for e in db.entries() if visible(e, v)]
+    if hz:                                          # ограничение «не дальше конца этапа»: игроку не отдаются даты позже него
+        rhythm = [_clip_to(r, hz) for r in rhythm if not (r.get("from") and r["from"] > hz)]
+        blocks = [_clip_to(b, hz) for b in blocks if b["from"] <= hz]
+        past = [_clip_to(x, hz) for x in past if x["from"] <= hz]
+        entries = [_clip_to(e, hz) for e in entries]
+        handouts_list = [h for h in handouts_list if h.get("date", "") <= hz]
+        dossier_list = [dict(c, facts=[f for f in c["facts"] if not f.get("date") or f["date"] <= hz]) for c in dossier_list]
     return {
         "version": int(db.meta_get("version", "0")),
         "now": {"date": today, "tod": tod},
         "quietUntil": db.meta_get("quiet_until", "") or "",
         "calStart": cs,
-        "calEnd": ce,
+        "calEnd": min(ce, hz) if hz else ce,
         "windows": windows,
         "rhythm": rhythm,
-        "past": db.items("past") if v.gm else [{k: x[k] for k in PAST_PUBLIC if k in x} for x in db.items("past")],
+        "past": past,
         "plan": db.items("plan") if v.gm else [],
-        "blocks": [] if v.gm else [b for b in cover_blocks() if not b["who"] or set(b["who"]) & set(v.chars)],
+        "blocks": blocks,
         "places": places_for(v),
-        "dossier": dossier_for(v),
-        "handouts": handouts_for(v),
+        "dossier": dossier_list,
+        "handouts": handouts_list,
         "handout_usage": handouts.usage() if v.gm else None,
         "portraits": portraits.usage() if v.gm else None,
         "dnotes": [d if v.gm else {"id": d["id"], "text": d.get("text", "")} for d in db.items("dnotes")],
@@ -204,7 +234,8 @@ def state_for(v):
         "travel": [t for t in db.items("travel") if v.gm or t.get("vis") != "мастер"],
         "trash": trash.count() if v.gm else None,
         "clocks": db.items("clocks") if v.gm else [],
-        "entries": [e for e in db.entries() if visible(e, v)],
+        "entries": entries,
+        "horizon": horizon_info(v, today),
         "characters": p["characters"],
         "players": [{"name": pl["name"], "chars": pl["chars"]} for pl in p["players"]],
         "me": {"gm": v.gm, "name": v.name, "chars": v.chars},
@@ -313,7 +344,8 @@ def card_audience(c):
 
 def handout_notify(old, new):
     fresh = handout_audience(new) - handout_audience(old)
-    if fresh:
+    hz = horizon()
+    if fresh and not (hz and new.get("date", "") > hz):         # раздатка из будущего этапа игроку пока не видна, о ней не пишем
         notify.to_characters(sorted(fresh), f"Новая раздатка: «{new['title']}». Открыть можно на портале, во вкладке «Раздатки».", "handouts", kind="handout")
 
 
@@ -434,6 +466,42 @@ def cover_blocks():
     return out
 
 
+def _clip_to(item, hz):
+    """Копия элемента, у которого окончание не дальше границы (начался раньше, закончится позже: игрок дальше границы не заглянет)."""
+    return dict(item, to=hz) if item.get("to") and item["to"] > hz else item
+
+
+def horizon_info(v, today):
+    """Для игрока: действует ли ограничение и до какого дня он видит календарь. Для мастера ещё режим, текущий этап и что сейчас скрыто."""
+    hz = horizon(v)
+    if not v.gm:
+        return {"on": bool(hz), "until": hz}
+    mode, w = db.meta_get("horizon", "off") == "window" and "window" or "off", window_of(today)
+    until = w["to"] if w else ""
+    hidden = {}
+    if mode == "window" and until:
+        hidden = {"entries": sum(1 for e in db.entries() if e["from"] > until),
+                  "blocks": sum(1 for b in cover_blocks() if b["from"] > until),
+                  "rhythm": sum(1 for r in db.items("rhythm") if r.get("vis") != "мастер" and r.get("from", "") > until),
+                  "handouts": sum(1 for h in db.items("handouts") if h.get("date", "") > until and handout_audience(h))}
+    return {"mode": mode, "on": mode == "window" and bool(until), "until": until, "window": (w.get("gm") or w["name"]) if w else "", "hidden": hidden}
+
+
+def set_horizon(v, b):
+    """Переключатель «Что видят игроки вперёд»: до конца текущего этапа или без ограничения."""
+    if not v.gm:
+        bad("Только для мастера.", 403)
+    mode = b.get("mode")
+    if mode not in ("window", "off"):
+        bad("Выберите: ограничить игроков концом текущего этапа или не ограничивать.")
+    with db.lock:
+        if db.meta_get("horizon", "off") != mode:
+            db.meta_set("horizon", mode)
+            audit.record(v, "setting", "horizon", "", "Игроки видят вперёд: " + ("до конца текущего этапа" if mode == "window" else "без ограничения"))
+            db.bump()
+    return "Сохранено"
+
+
 def status_text():
     """Текст закреплённого сообщения в чате стола."""
     today, tod = now()
@@ -473,8 +541,13 @@ def recompute(e):
 
 # ---------- записи ----------
 
-def _entry_fields(b, typ, author):
-    """Проверенные поля записи из формы. author: персонаж-автор или 'gm'."""
+def _check_horizon(limit, *days):
+    if limit and any(d > limit for d in days):
+        bad(f"Дальше {ffull(limit)} записи пока не ставятся: игрокам открыт календарь до конца текущего этапа.")
+
+
+def _entry_fields(b, typ, author, limit=""):
+    """Проверенные поля записи из формы. author: персонаж-автор или 'gm'. limit: последний день, который может назвать игрок (пусто: любой)."""
     title = clean(b.get("title"), 80)
     if not title:
         bad("Укажите название записи.")
@@ -482,6 +555,7 @@ def _entry_fields(b, typ, author):
     end = check_date(b.get("to"), "Окончание")
     if end < start:
         bad("Дата окончания раньше даты начала.")
+    _check_horizon(limit, start, end)
     tod = b.get("tod") or ""
     if tod and tod not in TOD:
         bad("Неизвестное время суток.")
@@ -510,6 +584,7 @@ def _entry_fields(b, typ, author):
         if not goal:
             bad("Для развития заполните цель: что повышается и как персонаж этого добивается.")
         eff = check_date(b.get("effect") or start, "Действует с")
+        _check_horizon(limit, eff)
         fields["effect"] = max(eff, start)
     return fields
 
@@ -520,7 +595,7 @@ def create_entry(v, b):
         typ = b.get("type")
         if not isinstance(typ, str) or typ not in TYPES:
             bad("Неизвестный тип записи.")
-        fields = _entry_fields(b, typ, char)
+        fields = _entry_fields(b, typ, char, horizon(v))
         e = {"id": uuid.uuid4().hex[:12], "type": typ, "author": char,
              "status": "ok", "answers": {}, "talk": "open", "stars": [], "created": time.time()}
         e.update(fields)
@@ -568,7 +643,7 @@ def edit_entry(v, entry_id, b):
         if e["status"] in CLOSED:
             bad("Закрытую запись изменить нельзя.")
         before = _snap(e)
-        fields = _entry_fields(b, e["type"], e["author"])
+        fields = _entry_fields(b, e["type"], e["author"], horizon(v))
         moved = (fields["from"], fields["to"], fields["tod"]) != (e["from"], e["to"], e.get("tod", ""))
         old = e.get("answers", {})
         e.update(fields)
@@ -1152,7 +1227,8 @@ def save_item(v, kind, b):
     if kind == "handouts":
         handout_notify(old, item)
     cover = item.get("cover")
-    if kind == "plan" and cover and (not old or old.get("cover") != cover
+    hz = horizon()
+    if kind == "plan" and cover and not (hz and item["from"] > hz) and (not old or old.get("cover") != cover
                                      or (old["from"], old["to"]) != (item["from"], item["to"])):
         when = ffull(item["from"]) if item["from"] == item["to"] else f"{ffull(item['from'])} – {ffull(item['to'])}"
         targets = cover["who"] or list(char_map())

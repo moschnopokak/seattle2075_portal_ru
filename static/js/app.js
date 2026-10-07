@@ -22,13 +22,16 @@ const UI={section:'now',cal:'lanes',span:'week',anchor:null,month:null,stage:nul
 
 function applyState(st){
   S=st;
-  CAL_START=st.calStart;CAL_END=st.calEnd;MONTH_LIST=buildMonths();
   CHARS=st.characters;
   CN=Object.fromEntries(CHARS.map(c=>[c.id,c.name]));CN.gm='Мастер';
   GEN=Object.fromEntries(CHARS.map(c=>[c.id,c.gen]));GEN.gm='мастера';
   if(st.me.gm){if(V!=='gm'&&!CN[V])V='gm';}
   else if(!st.me.chars.includes(V)){let saved=null;try{saved=localStorage.getItem(STORE_CHAR);}catch(e){}V=st.me.chars.includes(saved)?saved:(st.me.chars[0]||'');}
+  applyCalendar();
 }
+/* Игрок получает от портала календарь уже обрезанный по границе «что видят игроки вперёд». Мастер в предпросмотре видит то же, что игрок. */
+function hzPreview(){return S&&S.me.gm&&V!=='gm'&&S.horizon&&S.horizon.on?S.horizon.until:'';}
+function applyCalendar(){const hz=hzPreview();CAL_START=S.calStart;CAL_END=hz&&hz<S.calEnd?hz:S.calEnd;MONTH_LIST=buildMonths();}
 const authHeaders=()=>TOKEN?{'Authorization':'Bearer '+TOKEN}:{};
 const RO=()=>!!(S&&S.me.gm&&V!=='gm');
 function errText(j){if(!j)return 'Не удалось выполнить действие.';const d=j.detail;if(typeof d==='string')return d;if(Array.isArray(d))return 'Портал не принял запрос. Обновите страницу и попробуйте ещё раз.';return (d&&d.message)||'Не удалось выполнить действие.';}
@@ -49,11 +52,11 @@ async function apiPost(path,body,onError,keepChar){
 
 /* ===== Видимость (для игрока сервер уже всё отфильтровал; здесь нужен предпросмотр мастера) ===== */
 function viewChars(){if(!S.me.gm)return S.me.chars;if(V==='gm')return null;const p=S.players.find(p=>p.chars.includes(V));return p?p.chars:[V];}
-function canSee(e){const vc=viewChars();if(!vc)return true;return e.vis!=='лично'||vc.includes(e.author)||e.who.some(c=>vc.includes(c));}
+function canSee(e){const vc=viewChars();if(!vc)return true;const hz=hzPreview();if(hz&&e.from>hz)return false;return e.vis!=='лично'||vc.includes(e.author)||e.who.some(c=>vc.includes(c));}
 const winVisible=w=>!!w&&(V==='gm'||w.from<=S.now.date);
 const winName=w=>V==='gm'&&w.gm?w.gm:w.name;
 const winOf=s=>S.windows.find(w=>s>=w.from&&s<=w.to);
-const rhythmVisible=r=>V==='gm'||r.vis!=='мастер';
+const rhythmVisible=r=>V==='gm'||(r.vis!=='мастер'&&!(hzPreview()&&r.from&&r.from>hzPreview()));
 const visEntries=()=>S.entries.filter(canSee);
 const involves=(e,c)=>(e.who||[]).includes(c)||e.author===c;
 const rhythmOn=s=>S.rhythm.filter(r=>rhythmVisible(r)&&rhythmHits(r,s));
@@ -67,7 +70,7 @@ const rhythmWhen=r=>r.monthDay?r.monthDay+'-го числа каждого ме�
 /* Общие события: планы мастера с маской. Игрок видит только текст маски. */
 function blocks(){
   if(V==='gm')return [];
-  if(S.me.gm)return S.plan.filter(p=>p.cover&&p.cover.title).map(p=>({id:p.id,from:p.from,to:p.to,title:p.cover.title,note:p.cover.note||'',who:p.cover.who||[]}));
+  if(S.me.gm)return S.plan.filter(p=>p.cover&&p.cover.title&&!(hzPreview()&&p.from>hzPreview())).map(p=>({id:p.id,from:p.from,to:p.to,title:p.cover.title,note:p.cover.note||'',who:p.cover.who||[]}));
   return S.blocks||[];
 }
 const blockFor=(b,c)=>!b.who.length||b.who.includes(c);
@@ -316,8 +319,20 @@ function legend(){
   return `<div class="legend">${Object.entries(TYPES).map(([k,t])=>`<span class="lg"><i class="sw t-${k} talk-closed"></i>${t.name}</span>`).join('')}<span class="lg"><i class="sw k-past"></i>Сыграно</span>${V==='gm'?'<span class="lg"><i class="sw k-plan"></i>План мастера</span><span class="lg">'+EYE+'Игроки видят как общее событие</span><span class="lg"><i class="sw k-clock"></i>Скрытый таймер</span>':'<span class="lg"><i class="sw k-block"></i>Общее событие</span>'}<span class="lg"><i class="sw k-rhythm"></i>Регулярное событие или привычка</span></div>
   <div class="legend"><span class="lg"><i class="sw t-deal talk-open"></i>Бледный цвет: в обсуждении</span><span class="lg"><i class="sw t-deal talk-closed"></i>Насыщенный цвет: обсуждение окончено</span><span class="lg"><b class="star">★</b>Приоритет игрока</span><span class="lg"><b class="plus">+</b>Можно попроситься</span>${lanes?'<span class="lg"><i class="sw pend"></i>Ждёт ответа или проверки</span><span class="lg"><span class="mark">✓</span>Состоялось</span><span class="lg"><span class="strike">Текст</span>Сорвано или отклонено</span><span class="lg"><i class="ln now"></i>Текущий момент</span><span class="lg"><i class="ln quiet"></i>Свободное время гарантировано</span><span class="lg"><i class="ln unsure"></i>Свободное время не гарантировано</span>':''}</div>`;
 }
+function horizonNote(){
+  const h=S.horizon;
+  return V!=='gm'&&h&&h.on&&h.until?`<p class="muted small hz-note">Календарь открыт до ${fFull(h.until)}: дальше текущего этапа события пока не показываются.</p>`:'';
+}
+function horizonHTML(){
+  const h=S.horizon;
+  if(!h)return '';
+  return `<section id="gm-horizon"><h2>Что видят игроки вперёд</h2>
+  <p class="note">Пока включено, игроки не видят и не могут назначить ничего позже конца текущего этапа: записи календаря, общие и регулярные события, раздатки и сведения с датой. Когда игровая дата переходит в следующий этап, граница сдвигается сама. Вы видите всё, а как это выглядит для игрока, покажет выбор «Вид» вверху.</p>
+  <div class="seg" role="group" aria-label="Что видят игроки вперёд"><button type="button" data-act="horizon" data-v="window" aria-pressed="${h.mode==='window'}">До конца текущего этапа</button><button type="button" data-act="horizon" data-v="off" aria-pressed="${h.mode!=='window'}">Без ограничения</button></div>
+  <p class="muted small" id="hz-line">${esc(horizonLine(h,fFull))}</p></section>`;
+}
 function rCal(){
-  let h=`<div class="toolbar"><div class="seg" role="group" aria-label="Вид календаря"><button type="button" data-act="cal-view" data-v="lanes" aria-pressed="${UI.cal==='lanes'}">По персонажам</button><button type="button" data-act="cal-view" data-v="month" aria-pressed="${UI.cal==='month'}">Месяц</button></div>`;
+  let h=horizonNote()+`<div class="toolbar"><div class="seg" role="group" aria-label="Вид календаря"><button type="button" data-act="cal-view" data-v="lanes" aria-pressed="${UI.cal==='lanes'}">По персонажам</button><button type="button" data-act="cal-view" data-v="month" aria-pressed="${UI.cal==='month'}">Месяц</button></div>`;
   if(UI.cal==='lanes'){
     const days=laneDays();
     h+=`<div class="seg" role="group" aria-label="Охват"><button type="button" data-act="span" data-v="week" aria-pressed="${UI.span==='week'}">Неделя</button><button type="button" data-act="span" data-v="stage" aria-pressed="${UI.span==='stage'}">Этап целиком</button></div>`;
@@ -382,6 +397,7 @@ function rGM(){
     <div class="field">Перейти к дате<div class="inline"><select id="jump" aria-label="Дата">${jopts}</select><button type="button" class="btn" data-act="jump">Перейти</button></div></div>
     <label class="field">Свободное время гарантировано до<select id="quiet"><option value="">не гарантировано</option>${qopts}</select><span class="sub">Игроки видят эту дату на главной и полосой над днями в календаре.</span></label>
     <p class="muted small">Если настроен чат стола, бот обновляет в нём закреплённое сообщение с датой и свободным временем.</p></section>
+  ${horizonHTML()}
   <section><h2>Приоритеты игроков</h2><p class="note">У каждого персонажа одна звезда. Дело со звездой игрок хочет сыграть подробно.</p>${priorityList()}</section>
   <section><h2>Заявки на развитие</h2>${pend.length?pend.map(e=>`<div class="gm-item">${entryRow(e,CN[e.author]||'')}<button type="button" class="btn" data-act="approve" data-id="${e.id}">Подтвердить</button><button type="button" class="btn" data-act="reject" data-id="${e.id}">Отклонить</button></div>`).join(''):'<p class="muted">Новых заявок нет.</p>'}</section>
   <section><h2>Прошедшие записи без итога</h2><p class="note">Отметьте, состоялось ли запланированное. Состоявшиеся записи попадают в хронику.</p>${stale.length?stale.map(e=>`<div class="gm-item">${entryRow(e,fFull(e.to))}<button type="button" class="btn" data-act="outcome" data-id="${e.id}" data-v="done">Состоялось</button><button type="button" class="btn" data-act="outcome" data-id="${e.id}" data-v="failed">Сорвано</button></div>`).join(''):'<p class="muted">Все прошедшие записи отмечены.</p>'}</section>

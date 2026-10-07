@@ -58,3 +58,21 @@ test("plural и joinNames", () => {
   assert.equal(u.joinNames(["Риг", "Гейт", "Кару"]), "Риг, Гейт и Кару");
   assert.equal(u.cap("четверг"), "Четверг");
 });
+
+test("что видят игроки вперёд: строки панели мастера", () => {
+  const fmt = (d) => `«${d}»`;
+  assert.equal(u.horizonLine(undefined, fmt), "");
+  assert.equal(u.horizonLine({ mode: "window", until: "2075-08-31", window: "Промежуточная арка", hidden: { entries: 1, blocks: 2, rhythm: 5, handouts: 0 } }, fmt),
+    "Игроки видят календарь до «2075-08-31» («Промежуточная арка»). Скрыто от них: 1 запись, 2 общих события, 5 регулярных событий.");
+  assert.equal(u.horizonLine({ mode: "window", until: "2075-08-31", window: "", hidden: {} }, fmt), "Игроки видят календарь до «2075-08-31». Пока ничего не скрыто.");
+  assert.match(u.horizonLine({ mode: "window", until: "", hidden: {} }, fmt), /не входит ни в один этап/);
+  assert.match(u.horizonLine({ mode: "off", until: "2075-08-31", window: "Этап" }, fmt), /до конца кампании.*будут видеть до «2075-08-31» \(«Этап»\)/);
+  assert.equal(u.horizonLine({ mode: "off", until: "" }, fmt), "Игроки видят календарь до конца кампании.");
+});
+
+test("счёт скрытого склоняется: одна запись, две записи, пять записей, двадцать одна запись", () => {
+  const c = (n) => u.horizonCounts({ entries: n });
+  assert.deepEqual([1, 2, 5, 11, 21, 22].map(c), ["1 запись", "2 записи", "5 записей", "11 записей", "21 запись", "22 записи"]);
+  assert.equal(u.horizonCounts({}), "");
+  assert.equal(u.horizonCounts({ handouts: 3, entries: 0 }), "3 раздатки");
+});

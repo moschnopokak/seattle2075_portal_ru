@@ -43,10 +43,11 @@ def due(now=None, only=None) -> list:
     if REMIND_DAYS <= 0 or REMIND_MAX <= 0:
         return []
     today, _ = logic.now()
+    hz = logic.horizon()                           # о записях дальше границы «что видят игроки вперёд» игроку не напоминаем: он их не видит
     clock = clocks()
     result = []
     for e in db.entries():
-        if (only is not None and e["id"] not in only) or e.get("type") == "grow" or not logic.is_active(e, today):
+        if (only is not None and e["id"] not in only) or e.get("type") == "grow" or not logic.is_active(e, today) or (hz and e["from"] > hz):
             continue
         chars = []
         for c, answer in e.get("answers", {}).items():

@@ -51,6 +51,7 @@ d0fa6ccfa76a5082  app/handouts.py
 60e46da50a2cdd4b  app/logic.py
 a1ef129d06384816  app/logic.py
 b7b09130948420cb  app/logic.py
+b9f3a65e5c4b6597  app/logic.py
 cd6ee247a616d256  app/logic.py
 e511d7ddde13be78  app/logic.py
 0332a23bfe59703b  app/main.py
@@ -63,6 +64,7 @@ e511d7ddde13be78  app/logic.py
 85bc7726a929816c  app/main.py
 98697cdba0749982  app/main.py
 9e4bb1fb99476e3e  app/main.py
+a3ab2bf48195fe2b  app/main.py
 a925201cef2a6145  app/main.py
 ae288e2df72613aa  app/main.py
 b005685c439c74aa  app/main.py
@@ -92,6 +94,7 @@ e392ee0070a1bfd8  app/portraits.py
 6c499b42fba1eeda  app/recap.py
 fa725a747af81658  app/recap.py
 817a533617086f8a  app/reminders.py
+9fac55dbe2896bd1  app/reminders.py
 a07e00f0d9bed154  app/reminders.py
 0b73bf0177f1c06b  app/scheduler.py
 458b321dbf1ae05b  app/scheduler.py
@@ -124,6 +127,7 @@ e57dfde2ed6eb29f  static/index.html
 b4f92cc66224438a  static/js/actions.js
 bedf7bc8b06723f1  static/js/actions.js
 c80987929e1007d7  static/js/actions.js
+e9336f0bb3a7f425  static/js/actions.js
 f810a773e9202b11  static/js/actions.js
 fb8f91d1621f582c  static/js/actions.js
 1b4076863c6e3bba  static/js/app.js
@@ -138,6 +142,7 @@ c8aa5b4056997ec6  static/js/app.js
 d27f0fbcb6b6f034  static/js/app.js
 d43a25e9ef115e1f  static/js/app.js
 d564751879f37696  static/js/app.js
+d83e52e3bba6ce72  static/js/app.js
 e03563f3d213174e  static/js/app.js
 42ee6e61af67c144  static/js/arcs.js
 e2030a532ff35110  static/js/arcs.js
@@ -150,13 +155,16 @@ b884f4cd53fbf9bc  static/js/diary.js
 3fd58d5be11141c7  static/js/dossier.js
 9d7f39fb34efa58f  static/js/dossier.js
 bdbd267593e7955b  static/js/dossier.js
+f70ee189694fcdd9  static/js/dossier.js
 7235d8186a095330  static/js/free.js
 7a275346f87f0710  static/js/geo.js
 9658ba5b95bbf18c  static/js/geo.js
 52be1cda2e7be72f  static/js/handouts.js
 578d916ef062e1b8  static/js/handouts.js
+ab792421d6706155  static/js/handouts.js
 f646835ddc097f2c  static/js/handouts.js
 06659653f6e3c50e  static/js/history.js
+4587a4ed46c3caaf  static/js/history.js
 4aab5e77bfb77448  static/js/history.js
 7e888ed756489149  static/js/history.js
 95feda8867db9140  static/js/history.js
@@ -176,6 +184,7 @@ be5ce0298bf84ebe  static/js/recap.js
 3fd42369562b360d  static/js/sheet.js
 788500215ea58804  static/js/sheet.js
 3603f5d949dddada  static/js/util.js
+946612e635ef2022  static/js/util.js
 0fdec3f254c9ab56  static/map/POI_LICENSE.txt
 9c91669adde9b560  static/map/llgrid.json
 391a51d0f47b853a  static/map/map.json
@@ -194,6 +203,7 @@ be5ce0298bf84ebe  static/js/recap.js
 a687a701d3f80735  static/style.css
 c24bb73f90b3d532  static/style.css
 c38c1d4cb99818c9  static/style.css
+caf4cc7955cc0dd5  static/style.css
 536533cad95838e1  static/vendor/fonts/LICENSE-Jost.txt
 28d2f6e154d48605  static/vendor/fonts/LICENSE-PT-Serif.txt
 7382fb502e2aca1d  static/vendor/fonts/fonts.css

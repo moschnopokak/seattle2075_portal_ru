@@ -14,7 +14,7 @@ function dossierVisible(){
   const vc=viewChars()||[];
   const has=(vis,known)=>vis==='стол'||(vis==='знают'&&(known||[]).some(c=>vc.includes(c)));
   const pv=placesVisible();
-  return D.filter(c=>has(c.vis,c.known)).map(c=>Object.assign({},c,{facts:(c.facts||[]).filter(f=>has(f.vis,f.known)).map(f=>Object.assign({},f,{truth:''})),gm_note:'',last_place:pv.some(p=>p.id===c.last_place)?c.last_place:''}));
+  return D.filter(c=>has(c.vis,c.known)).map(c=>Object.assign({},c,{facts:(c.facts||[]).filter(f=>has(f.vis,f.known)&&!(hzPreview()&&f.date&&f.date>hzPreview())).map(f=>Object.assign({},f,{truth:''})),gm_note:'',last_place:pv.some(p=>p.id===c.last_place)?c.last_place:''}));
 }
 function dossierCards(){
   const q=(UI.dq||'').trim().toLowerCase();

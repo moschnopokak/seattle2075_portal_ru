@@ -20,6 +20,7 @@ document.addEventListener('click',async ev=>{
   if(a==='open-diary'){openDiary();return;}
   if(a==='open-recap'){openRecap();return;}
   if(a==='recap-copy'){copyRecap(b);return;}
+  if(a==='horizon'){const j=await apiPost('/api/gm/horizon',{mode:v},null,true);if(j)refresh(j.msg);return;}
   if(a==='arc-open'||a==='arc-back'){openArcImport();return;}
   if(a==='arc-check'){arcCheck();return;}
   if(a==='arc-go'){arcGo();return;}
@@ -125,7 +126,7 @@ document.addEventListener('submit',async ev=>{
 });
 document.addEventListener('change',async ev=>{
   if(ev.target.dataset&&ev.target.dataset.layer){const k=ev.target.dataset.layer;MAPLAYERS[k]=ev.target.checked;saveLayers();if(k==='bg')refreshPlaces();else if(MAP&&MAPL[k]){ev.target.checked?MAP.addLayer(MAPL[k]):MAP.removeLayer(MAPL[k]);}return;}
-  if(ev.target.id==='who-select'){V=ev.target.value;UI.stage=null;if(!S.me.gm){try{localStorage.setItem(STORE_CHAR,V);}catch(e){}}render();if(curKey&&overlayOpen())openDetail(curKey,true);}
+  if(ev.target.id==='who-select'){V=ev.target.value;UI.stage=null;applyCalendar();if(!S.me.gm){try{localStorage.setItem(STORE_CHAR,V);}catch(e){}}render();if(curKey&&overlayOpen())openDetail(curKey,true);}
   if(ev.target.id==='quiet'){const j=await apiPost('/api/gm/time',{quiet:ev.target.value||''});if(j)render(true);}
 });
 document.addEventListener('keydown',ev=>{
