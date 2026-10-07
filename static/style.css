@@ -659,6 +659,23 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .lm-s-lost span{opacity:.55;text-decoration:line-through}
 .lm-s-scouted span{border-style:dashed}
 .lm-hid span{border-style:dotted;opacity:.8}
+/* зоны на карте: контур окрашивается по состоянию, цвет не единственный признак: есть подпись и текст в списке */
+.lm-zone{stroke:var(--pc,var(--plan));stroke-width:1.5;stroke-opacity:.5;fill:var(--pc,var(--plan));fill-opacity:.06;cursor:pointer;transition:fill-opacity .12s}
+.lm-zone:hover{fill-opacity:.3;stroke-opacity:1}
+.lm-zone.lm-play{stroke-dasharray:6 4}
+.lm-zone.lm-sel{stroke-width:4;stroke-opacity:1;fill-opacity:.22}
+.lm-zone.lm-s-cleared{--pc:var(--grow);fill-opacity:.3;stroke-opacity:.85;stroke-dasharray:none}
+.lm-zone.lm-s-danger{--pc:var(--vow);fill-opacity:.32;stroke-opacity:.85;stroke-dasharray:none}
+.lm-zone.lm-s-scouted{--pc:var(--deal);fill-opacity:.16}
+.lm-zone.lm-s-found{--pc:var(--sodium);fill-opacity:.32;stroke-opacity:.85;stroke-dasharray:none}
+.lm-zone.lm-s-lost{--pc:var(--muted);fill-opacity:.22}
+.lm-zone.lm-hid{stroke-dasharray:2 5;stroke-opacity:.6}
+.lm-zone.lm-s-cleared:hover,.lm-zone.lm-s-danger:hover,.lm-zone.lm-s-found:hover{fill-opacity:.45}
+.lm-draft{stroke:var(--sodium-ink);stroke-width:3;fill:var(--sodium);fill-opacity:.2;stroke-dasharray:6 4}
+.lm-zlabel span{min-width:24px;height:24px;left:-12px;top:-12px;border-radius:12px;font-size:11px;opacity:.95;pointer-events:none}
+.lm-play-box{margin:14px 0 4px;padding:2px 12px 8px;border-left:3px solid var(--sodium);background:var(--raise);border-radius:0 4px 4px 0}
+.lm-play-box .lm-h{margin-top:12px}
+.lm-play-box .field{margin:8px 0}
 .lm-note span{position:absolute;left:-6px;top:-10px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;border-radius:4px;font-size:12.5px;line-height:1.2;background:color-mix(in srgb,var(--sodium) 30%,var(--raise));color:var(--ink);border:1px solid var(--sodium);box-shadow:0 1px 4px var(--shade);cursor:pointer}
 .lm-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 2px;cursor:pointer}
 .lm-row:hover{background:var(--raise)}

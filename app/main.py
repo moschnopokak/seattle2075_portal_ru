@@ -390,9 +390,9 @@ def delete_locmap_object(map_id: str, obj_id: str, request: Request):
 
 @app.post("/api/gm/locmaps/{map_id}/import")
 def import_locmap_objects(map_id: str, request: Request, data: dict = Body(...)):
-    """Метки пачкой из JSON (по короткой подписи: обновляются, новые скрыты от игроков)."""
+    """Метки пачкой из JSON (по короткой подписи: обновляются, новые скрыты от игроков, если мастер не выбрал открыть их сразу)."""
     v = _gm_only(request)
-    report = locmaps.import_objects(v, map_id, data.get("objects"))
+    report = locmaps.import_objects(v, map_id, data.get("objects"), open_new=data.get("open") is True)
     return {"report": report, "state": logic.state_for(v)}
 
 
@@ -406,6 +406,14 @@ def post_locmap_update(map_id: str, request: Request, data: dict = Body(...)):
 def delete_locmap_update(map_id: str, feed_id: int, request: Request):
     v = _gm_only(request)
     return _answer(v, locmaps.delete_update(v, map_id, feed_id))
+
+
+@app.post("/api/locmaps/{map_id}/objects/{obj_id}/mark")
+def mark_locmap_object(map_id: str, obj_id: str, request: Request, data: dict = Body(...)):
+    """Игрок отмечает состояние зоны или метки, если мастер это разрешил."""
+    v = viewer(request)
+    msg, _line = locmaps.mark_object(v, map_id, obj_id, data.get("status"), data.get("text"), data.get("char"))
+    return _answer(v, msg)
 
 
 @app.post("/api/locmaps/{map_id}/pins")

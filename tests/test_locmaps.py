@@ -256,7 +256,8 @@ def test_players_see_only_open_marks_and_only_what_is_meant_for_them(gm, rig, wo
     d = detail(rig, world)
     assert [o["name"] for o in d["objects"]] == ["Открытая"]
     o = d["objects"][0]
-    assert set(o) == {"id", "key", "name", "kind", "status", "note", "at"} and o["at"] == {"player": [100, 100]}
+    assert set(o) == {"id", "key", "name", "kind", "status", "note", "at", "play", "by", "date"} and o["at"] == {"player": [100, 100]}
+    assert o["play"] is False and "gm_note" not in o and "vis" not in o and "known" not in o
     assert SECRET not in json.dumps(d, ensure_ascii=False) and SECRET not in rig.get("/api/state").text
     g = detail(gm, world)
     assert [o["name"] for o in g["objects"]] == ["Открытая", "Скрытая"] and g["objects"][0]["gm_note"] == f"{SECRET}-метка" and g["objects"][0]["at"]["gm"] == [200, 200]
@@ -555,7 +556,8 @@ def test_map_prompt_names_the_same_kinds_and_limits_as_the_portal():
         assert f'`"{kind}"`' in text, kind
     for word in (str(locmaps.MAX_OBJECTS), "3 МБ", "100 000", "viewBox", "Метки из JSON", "«Локации»"):
         assert word in text, word
-    assert {k for o in example["objects"] for k in o} <= {"key", "name", "kind", "note", "gm_note", "at"}
+    assert {k for o in example["objects"] for k in o} <= {"key", "name", "kind", "note", "gm_note", "at", "shape", "play"}
+    assert any("shape" in o for o in example["objects"]) and "`shape`" in text and "`play`" in text and str(locmaps.MAX_SHAPE) in text
     for tag in ("mask", "foreignObject", "script", "image"):
         assert tag not in locmaps.ALLOWED_TAGS
 

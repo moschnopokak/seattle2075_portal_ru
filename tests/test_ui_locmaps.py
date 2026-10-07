@@ -326,3 +326,188 @@ def test_a_map_without_the_master_drawing_does_not_trap_the_master(browser, live
     finally:
         ctx.close()
     assert not problems
+
+
+# ---------------------------------------------------------------- зоны
+
+TRI = [[100, 100], [400, 100], [250, 350]]
+SQUARE = [[500, 400], [700, 400], [700, 560], [500, 560]]
+
+
+@pytest.fixture
+def zone_world(gm, sandbox):
+    mid = make_map(gm, name="Роща", vis="стол")
+    ok(upload(gm, mid, "player"))
+    ok(upload(gm, mid, "gm", SVG_GM))
+    add(gm, mid, name="Аллея", key="О3", vis="стол", play=True, shape={"player": TRI, "gm": SQUARE}, at={})
+    add(gm, mid, name="Ворота", key="О1", vis="стол", play=False, shape={"player": SQUARE}, at={})
+    return mid
+
+
+def click_drawing(page, x, y):
+    """Щелчок по точке рисунка (в единицах рисунка): считаем, где она на экране."""
+    pt = page.evaluate("p=>{const q=LM.map.latLngToContainerPoint(lmLL(p[0],p[1]));return [q.x,q.y]}", [x, y])
+    box = page.locator("#lm-map").bounding_box()
+    page.mouse.click(box["x"] + pt[0], box["y"] + pt[1])
+
+
+def zone_objects(gm, mid):
+    return {o["key"]: o for o in ok(gm.get(f"/api/locmaps/{mid}"))["objects"]}
+
+
+def test_player_clicks_a_zone_and_marks_it_cleared(browser, live_url, gm, rig, zone_world):
+    ctx, page, problems = make_page(browser, live_url, RIG)
+    try:
+        drawing_ready(page)
+        page.wait_for_selector("#lm-map .lm-zone", timeout=10000)
+        assert page.locator("#lm-map .lm-zone").count() == 2
+        click_drawing(page, 150, 130)                                                    # щелчок внутри треугольника «Аллея»
+        page.wait_for_selector('#panel [data-act="lm-mark"]', timeout=5000)
+        assert "Аллея" in page.inner_text("#panel h2") and "Зона" in page.inner_text("#panel .kind")
+        assert page.locator('#panel [data-act="lm-mark"]').count() == 3                   # разведано, расчищено, опасно
+        page.fill("#lm-mark-text", "Тихо, только скамейки")
+        page.click('#panel [data-act="lm-mark"][data-v="cleared"]')
+        page.wait_for_function("()=>!!document.querySelector('#lm-map .lm-zone.lm-s-cleared')", timeout=10000)
+        o = zone_objects(gm, zone_world)["О3"]
+        assert (o["status"], o["by"]) == ("cleared", "rig")
+        assert any("Риг: «Аллея», расчищено. Тихо, только скамейки" == f["text"] for f in ok(gm.get(f"/api/locmaps/{zone_world}"))["feed"])
+        page.click('[data-act="lm-tab"][data-v="feed"]')
+        page.wait_for_selector("#lm-tab .lm-feed", timeout=5000)
+        assert "Тихо, только скамейки" in page.inner_text("#lm-tab")
+        click_drawing(page, 150, 130)                                                    # карточка теперь называет, кто и когда отметил
+        page.wait_for_selector("#panel .lm-state", timeout=5000)
+        assert "расчищено, отметил Риг" in page.inner_text("#panel .lm-state") and "Что менялось здесь" in page.inner_text("#panel")
+        no_leaks(page)
+    finally:
+        ctx.close()
+    assert not problems
+
+
+def test_a_zone_the_master_did_not_open_for_marking_has_no_buttons(browser, live_url, gm, rig, zone_world):
+    ctx, page, problems = make_page(browser, live_url, RIG)
+    try:
+        drawing_ready(page)
+        page.wait_for_selector("#lm-map .lm-zone", timeout=10000)
+        click_drawing(page, 600, 480)                                                    # «Ворота»: открыта, но отмечать нельзя
+        page.wait_for_selector("#panel h2", timeout=5000)
+        assert "Ворота" in page.inner_text("#panel h2") and page.locator('#panel [data-act="lm-mark"]').count() == 0
+        assert page.locator("#panel .lm-play-box").count() == 0
+    finally:
+        ctx.close()
+    assert not problems
+
+
+def test_master_sees_who_marked_and_can_allow_or_forbid(browser, live_url, gm, rig, zone_world):
+    ok(rig.post(f"/api/locmaps/{zone_world}/objects/{zone_objects(gm, zone_world)['О3']['id']}/mark", json={"status": "danger", "text": "Собаки"}))
+    ctx, page, problems = make_page(browser, live_url)
+    try:
+        drawing_ready(page)
+        page.wait_for_selector("#lm-map .lm-zone.lm-s-danger", timeout=10000)
+        click_drawing(page, 150, 130)
+        page.wait_for_selector('#panel [data-act="lm-play"]', timeout=5000)
+        assert "отметил Риг" in page.inner_text("#panel .lm-state") and "Игроки могут отмечать" in page.inner_text("#panel")
+        page.click('#panel [data-act="lm-play"]')
+        page.wait_for_function("()=>!document.querySelector('#lm-map .lm-zone.lm-play.lm-k-area.lm-s-danger')", timeout=10000)
+        assert zone_objects(gm, zone_world)["О3"]["play"] is False
+    finally:
+        ctx.close()
+    assert not problems
+
+
+def test_master_draws_a_zone_with_clicks_and_can_undo_a_point(browser, live_url, gm, zone_world):
+    oid = add(gm, zone_world, name="Новая", key="Н1", vis="стол", shape={}, at={"player": [800, 100]})["id"]
+    ctx, page, problems = make_page(browser, live_url)
+    try:
+        drawing_ready(page)
+        page.click('#lm-tab .lm-row >> text=Новая')
+        page.wait_for_selector('#panel [data-act="lm-shape"]', timeout=5000)
+        assert "Нарисовать зону" in page.inner_text('#panel [data-act="lm-shape"]')
+        page.click('#panel [data-act="lm-shape"]')
+        page.wait_for_selector(".lm-shapeinfo", timeout=5000)
+        assert page.is_disabled('.lm-tools [data-act="lm-shape-done"]')
+        for x, y in ((100, 450), (300, 450), (300, 550)):
+            click_drawing(page, x, y)
+        assert "Поставлено точек: 3" in page.inner_text(".lm-shapeinfo") or "Точек: 3" in page.inner_text(".lm-shapeinfo")
+        click_drawing(page, 100, 560)
+        page.click('.lm-tools [data-act="lm-shape-undo"]')
+        assert "Точек: 3" in page.inner_text(".lm-shapeinfo")
+        assert page.is_enabled('.lm-tools [data-act="lm-shape-done"]')
+        page.click('.lm-tools [data-act="lm-shape-done"]')
+        page.wait_for_function("()=>LM.data&&LM.data.objects.some(o=>o.key==='Н1'&&o.shape&&o.shape.player)", timeout=10000)
+        shape = zone_objects(gm, zone_world)["Н1"]["shape"]
+        assert set(shape) == {"player"} and len(shape["player"]) == 3
+        assert all(abs(a - b) <= 4 for got, want in zip(shape["player"], [[100, 450], [300, 450], [300, 550]]) for a, b in zip(got, want))   # щелчок попадает в точку с точностью до пикселя экрана
+        assert zone_objects(gm, zone_world)["Н1"]["at"] == {"player": [800, 100]}          # подпись метки осталась где была
+        page.click('#lm-tab .lm-row >> text=Новая')                                      # убрать зону: метка остаётся точкой
+        page.click('#panel [data-act="lm-shape-del"]')
+        page.wait_for_function("()=>!LM.data.objects.find(o=>o.key==='Н1').shape.player", timeout=10000)
+        assert zone_objects(gm, zone_world)["Н1"]["shape"] == {} and oid
+    finally:
+        ctx.close()
+    assert not problems
+
+
+def test_cancel_and_escape_leave_the_drawing_mode(browser, live_url, gm, zone_world):
+    ctx, page, problems = make_page(browser, live_url)
+    try:
+        drawing_ready(page)
+        page.click('#lm-tab .lm-row >> text=Аллея')
+        page.click('#panel [data-act="lm-shape"]')
+        page.wait_for_selector(".lm-shapeinfo", timeout=5000)
+        click_drawing(page, 100, 450)
+        page.keyboard.press("Escape")
+        page.wait_for_function("()=>!document.querySelector('.lm-shapeinfo')&&!LM.pts.length", timeout=5000)
+        assert zone_objects(gm, zone_world)["О3"]["shape"]["player"] == TRI                # ничего не записалось
+    finally:
+        ctx.close()
+    assert not problems
+
+
+def test_preview_shows_the_zone_buttons_disabled(browser, live_url, gm, rig, zone_world):
+    ctx, page, problems = make_page(browser, live_url)
+    try:
+        drawing_ready(page)
+        page.select_option("#who-select", "rig")
+        page.wait_for_selector("#lm-map .lm-zone", timeout=10000)
+        page.wait_for_function("()=>LM.as==='rig'", timeout=5000)
+        click_drawing(page, 150, 130)
+        page.wait_for_selector('#panel [data-act="lm-mark"]', timeout=5000)
+        assert all(page.is_disabled(f'#panel [data-act="lm-mark"][data-v="{k}"]') for k in ("scouted", "cleared", "danger"))
+        assert "Заметка мастера" not in page.inner_text("#panel") and page.locator('#panel [data-act="lm-play"]').count() == 0
+    finally:
+        ctx.close()
+    assert not problems
+
+
+def test_import_can_open_zones_for_the_players_at_once(browser, live_url, gm, rig, zone_world):
+    zones = {"objects": [{"key": "З1", "name": "Роща Север", "kind": "area", "play": True, "shape": {"player": [[10, 10], [90, 10], [50, 80]]}}]}
+    ctx, page, problems = make_page(browser, live_url)
+    try:
+        page.click('[data-act="lm-import"]')
+        page.fill('.lm-form[data-lm="import"] [name="json"]', json.dumps(zones, ensure_ascii=False))
+        page.check('.lm-form[data-lm="import"] [name="open"]')
+        page.click('.lm-form[data-lm="import"] button[type="submit"]')
+        page.wait_for_selector("#panel >> text=Метки загружены", timeout=10000)
+        assert zone_objects(rig, zone_world)["З1"]["play"] is True and zone_objects(rig, zone_world)["З1"]["shape"]["player"]
+        assert "Открыто на карте: 1 метка" in [f["text"] for f in ok(rig.get(f"/api/locmaps/{zone_world}"))["feed"]]
+    finally:
+        ctx.close()
+    assert not problems
+
+
+@pytest.mark.parametrize("who", [GM, RIG])
+def test_zones_do_not_overflow_on_a_phone(browser, live_url, gm, rig, zone_world, who):
+    for width in (360, 390):
+        ctx, page, problems = make_page(browser, live_url, who, width)
+        try:
+            drawing_ready(page)
+            page.wait_for_selector("#lm-map .lm-zone", timeout=10000)
+            click_drawing(page, 150, 130)
+            page.wait_for_selector("#panel .lm-state", timeout=5000)
+            page.wait_for_function("()=>document.getAnimations().every(a=>a.playState!=='running')", timeout=5000)
+            over = page.evaluate("()=>({page:document.documentElement.scrollWidth-document.documentElement.clientWidth,"
+                                 "box:[...document.querySelectorAll('#panel *')].filter(e=>e.getBoundingClientRect().right>document.documentElement.clientWidth+1).map(e=>e.className||e.tagName)})")
+            assert over["page"] <= 0 and over["box"] == [], (who, width, over)
+        finally:
+            ctx.close()
+        assert not problems

@@ -84,3 +84,59 @@ test("высота окна карты следует форме рисунка,
   assert.equal(lm.lmHeight(390, { w: 1000, h: 50 }, 390, 844), 260);          // очень низкий: не ниже 260
   assert.equal(lm.lmHeight(1900, tall, 2000, 1600), 660);                     // и не выше 660
 });
+
+test("контур зоны берётся для нужного рисунка и должен быть настоящим многоугольником", () => {
+  const z = { shape: { player: [[0, 0], [10, 0], [10, 10]], gm: [[0, 0], [1, 1]] } };
+  assert.deepEqual(lm.lmShape(z, "player"), [[0, 0], [10, 0], [10, 10]]);
+  assert.equal(lm.lmShape(z, "gm"), null);                                     // две точки не зона
+  assert.equal(lm.lmShape({}, "player"), null);
+  assert.equal(lm.lmPlaced({ shape: z.shape }, "player"), true);               // зона без метки-точки тоже «стоит на рисунке»
+  assert.equal(lm.lmPlaced({ at: { gm: [1, 1] } }, "player"), false);
+});
+
+test("центр зоны считается по площади и лежит внутри обычного контура", () => {
+  assert.deepEqual(lm.lmCentroid([[0, 0], [100, 0], [100, 50], [0, 50]]), [50, 25]);
+  assert.deepEqual(lm.lmCentroid([[0, 0], [90, 0], [0, 90]]), [30, 30]);
+  assert.deepEqual(lm.lmCentroid([[0, 0], [10, 10], [20, 20]]), [10, 10]);     // контур-линия не ломает подпись
+  const L = [[0, 0], [100, 0], [100, 10], [10, 10], [10, 100], [0, 100]];      // буква Г: центр по площади
+  const [x, y] = lm.lmCentroid(L); assert.ok(x > 0 && x < 100 && y > 0 && y < 100);
+});
+
+test("подпись зоны стоит там, где задано, а без места в центре контура", () => {
+  const sq = [[0, 0], [100, 0], [100, 100], [0, 100]];
+  assert.deepEqual(lm.lmLabelAt({ at: { player: [5, 6] }, shape: { player: sq } }, "player"), [5, 6]);
+  assert.deepEqual(lm.lmLabelAt({ shape: { player: sq } }, "player"), [50, 50]);
+  assert.equal(lm.lmLabelAt({ shape: { gm: sq } }, "player"), null);
+});
+
+test("игрок может отметить только то, что подходит виду метки", () => {
+  assert.deepEqual(lm.lmPlayStatuses({ kind: "area" }), ["scouted", "cleared", "danger"]);
+  assert.deepEqual(lm.lmPlayStatuses({ kind: "thing" }), ["scouted", "found", "lost"]);
+  assert.deepEqual(lm.lmPlayStatuses({ kind: "что-то" }), ["scouted", "cleared", "danger"]);
+  for (const list of Object.values(lm.LM_PLAY_STATUS)) for (const s of list) assert.ok(lm.LM_STATUS[s], s);
+});
+
+test("кто отметил: имя персонажа, мастер или никто", () => {
+  const names = { rig: "Риг" };
+  assert.equal(lm.lmByName({ by: "rig" }, names), "Риг");
+  assert.equal(lm.lmByName({ by: "gm" }, names), "мастер");
+  assert.equal(lm.lmByName({ by: "" }, names), "");
+  assert.equal(lm.lmByName({ by: "ушёл" }, names), "");
+});
+
+test("классы контура зоны: вид, состояние, право игроков, скрытая от игроков только у мастера", () => {
+  assert.equal(lm.lmZoneClass({ kind: "area" }, false), "lm-zone lm-k-area");
+  assert.equal(lm.lmZoneClass({ kind: "area", status: "cleared", play: true }, true), "lm-zone lm-k-area lm-s-cleared lm-play");
+  assert.match(lm.lmZoneClass({ kind: "area", vis: "мастер" }, true), /lm-hid/);
+  assert.doesNotMatch(lm.lmZoneClass({ kind: "area", vis: "мастер" }, false), /lm-hid/);
+});
+
+test("предпросмотр глазами игрока оставляет контур зоны и право отмечать, но не контур мастера", () => {
+  const data = { id: "m", dw: { player: { w: 1, h: 1, v: 1 } }, feed: [], pins: [], objects: [
+    { id: "z", key: "О1", name: "Аллея", kind: "area", status: "cleared", vis: "стол", known: [], note: "", gm_note: "СЕКРЕТ", play: true, by: "rig", date: "2075-08-01",
+      at: { player: [1, 1], gm: [2, 2] }, shape: { player: [[0, 0], [5, 0], [5, 5]], gm: [[9, 9], [8, 8], [7, 9]] } }] };
+  const z = lm.lmPlayerView(data, ["rig"], "").objects[0];
+  assert.deepEqual(z.shape, { player: [[0, 0], [5, 0], [5, 5]] });
+  assert.equal(z.play, true); assert.equal(z.by, "rig"); assert.equal(z.date, "2075-08-01");
+  assert.equal(JSON.stringify(z).includes("СЕКРЕТ"), false); assert.equal(JSON.stringify(z).includes("[9,9]"), false);
+});

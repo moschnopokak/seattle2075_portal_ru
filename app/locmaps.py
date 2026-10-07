@@ -16,7 +16,7 @@ import time
 import uuid
 import xml.etree.ElementTree as ET
 
-from . import db, logic, notify
+from . import db, logic, notify, outbox
 from .logic import bad, clean, listed, one_of
 
 SVG_NS = "http://www.w3.org/2000/svg"
@@ -34,6 +34,7 @@ MAX_OBJECTS = 300
 MAX_PINS = 60
 MAX_FEED = 300
 MAX_IMPORT = 300
+MAX_SHAPE = 150
 OBJ_KINDS = {"area": "Сектор", "thing": "Находка", "danger": "Угроза", "creature": "Существо", "place": "Место", "note": "Пометка"}
 STATUSES = {"": "", "scouted": "разведано", "cleared": "расчищено", "danger": "опасно", "found": "найдено", "lost": "потеряно"}
 VIS = ("стол", "знают", "мастер")
@@ -259,6 +260,7 @@ def delete_drawing(v, map_id, role):
         m["dw"].pop(role, None)
         for o in m.get("objects", []):
             o.get("at", {}).pop(role, None)
+            o.get("shape", {}).pop(role, None)
         _save_map(m)
         db.bump()
     return "Рисунок убран"
@@ -291,24 +293,48 @@ def _norm_object(raw, m, old):
     known = listed(cur.get("known"), chars)
     if vis == "знают" and not known:
         bad("Отметьте, какие персонажи знают об этой метке.")
-    at = {}
+    at, shape = {}, {}
     raw_at = cur.get("at") if isinstance(cur.get("at"), dict) else {}
+    raw_shape = cur.get("shape") if isinstance(cur.get("shape"), dict) else {}
     for role in ROLES:
-        p = raw_at.get(role)
-        if p is None or p == "":
-            continue
-        if not (isinstance(p, (list, tuple)) and len(p) == 2):
-            bad("Положение метки: два числа (x, y) на рисунке.")
-        x, y = logic.to_int(p[0], "Положение метки: целые числа."), logic.to_int(p[1], "Положение метки: целые числа.")
         size = m.get("dw", {}).get(role)
         wmax, hmax = (size["w"], size["h"]) if size else (MAX_DIM, MAX_DIM)
-        if not (0 <= x <= wmax and 0 <= y <= hmax):
-            bad("Метка за краем рисунка. Поставьте её внутри рисунка.")
-        at[role] = [x, y]
+        p = raw_at.get(role)
+        if p is not None and p != "":
+            if not (isinstance(p, (list, tuple)) and len(p) == 2):
+                bad("Положение метки: два числа (x, y) на рисунке.")
+            x, y = logic.to_int(p[0], "Положение метки: целые числа."), logic.to_int(p[1], "Положение метки: целые числа.")
+            if not (0 <= x <= wmax and 0 <= y <= hmax):
+                bad("Метка за краем рисунка. Поставьте её внутри рисунка.")
+            at[role] = [x, y]
+        if raw_shape.get(role) not in (None, "", []):
+            shape[role] = _shape_points(raw_shape[role], wmax, hmax)
     return {"id": (old or {}).get("id") or "o" + uuid.uuid4().hex[:8], "key": key, "name": name,
             "kind": one_of(cur.get("kind"), OBJ_KINDS, "place"), "status": one_of(cur.get("status"), STATUSES, ""),
             "vis": vis, "known": known if vis == "знают" else [], "note": clean(cur.get("note"), 1000, True),
-            "gm_note": clean(cur.get("gm_note"), 2000, True), "at": at}
+            "gm_note": clean(cur.get("gm_note"), 2000, True), "at": at, "shape": shape, "play": cur.get("play") is True,
+            "by": (old or {}).get("by", ""), "date": (old or {}).get("date", "")}
+
+
+def _shape_points(points, wmax, hmax):
+    """Контур зоны: от 3 до MAX_SHAPE точек внутри рисунка, числа округляются до целых. Контур не должен быть линией."""
+    if not isinstance(points, (list, tuple)) or not 3 <= len(points) <= MAX_SHAPE:
+        bad(f"Контур зоны: от 3 до {MAX_SHAPE} точек.")
+    out = []
+    for p in points:
+        if not (isinstance(p, (list, tuple)) and len(p) == 2) or any(isinstance(c, bool) or not isinstance(c, (int, float)) or c != c or abs(c) > MAX_DIM for c in p):
+            bad("Контур зоны: каждая точка это два числа (x, y).")
+        x, y = int(round(p[0])), int(round(p[1]))
+        if not (0 <= x <= wmax and 0 <= y <= hmax):
+            bad("Контур зоны выходит за край рисунка.")
+        if not out or out[-1] != [x, y]:
+            out.append([x, y])
+    if len(out) > 1 and out[0] == out[-1]:
+        out.pop()                                                   # замыкающая точка, равная первой, не нужна
+    twice = sum(out[i][0] * out[(i + 1) % len(out)][1] - out[(i + 1) % len(out)][0] * out[i][1] for i in range(len(out)))
+    if len(out) < 3 or twice == 0:
+        bad("Контур зоны не должен быть линией: поставьте не меньше трёх точек не на одной прямой.")
+    return out
 
 
 def _same_key(m, obj):
@@ -351,6 +377,8 @@ def save_object(v, map_id, raw, announce=True, notify_players=False):
         obj = _norm_object(raw, m, old)
         if _same_key(m, obj):
             bad(f"Подпись «{obj['key']}» уже занята другой меткой этой карты.", 409)
+        if obj["status"] != (old or {}).get("status", ""):
+            obj["by"], obj["date"] = ("gm", logic.now()[0]) if obj["status"] else ("", "")
         if old:
             objects[objects.index(old)] = obj
         else:
@@ -378,9 +406,12 @@ def delete_object(v, map_id, obj_id):
     return "Метка удалена"
 
 
-def import_objects(v, map_id, items):
+_DEFAULTS = {"play": False, "shape": {}, "by": "", "date": ""}      # поля, которых нет у меток, созданных до появления зон
+
+
+def import_objects(v, map_id, items, open_new=False):
     """Метки пачкой (JSON из чата, где сделана карта). По короткой подписи (key) метка обновляется, новые добавляются. Видимость и состояние
-    существующих меток не меняются, новые метки скрыты от игроков. Возвращает отчёт."""
+    существующих меток не меняются, новые метки скрыты от игроков (или открыты всем, если мастер так выбрал: open_new). Возвращает отчёт."""
     _gm(v)
     if not isinstance(items, list) or not items:
         bad("Нет ни одной метки.")
@@ -402,12 +433,13 @@ def import_objects(v, map_id, items):
                 old = next((o for o in objects if key and o["key"].lower() == key.lower()), None)
                 body = {k: x for k, x in raw.items() if k not in ("id", "vis", "known", "status")}
                 if old:
-                    merged_at = dict(old.get("at", {}))
-                    given = raw.get("at") if isinstance(raw.get("at"), dict) else {}
-                    merged_at.update({r: p for r, p in given.items() if p is not None})     # присланное положение дополняет прежнее
-                    body["at"] = merged_at
+                    for field in ("at", "shape"):                                                   # присланное положение и контур дополняют прежние
+                        merged = dict(old.get(field, {}))
+                        given = raw.get(field) if isinstance(raw.get(field), dict) else {}
+                        merged.update({r: p for r, p in given.items() if p is not None})
+                        body[field] = merged
                     obj = _norm_object(dict(old, **body), m, old)
-                    if obj == old:
+                    if obj == {**_DEFAULTS, **old}:
                         report["skip"] += 1
                         report["items"].append({"n": n, "title": title, "status": "skip", "msg": "без изменений"})
                         seen.add(key.lower())
@@ -418,17 +450,19 @@ def import_objects(v, map_id, items):
                 else:
                     if len(objects) >= MAX_OBJECTS:
                         bad(f"На карте не больше {MAX_OBJECTS} меток.")
-                    obj = _norm_object(body, m, None)
+                    obj = _norm_object(dict(body, vis="стол") if open_new else body, m, None)
                     if _same_key(m, obj):
                         bad("Эта подпись уже занята.")
                     objects.append(obj)
                     report["add"] += 1
-                    report["items"].append({"n": n, "title": title, "status": "add", "msg": "новая метка скрыта от игроков"})
+                    report["items"].append({"n": n, "title": title, "status": "add", "msg": "новая метка открыта игрокам" if open_new else "новая метка скрыта от игроков"})
                 if key:
                     seen.add(key.lower())
             except logic.HTTPException as ex:
                 report["error"] += 1
                 report["items"].append({"n": n, "title": title or f"№{n}", "status": "error", "msg": str(ex.detail)})
+        if open_new and report["add"]:
+            _post_feed(map_id, f"Открыто на карте: {report['add']} {outbox._plural(report['add'], 'метка', 'метки', 'меток')}", "стол", [])
         if report["add"] or report["update"]:
             _save_map(m)
             db.bump()
@@ -483,6 +517,39 @@ def _feed(v, map_id):
         out.append({"id": r["id"], "ts": int(r["ts"] * 1000), "date": r["gdate"], "obj": r["obj"], "text": r["text"],
                     **({"vis": r["vis"], "known": known} if v.gm else {})})
     return out
+
+
+# ---------- отметка зоны игроками ----------
+
+def mark_object(v, map_id, obj_id, status, text="", char=None):
+    """Игрок отмечает состояние метки или зоны («расчищено», «опасно»), если мастер это разрешил (play). Запись попадает в ленту
+    для тех, кто видит метку, а мастеру уходит сообщение. Можно только дописать короткий комментарий, не меняя состояние."""
+    if v.gm:
+        bad("Состояние в карточке метки мастер меняет сам.", 403)
+    char = v.acting(char or (v.chars[0] if len(v.chars) == 1 else None))
+    if not isinstance(status, str) or status not in STATUSES:
+        bad("Неизвестное состояние.")
+    text = clean(text, 120)
+    with db.lock:
+        m = _visible_map(v, map_id)
+        o = next((x for x in m.get("objects", []) if x["id"] == obj_id), None)
+        if not o or not _obj_visible(o, v):
+            bad("Метка не найдена, возможно, её уже убрали.", 404)
+        if not o.get("play"):
+            bad("Мастер не разрешил игрокам отмечать эту метку.", 403)
+        changed = status != o["status"]
+        if not changed and not text:
+            return "Состояние уже такое", None
+        who = logic.char_map().get(char, {}).get("name", char)
+        what = (STATUSES[status] or "отметка снята") if changed else ""
+        line = f"{who}: «{o['name']}»" + (f", {what}" if what else "") + (f". {text}" if text else "")
+        if changed:
+            o["status"], o["by"], o["date"] = status, char, logic.now()[0]
+            _save_map(m)
+        _post_feed(map_id, line, o["vis"], o["known"], o["id"])
+        db.bump()
+    notify.to_gm(f"Карта «{m['name']}»: {line}.", "maps", kind="map")
+    return ("Отмечено: " + what if what else "Комментарий добавлен"), line
 
 
 # ---------- пометки группы ----------
@@ -542,8 +609,11 @@ def detail(v, map_id):
             objects.append(o)
         else:
             card = {k: o[k] for k in ("id", "key", "name", "kind", "status", "note")}
+            card.update(play=o.get("play") is True, by=o.get("by", ""), date=o.get("date", ""))
             if "player" in o.get("at", {}):
                 card["at"] = {"player": o["at"]["player"]}
+            if "player" in o.get("shape", {}):
+                card["shape"] = {"player": o["shape"]["player"]}
             objects.append(card)
     out = {"id": m["id"], "name": m["name"], "note": m.get("note", ""), "place": m.get("place", ""), "objects": objects,
            "dw": m.get("dw", {}) if v.gm else {k: x for k, x in m.get("dw", {}).items() if k == "player"},

@@ -42,6 +42,7 @@ bfe7bc257a2d655f  app/handouts.py
 c5fcd5bdde5a9e4d  app/handouts.py
 d0fa6ccfa76a5082  app/handouts.py
 11e4964cc5679be9  app/locmaps.py
+b80131c470c31f03  app/locmaps.py
 022870230ef43667  app/logic.py
 0963bdd7b67a869c  app/logic.py
 0edd0fadeab2c31d  app/logic.py
@@ -66,6 +67,7 @@ e511d7ddde13be78  app/logic.py
 5e6784ae54eb3a6e  app/main.py
 5ea59a6f5245df08  app/main.py
 85bc7726a929816c  app/main.py
+96666093a50ba7b9  app/main.py
 98697cdba0749982  app/main.py
 9e4bb1fb99476e3e  app/main.py
 a3ab2bf48195fe2b  app/main.py
@@ -182,6 +184,7 @@ e713e55621b732f7  static/js/history.js
 44948e9d0878d80a  static/js/import.js
 5ab89535f95fff4a  static/js/links.js
 84da9c3351ce0606  static/js/locmaps.js
+c5872c7b4523df94  static/js/locmaps.js
 386fa487695e8db0  static/js/map.js
 450130584d3c2468  static/js/map.js
 c4d34b61d0063767  static/js/map.js
@@ -210,6 +213,7 @@ be5ce0298bf84ebe  static/js/recap.js
 41bbd42a571752e4  static/style.css
 46048c807d33153f  static/style.css
 4a28769ffd2fdad5  static/style.css
+5a874124f381faca  static/style.css
 5fc49451debfcff7  static/style.css
 6b5611f600f6824e  static/style.css
 97968ab6199096bb  static/style.css

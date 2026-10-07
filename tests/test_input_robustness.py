@@ -99,9 +99,12 @@ def test_map_endpoints_survive_garbage(gm, rig, sandbox):
     upload(gm, mid, "gm", SVG)
     add(gm, mid, key="Н1", name="Своя", vis="стол")
     mark = {"name": "Метка", "key": "М1", "kind": "area", "status": "found", "vis": "знают", "known": ["rig"], "note": "n", "gm_note": "g",
-            "at": {"player": [10, 10], "gm": [20, 20]}, "announce": True, "notify": False}
+            "at": {"player": [10, 10], "gm": [20, 20]}, "shape": {"player": [[10, 10], [200, 10], [100, 150]], "gm": [[20, 20], [90, 20], [20, 90]]},
+            "play": True, "announce": True, "notify": False}
     failures = run(gm, f"/api/gm/locmaps/{mid}/objects", mark)
-    failures += run(gm, f"/api/gm/locmaps/{mid}/import", {"objects": [{k: v for k, v in mark.items() if k not in ("announce", "notify")}]})
+    failures += run(gm, f"/api/gm/locmaps/{mid}/import", {"objects": [{k: v for k, v in mark.items() if k not in ("announce", "notify")}], "open": True})
+    oid = gm.post(f"/api/gm/locmaps/{mid}/objects", json=dict(mark, key="М2", vis="стол")).json()["object"]["id"]
+    failures += run(rig, f"/api/locmaps/{mid}/objects/{oid}/mark", {"status": "cleared", "text": "чисто", "char": "rig"})
     failures += run(gm, f"/api/gm/locmaps/{mid}/feed", {"text": "объявление", "vis": "знают", "known": ["rig"], "notify": False})
     failures += run(rig, f"/api/locmaps/{mid}/pins", {"text": "пометка", "x": 100, "y": 100, "char": "rig"})
     assert not failures, "500 на некорректных данных:\n" + "\n".join(failures[:40])
