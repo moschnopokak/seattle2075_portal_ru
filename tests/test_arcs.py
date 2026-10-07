@@ -52,8 +52,16 @@ def names(st, kind, key="title"):
 
 
 def arc_records(gm):
-    """Записи журнала об импортах разбора арки (журнал общий на весь прогон, поэтому тесты сравнивают «до» и «после»)."""
-    return [h for h in ok(gm.get("/api/gm/history?limit=200"))["items"] if h["action"] == "import" and h["kind"] == "arc"]
+    """Записи журнала об импортах разбора арки, свежие первыми (журнал общий на весь прогон, поэтому тесты сравнивают «до» и «после»)."""
+    return [h for h in ok(gm.get("/api/gm/history?kind=arc&limit=100"))["items"] if h["action"] == "import"]
+
+
+def new_arc_records(gm, last_id):
+    return [h for h in arc_records(gm) if h["id"] > last_id]
+
+
+def last_arc_id(gm):
+    return max([h["id"] for h in arc_records(gm)] or [0])
 
 
 @pytest.fixture(autouse=True)
@@ -76,7 +84,7 @@ def test_everything_is_added_and_the_report_matches(gm, sandbox):
     data = ok(post(gm, good()))
     rep = data["report"]
     assert data["msg"] == f"Добавлено: {rep['add']}" and rep["add"] == 11 and rep["skip"] == 0 and rep["error"] == 0
-    assert {k: c["add"] for k, c in rep["counts"].items()} == {"windows": 1, "plan": 2, "clocks": 1, "rhythm": 2, "entries": 1, "past": 1, "dossier": 1,
+    assert rep["merge"] == 0 and {k: c["add"] for k, c in rep["counts"].items()} == {"windows": 1, "plan": 2, "clocks": 1, "rhythm": 2, "entries": 1, "past": 1, "dossier": 1,
                                                                   "places": 1, "handouts": 1}
     assert rep["questions"] == ["Дата встречи: поставил 2075-11-03. Верно?"]
     st = data["state"]
@@ -96,11 +104,11 @@ def test_report_lists_every_item_in_the_order_of_the_prompt(gm, sandbox):
 
 
 def test_preview_writes_nothing(gm, sandbox):
-    version, records = state(gm)["version"], len(arc_records(gm))
+    version, last = state(gm)["version"], last_arc_id(gm)
     ok(post(gm, good(), PREVIEW))
     st = state(gm)
     assert st["version"] == version and "Мистер Джонсон" not in names(st, "dossier", "name") and "Ночной груз в порту" not in names(st, "plan")
-    assert len(arc_records(gm)) == records
+    assert new_arc_records(gm, last) == []
 
 
 def test_existing_records_are_not_touched(gm, sandbox):
@@ -141,12 +149,111 @@ def test_repeats_inside_one_arc_are_loaded_once(gm, sandbox):
     assert [i["msg"] for i in rep["items"] if i["status"] == "skip"] == ["повтор в этом же разборе"] * 3
 
 
-def test_existing_dossier_card_wins_and_is_not_overwritten(gm, sandbox):
-    ok(gm.post("/api/gm/items/dossier", json={"name": "Мэри-Лу", "type": "person", "role": "прежняя роль", "vis": "мастер", "gm_note": "прежняя заметка"}))
-    rep = ok(post(gm, {"dossier": [{"name": "мэри-лу", "role": "новая роль", "gm_note": "новая заметка"}]}, PREVIEW))["report"]
-    assert rep["items"][0]["status"] == "skip" and "уже есть" in rep["items"][0]["msg"]
+def make_card(gm, **kw):
+    card = {"name": "Мэри-Лу", "alias": "Лу", "type": "person", "role": "прежняя роль", "stance": "ally", "org": "Старый клуб", "vis": "стол", "known": [],
+            "met": ["rig"], "facts": [{"id": "fa1", "text": "Прежнее сведение, видно всем", "vis": "стол", "known": [], "truth": ""}], "gm_note": "прежняя заметка"}
+    card.update(kw)
+    ok(gm.post("/api/gm/items/dossier", json=card))
+    return next(c for c in state(gm)["dossier"] if c["name"] == card["name"])
+
+
+def test_existing_card_is_completed_not_replaced(gm, sandbox):
+    old = make_card(gm)
+    data = {"dossier": [{"name": "  мэри-лу ", "alias": "Другой", "role": "новая роль", "stance": "hostile", "vis": "мастер", "met": ["gate"],
+                         "facts": [{"text": "Прежнее сведение, видно всем", "vis": "мастер"}, {"text": f"{SECRET}-новое сведение", "vis": "мастер", "truth": f"{SECRET}-правда"}],
+                         "gm_note": f"{SECRET}-новая заметка"}]}
+    rep = ok(post(gm, data, PREVIEW))["report"]
+    assert (rep["add"], rep["merge"], rep["skip"]) == (0, 1, 0) and rep["counts"]["dossier"]["merge"] == 1
+    assert rep["items"][0]["status"] == "merge" and "сведений 1" in rep["items"][0]["msg"] and "заметка мастера" in rep["items"][0]["msg"]
+    assert state(gm)["dossier"] == [c for c in state(gm)["dossier"]] and next(c for c in state(gm)["dossier"] if c["name"] == "Мэри-Лу") == old   # проверка ничего не пишет
+    done = ok(post(gm, data))
+    assert done["msg"] == "Добавлено: 0, дополнено: 1"
+    new = next(c for c in state(gm)["dossier"] if c["name"] == "Мэри-Лу")
+    for field in ("id", "name", "alias", "type", "role", "stance", "org", "vis", "known", "met", "img", "last_date", "last_place", "last_note"):
+        assert new[field] == old[field], field                                           # ничего, кроме сведений и заметки, не изменилось
+    assert [f["text"] for f in new["facts"]] == ["Прежнее сведение, видно всем", f"{SECRET}-новое сведение"]
+    assert new["facts"][0] == old["facts"][0] and new["facts"][1]["vis"] == "мастер" and new["facts"][1]["truth"] == f"{SECRET}-правда"
+    assert new["gm_note"] == f"прежняя заметка\n\n{arcs.NOTE_HEAD}\n{SECRET}-новая заметка"
+
+
+def test_completing_a_visible_card_shows_players_nothing_new(gm, rig, sandbox):
+    make_card(gm, vis="стол")
+    ok(post(gm, {"dossier": [{"name": "Мэри-Лу", "facts": [{"text": f"{SECRET}-новое", "vis": "мастер"}], "gm_note": f"{SECRET}-заметка"}]}))
+    text = rig.get("/api/state").text
+    assert SECRET not in text
+    card = next(c for c in state(rig)["dossier"] if c["name"] == "Мэри-Лу")
+    assert [f["text"] for f in card["facts"]] == ["Прежнее сведение, видно всем"] and "gm_note" not in card or not card.get("gm_note")
+
+
+def test_completing_twice_changes_nothing_the_second_time(gm, sandbox):
+    make_card(gm)
+    data = {"dossier": [{"name": "Мэри-Лу", "facts": [{"text": "Новое сведение"}], "gm_note": "новая заметка"}]}
+    ok(post(gm, data))
+    first = next(c for c in state(gm)["dossier"] if c["name"] == "Мэри-Лу")
+    rep = ok(post(gm, data, PREVIEW))["report"]
+    assert (rep["add"], rep["merge"], rep["skip"]) == (0, 0, 1) and "нового в ней нет" in rep["items"][0]["msg"]
+    assert post(gm, data).status_code == 400
+    assert next(c for c in state(gm)["dossier"] if c["name"] == "Мэри-Лу") == first
+
+
+def test_a_short_note_inside_another_note_is_still_added(gm, sandbox):
+    make_card(gm, gm_note="прежняя заметка")
+    rep = ok(post(gm, {"dossier": [{"name": "Мэри-Лу", "gm_note": "заметка"}]}))["report"]
+    assert rep["merge"] == 1
+    assert next(c for c in state(gm)["dossier"] if c["name"] == "Мэри-Лу")["gm_note"].endswith(f"{arcs.NOTE_HEAD}\nзаметка")
+
+
+def test_card_with_nothing_new_is_skipped(gm, sandbox):
+    make_card(gm)
+    rep = ok(post(gm, {"dossier": [{"name": "Мэри-Лу", "role": "другое", "facts": [{"text": "  прежнее  сведение, видно ВСЕМ "}], "gm_note": "ПРЕЖНЯЯ заметка"}]}, PREVIEW))["report"]
+    assert (rep["add"], rep["merge"], rep["skip"]) == (0, 0, 1)
+
+
+def test_every_completed_card_has_its_own_history_record_and_can_be_reverted(gm, sandbox):
+    old = make_card(gm)
+    ok(post(gm, {"dossier": [{"name": "Мэри-Лу", "facts": [{"text": "Новое сведение"}], "gm_note": "новая заметка"}]}))
+    rec = next(h for h in ok(gm.get("/api/gm/history?limit=50"))["items"] if h["action"] == "edit" and h["kind"] == "dossier" and h["title"] == "Мэри-Лу")
+    assert {c["field"] for c in rec["changes"]} >= {"facts", "gm_note"}
+    ok(gm.post(f"/api/gm/history/{rec['id']}/revert"))
+    back = next(c for c in state(gm)["dossier"] if c["name"] == "Мэри-Лу")
+    assert back["facts"] == old["facts"] and back["gm_note"] == old["gm_note"]
+
+
+def test_long_note_is_cut_at_the_limit_and_does_not_grow_on_reload(gm, sandbox):
+    make_card(gm, gm_note="з" * 3900)
+    data = {"dossier": [{"name": "Мэри-Лу", "gm_note": "н" * 500}]}
+    ok(post(gm, data))
     card = next(c for c in state(gm)["dossier"] if c["name"] == "Мэри-Лу")
-    assert card["role"] == "прежняя роль" and card["gm_note"] == "прежняя заметка"
+    assert len(card["gm_note"]) == 4000
+    rep = ok(post(gm, data, PREVIEW))["report"]
+    assert rep["merge"] == 0 and rep["skip"] == 1                                       # срезанный хвост не дописывается снова
+
+
+def test_card_that_is_full_of_facts_cannot_take_more(gm, sandbox):
+    make_card(gm, facts=[{"id": f"f{i}", "text": f"Сведение {i}", "vis": "мастер", "known": [], "truth": ""} for i in range(80)])
+    rep = ok(post(gm, {"dossier": [{"name": "Мэри-Лу", "facts": [{"text": "Восемьдесят первое"}]}, {"name": "Новый", "role": "для надёжности"}]}))["report"]
+    assert rep["items"][0]["status"] == "error" and "слишком много сведений" in rep["items"][0]["msg"] and rep["add"] == 1
+
+
+def test_completing_works_even_if_the_file_card_itself_is_incomplete(gm, sandbox):
+    make_card(gm)
+    rep = ok(post(gm, {"dossier": [{"name": "Мэри-Лу", "vis": "знают", "known": [], "gm_note": "заметка"}]}))["report"]
+    assert rep["merge"] == 1 and rep["error"] == 0                                      # лишнее поле файла не мешает дописать заметку
+
+
+def test_existing_place_is_completed_with_the_master_note_only(gm, rig, sandbox):
+    ok(gm.post("/api/gm/items/places", json={"name": "Старый бар", "type": "business", "x": 30000, "y": 40000, "vis": "стол", "note": "Виден всем", "gm_note": "прежняя"}))
+    old = next(p for p in state(gm)["places"] if p["name"] == "Старый бар")
+    data = {"places": [{"name": "старый бар", "type": "shop", "district": "tacoma", "vis": "мастер", "note": f"{SECRET}-для всех", "where_hint": "у моста", "gm_note": f"{SECRET}-тайна"}]}
+    rep = ok(post(gm, data))["report"]
+    assert rep["merge"] == 1 and rep["items"][0]["msg"].startswith("дополнится") and "центра района" not in rep["items"][0]["msg"]
+    new = next(p for p in state(gm)["places"] if p["name"] == "Старый бар")
+    for field in ("id", "name", "type", "x", "y", "vis", "known", "note", "bg"):
+        assert new[field] == old[field], field
+    assert new["gm_note"] == f"прежняя\n\n{arcs.NOTE_HEAD}\nОриентир: у моста\n{SECRET}-тайна"
+    assert SECRET not in rig.get("/api/state").text
+    again = ok(post(gm, data, PREVIEW))["report"]
+    assert (again["merge"], again["skip"]) == (0, 1)
 
 
 def test_existing_place_by_name_is_skipped_and_still_found_by_entries(gm, sandbox):
@@ -348,11 +455,11 @@ def test_nobody_is_notified_by_an_import(gm, sandbox, telegram_on):
 # ---------------------------------------------------------------- журнал, корзина, права
 
 def test_one_history_record_and_nothing_to_revert(gm, sandbox):
-    records = len(arc_records(gm))
+    last = last_arc_id(gm)
     ok(post(gm, good()))
-    found = arc_records(gm)
-    assert len(found) == records + 1
-    rec = found[0]                                                                      # свежие первыми
+    found = new_arc_records(gm, last)
+    assert len(found) == 1
+    rec = found[0]
     assert rec["title"] == "Импорт разбора арки: 11" and rec["role"] == "gm"
     assert gm.post(f"/api/gm/history/{rec['id']}/revert").status_code == 400
 
@@ -376,7 +483,7 @@ def test_only_the_master_can_use_it(rig, anon, gm, sandbox):
 
 
 def test_a_failure_in_the_middle_leaves_nothing_behind(gm, sandbox, monkeypatch):
-    before, records = state(gm), len(arc_records(gm))
+    before, last = state(gm), last_arc_id(gm)
 
     def boom(entry):
         raise RuntimeError("сбой записи")
@@ -386,7 +493,7 @@ def test_a_failure_in_the_middle_leaves_nothing_behind(gm, sandbox, monkeypatch)
     after = state(gm)
     for kind in ("windows", "plan", "clocks", "rhythm", "past", "dossier", "places", "handouts", "entries"):
         assert after[kind] == before[kind], kind
-    assert len(arc_records(gm)) == records
+    assert new_arc_records(gm, last) == []
 
 
 def test_questions_are_cleaned_and_limited(gm, sandbox):

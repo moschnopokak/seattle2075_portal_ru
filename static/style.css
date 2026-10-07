@@ -542,6 +542,7 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .arc-st{font-size:12.5px;padding:1px 8px;border-radius:9px;border:1px solid var(--line);white-space:nowrap}
 .arc-row.add .arc-st{color:var(--grow);border-color:var(--grow)}
 .arc-row.error .arc-st{color:var(--vow);border-color:var(--vow)}
+.arc-row.merge .arc-st{color:var(--sodium-ink);border-color:var(--sodium-ink)}
 .arc-row.skip .arc-st{color:var(--muted)}
 .arc-q{margin:4px 0 0;padding-left:22px;line-height:1.5}
 .roll-ok{color:var(--grow)}

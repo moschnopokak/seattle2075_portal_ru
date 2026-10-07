@@ -166,3 +166,26 @@ def test_players_have_no_such_section(browser, live_url, gm, rig, sandbox):
     finally:
         ctx.close()
     assert not problems
+
+
+def test_existing_cards_are_completed_and_the_window_says_so(browser, live_url, gm, rig, sandbox):
+    ok(gm.post("/api/gm/items/dossier", json={"name": "Мистер Джонсон", "type": "person", "role": "прежняя роль", "vis": "стол", "gm_note": "прежняя заметка"}))
+    ctx, page, problems = make_page(browser, live_url)
+    try:
+        paste_and_check(page, chat_answer(good()))
+        page.wait_for_selector("#panel .arc-row", timeout=10000)
+        assert page.locator("#panel .arc-row.merge").count() == 1 and page.locator("#panel .arc-row.add").count() == 10
+        row = page.inner_text("#panel .arc-row.merge")
+        assert "дополнится" in row and "Мистер Джонсон" in row and "остальное в карточке не меняется" in row
+        assert "Добавится: 10. Дополнится: 1." in page.inner_text("#panel") and "можно вернуть в «Истории изменений»" in page.inner_text("#panel")
+        assert page.inner_text('#panel [data-act="arc-go"]') == "Добавить 10 и дополнить 1"
+        page.click('#panel [data-act="arc-go"]')
+        page.wait_for_selector("#panel >> text=Разбор арки загружен", timeout=10000)
+        done = page.inner_text("#panel")
+        assert "Добавлено: 10, дополнено: 1" in done and "дополнено" in page.inner_text("#panel .arc-row.merge")
+    finally:
+        ctx.close()
+    assert not problems
+    card = next(c for c in ok(gm.get("/api/state"))["dossier"] if c["name"] == "Мистер Джонсон")
+    assert card["role"] == "прежняя роль" and card["vis"] == "стол" and card["gm_note"].startswith("прежняя заметка\n\n— Из разбора арки —")
+    assert "СЕКРЕТ" not in rig.get("/api/state").text

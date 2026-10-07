@@ -53,23 +53,24 @@ test("все разделы, которые читает портал, пере�
 });
 
 const REPORT = {
-  add: 3, skip: 1, error: 1,
-  counts: { windows: { add: 0, skip: 0, error: 0 }, plan: { add: 2, skip: 0, error: 1 }, clocks: { add: 0, skip: 0, error: 0 }, rhythm: { add: 0, skip: 0, error: 0 },
-            entries: { add: 0, skip: 0, error: 0 }, past: { add: 0, skip: 0, error: 0 }, dossier: { add: 1, skip: 1, error: 0 }, places: { add: 0, skip: 0, error: 0 },
-            handouts: { add: 0, skip: 0, error: 0 } },
+  add: 3, merge: 1, skip: 1, error: 1,
+  counts: { windows: { add: 0, merge: 0, skip: 0, error: 0 }, plan: { add: 2, merge: 0, skip: 0, error: 1 }, clocks: { add: 0, merge: 0, skip: 0, error: 0 },
+            rhythm: { add: 0, merge: 0, skip: 0, error: 0 }, entries: { add: 0, merge: 0, skip: 0, error: 0 }, past: { add: 0, merge: 0, skip: 0, error: 0 },
+            dossier: { add: 1, merge: 1, skip: 1, error: 0 }, places: { add: 0, merge: 0, skip: 0, error: 0 }, handouts: { add: 0, merge: 0, skip: 0, error: 0 } },
   items: [
     { kind: "plan", n: 1, title: "Груз <b>", status: "add", msg: "" },
     { kind: "plan", n: 2, title: "Погоня", status: "add", msg: "место «Склад» не найдено" },
     { kind: "plan", n: 3, title: "Вне календаря", status: "error", msg: "Дата: вне календаря кампании." },
     { kind: "dossier", n: 1, title: "Лу", status: "add", msg: "" },
     { kind: "dossier", n: 2, title: "Джонсон", status: "skip", msg: "карточка уже есть" },
+    { kind: "dossier", n: 3, title: "Хансен", status: "merge", msg: "дополнится: сведений 3" },
   ],
   questions: ["Дата верна? <script>"],
 };
 
 test("итоговая строка: что добавится, что уже есть, что не пройдёт", () => {
-  assert.equal(arcs.arcSummaryLine(REPORT), "Добавится: 3. Уже есть: 1. Не пройдёт проверку: 1.");
-  assert.equal(arcs.arcSummaryLine(REPORT, true), "Добавлено: 3. Уже было: 1. Не добавлено: 1.");
+  assert.equal(arcs.arcSummaryLine(REPORT), "Добавится: 3. Дополнится: 1. Уже есть: 1. Не пройдёт проверку: 1.");
+  assert.equal(arcs.arcSummaryLine(REPORT, true), "Добавлено: 3. Дополнено: 1. Уже было: 1. Не добавлено: 1.");
   assert.equal(arcs.arcSummaryLine({ add: 4, skip: 0, error: 0 }), "Добавится: 4.");
 });
 
@@ -80,13 +81,16 @@ test("разбивка по разделам идёт в порядке пром
 
 test("отчёт: разделы, статусы, кнопка с числом, всё из ответа выведено буквами", () => {
   const html = arcs.arcReportHTML(REPORT, false);
-  assert.match(html, /Добавить: 3/);
+  assert.match(html, /Добавить 3 и дополнить 1/);
   assert.match(html, /data-act="arc-go"/);
   assert.match(html, /data-act="arc-back"/);
   assert.ok(html.indexOf("План мастера") < html.indexOf("Досье"));
   assert.match(html, /arc-row add/);
   assert.match(html, /arc-row error/);
   assert.match(html, /arc-row skip/);
+  assert.match(html, /arc-row merge/);
+  assert.match(html, /дополнится/);
+  assert.match(html, /Карточки досье и места, которые уже есть, не заменяются, а дополняются/);
   assert.match(html, /не пройдёт/);
   assert.doesNotMatch(html, /<b>Груз <b>/);                                           // чужая разметка не ломает страницу
   assert.match(html, /Груз &lt;b&gt;/);
@@ -94,8 +98,15 @@ test("отчёт: разделы, статусы, кнопка с числом, 
   assert.match(html, /Дата верна\? &lt;script&gt;/);
 });
 
+test("подпись кнопки говорит, что именно она сделает", () => {
+  assert.equal(arcs.arcGoLabel({ add: 5, merge: 0 }), "Добавить: 5");
+  assert.equal(arcs.arcGoLabel({ add: 0, merge: 2 }), "Дополнить: 2");
+  assert.equal(arcs.arcGoLabel({ add: 5, merge: 2 }), "Добавить 5 и дополнить 2");
+  assert.match(arcs.arcReportHTML({ ...REPORT, add: 0 }, false), /Дополнить: 1/);                    // только дополнения: кнопка есть
+});
+
 test("отчёт без того, что можно добавить, не даёт нажать «Добавить»", () => {
-  const html = arcs.arcReportHTML({ ...REPORT, add: 0, counts: {}, items: [REPORT.items[2]] }, false);
+  const html = arcs.arcReportHTML({ ...REPORT, add: 0, merge: 0, counts: {}, items: [REPORT.items[2]] }, false);
   assert.doesNotMatch(html, /data-act="arc-go"/);
   assert.match(html, /Добавлять нечего/);
 });

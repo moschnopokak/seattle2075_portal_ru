@@ -1,4 +1,5 @@
 e3b0c44298fc1c14  app/__init__.py
+0af979144c0ba1a9  app/arcs.py
 2c35ff0939f7310c  app/arcs.py
 e20e9feede360352  app/audit.py
 03d7a264d75e7bb0  app/auth.py
@@ -138,6 +139,7 @@ d27f0fbcb6b6f034  static/js/app.js
 d43a25e9ef115e1f  static/js/app.js
 d564751879f37696  static/js/app.js
 e03563f3d213174e  static/js/app.js
+42ee6e61af67c144  static/js/arcs.js
 e2030a532ff35110  static/js/arcs.js
 5bae8e9fdd007ff2  static/js/boot.js
 b45cb44d1229fcdd  static/js/boot.js
@@ -184,6 +186,7 @@ be5ce0298bf84ebe  static/js/recap.js
 2a3c976fdce7e25f  static/style.css
 2f2bf46ae560499a  static/style.css
 41bbd42a571752e4  static/style.css
+46048c807d33153f  static/style.css
 4a28769ffd2fdad5  static/style.css
 5fc49451debfcff7  static/style.css
 6b5611f600f6824e  static/style.css

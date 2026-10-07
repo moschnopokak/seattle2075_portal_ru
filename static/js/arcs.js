@@ -4,8 +4,8 @@
    Чистые функции (поиск данных в тексте, строки отчёта) проверяют автотесты в Node. */
 const ARC_KEYS=['windows','plan','clocks','rhythm','entries','past','dossier','places','handouts'];
 const ARC_LABELS=[['windows','Этапы'],['plan','План мастера'],['clocks','Скрытые таймеры'],['rhythm','Регулярные события'],['entries','Записи календаря'],['past','Хроника'],['dossier','Досье'],['places','Места'],['handouts','Раздатки']];
-const ARC_STATUS={add:'добавится',skip:'уже есть',error:'не пройдёт'};
-const ARC_STATUS_DONE={add:'добавлено',skip:'уже было',error:'не добавлено'};
+const ARC_STATUS={add:'добавится',merge:'дополнится',skip:'уже есть',error:'не пройдёт'};
+const ARC_STATUS_DONE={add:'добавлено',merge:'дополнено',skip:'уже было',error:'не добавлено'};
 
 function arcParse(s){
   try{const d=JSON.parse(s);return d&&typeof d==='object'&&!Array.isArray(d)?d:null;}catch(e){return null;}
@@ -24,12 +24,18 @@ function arcExtract(text){
     ?'Нашёл в тексте данные, но прочитать их не получилось. Скопируйте ответ чата целиком, вместе с блоком json: в нём не должно быть пропущенных кавычек и запятых.'
     :'Не нашёл в тексте блок json. Вставьте ответ чата целиком.'};
 }
-/* Одна строка итога: «Добавится: 11. Уже есть: 2. Не пройдёт проверку: 1.» (done: время прошедшее) */
+/* Одна строка итога: «Добавится: 11. Дополнится: 2. Уже есть: 1. Не пройдёт проверку: 1.» (done: время прошедшее) */
 function arcSummaryLine(rep,done){
   const parts=[`${done?'Добавлено':'Добавится'}: ${rep.add}`];
+  if(rep.merge)parts.push(`${done?'Дополнено':'Дополнится'}: ${rep.merge}`);
   if(rep.skip)parts.push(`${done?'Уже было':'Уже есть'}: ${rep.skip}`);
   if(rep.error)parts.push(`${done?'Не добавлено':'Не пройдёт проверку'}: ${rep.error}`);
   return parts.join('. ')+'.';
+}
+/* Подпись кнопки записи: что именно она сделает. */
+function arcGoLabel(rep){
+  if(rep.add&&rep.merge)return `Добавить ${rep.add} и дополнить ${rep.merge}`;
+  return rep.add?`Добавить: ${rep.add}`:`Дополнить: ${rep.merge}`;
 }
 /* Сколько чего добавится по разделам: «План мастера 2, Досье 1». */
 function arcBreakdown(rep){
@@ -45,17 +51,17 @@ function arcReportHTML(rep,done,msg){
   const qs=rep.questions&&rep.questions.length?`<h3 class="arc-h">Вопросы из разбора</h3><ol class="arc-q">${rep.questions.map(q=>`<li>${esc(q)}</li>`).join('')}</ol>`:'';
   const acts=done
     ?`<div class="dl-acts"><button type="button" class="btn primary" data-act="close">Готово</button></div>`
-    :`<div class="dl-acts">${rep.add?`<button type="button" class="btn primary" data-act="arc-go">Добавить: ${rep.add}</button>`:'<button type="button" class="btn primary" disabled>Добавлять нечего</button>'}<button type="button" class="btn" data-act="arc-back">Другой текст</button><button type="button" class="btn" data-act="close">Закрыть</button></div>`;
+    :`<div class="dl-acts">${rep.add||rep.merge?`<button type="button" class="btn primary" data-act="arc-go">${arcGoLabel(rep)}</button>`:'<button type="button" class="btn primary" disabled>Добавлять нечего</button>'}<button type="button" class="btn" data-act="arc-back">Другой текст</button><button type="button" class="btn" data-act="close">Закрыть</button></div>`;
   const note=done
     ?'Игрокам ничего не отправлено. Места стоят рядом с центром района: перетащите их кнопкой «Переместить» в карточке места.'
-    :'Пока ничего не записано. Что не пройдёт проверку, добавлено не будет, остальное добавится. Игрокам при загрузке ничего не отправляется.';
+    :'Пока ничего не записано. Что не пройдёт проверку, добавлено не будет, остальное добавится. Карточки досье и места, которые уже есть, не заменяются, а дополняются: новые сведения и заметка мастера дописываются, остальное не меняется, и это можно вернуть в «Истории изменений». Игрокам при загрузке ничего не отправляется.';
   return `<p class="kind">Панель мастера</p><h2>${done?'Разбор арки загружен':'Загрузить разбор арки'}</h2>
   <p><b>${esc(msg||arcSummaryLine(rep,done))}</b>${arcBreakdown(rep)?`<br><span class="muted small">${esc(arcBreakdown(rep))}</span>`:''}</p><p class="note">${note}</p>${groups}${qs}${acts}`;
 }
 
 /* Для автотестов в Node: в браузере переменной module нет. */
 if(typeof module!=='undefined'&&module.exports){
-  module.exports={ARC_KEYS,arcExtract,arcSummaryLine,arcBreakdown,arcReportHTML};
+  module.exports={ARC_KEYS,arcExtract,arcSummaryLine,arcGoLabel,arcBreakdown,arcReportHTML};
 }
 
 /* ----- окно (только в браузере) ----- */
