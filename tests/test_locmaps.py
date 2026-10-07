@@ -256,8 +256,8 @@ def test_players_see_only_open_marks_and_only_what_is_meant_for_them(gm, rig, wo
     d = detail(rig, world)
     assert [o["name"] for o in d["objects"]] == ["Открытая"]
     o = d["objects"][0]
-    assert set(o) == {"id", "key", "name", "kind", "status", "note", "at", "play", "by", "date"} and o["at"] == {"player": [100, 100]}
-    assert o["play"] is False and "gm_note" not in o and "vis" not in o and "known" not in o
+    assert set(o) == {"id", "key", "name", "kind", "status", "note", "at", "play", "by", "date", "links"} and o["at"] == {"player": [100, 100]}
+    assert o["play"] is False and o["links"] == [] and not {"gm_note", "vis", "known", "count", "fx", "fx_on"} & set(o)
     assert SECRET not in json.dumps(d, ensure_ascii=False) and SECRET not in rig.get("/api/state").text
     g = detail(gm, world)
     assert [o["name"] for o in g["objects"]] == ["Открытая", "Скрытая"] and g["objects"][0]["gm_note"] == f"{SECRET}-метка" and g["objects"][0]["at"]["gm"] == [200, 200]
@@ -542,9 +542,11 @@ def test_the_example_from_the_map_prompt_loads_without_a_single_complaint(gm, sa
     ok(upload(gm, mid, "player", big))
     ok(upload(gm, mid, "gm", big))
     rep = ok(gm.post(f"/api/gm/locmaps/{mid}/import", json=example))["report"]
-    assert (rep["add"], rep["error"], rep["skip"]) == (3, 0, 0)
+    assert (rep["add"], rep["error"], rep["skip"], rep["d_add"]) == (3, 0, 0, 3)
     again = ok(gm.post(f"/api/gm/locmaps/{mid}/import", json=example))["report"]
-    assert (again["add"], again["skip"], again["error"]) == (0, 3, 0)               # повторная загрузка ничего не меняет
+    assert (again["add"], again["skip"], again["error"], again["d_add"], again["d_skip"]) == (0, 3, 0, 0, 3)               # повторная загрузка ничего не меняет
+    d = detail(gm, mid)
+    assert d["counter"] == "Фон" and [x["title"] for x in d["deadlines"]][0] == "Полнолуние: фон +1 везде" and len(d["deadlines"]) == 3
     objs = {o["key"]: o for o in detail(gm, mid)["objects"]}
     assert all(o["vis"] == "мастер" for o in objs.values())                            # всё приходит скрытым
     assert objs["О1"]["at"] == {"player": [842, 1010], "gm": [842, 1010]} and objs["Тайник"]["at"] == {"gm": [1190, 480]}
@@ -556,7 +558,10 @@ def test_map_prompt_names_the_same_kinds_and_limits_as_the_portal():
         assert f'`"{kind}"`' in text, kind
     for word in (str(locmaps.MAX_OBJECTS), "3 МБ", "100 000", "viewBox", "Метки из JSON", "«Локации»"):
         assert word in text, word
-    assert {k for o in example["objects"] for k in o} <= {"key", "name", "kind", "note", "gm_note", "at", "shape", "play"}
+    assert {k for o in example["objects"] for k in o} <= {"key", "name", "kind", "note", "gm_note", "at", "shape", "play", "count", "fx"}
+    assert set(example) == {"counter", "objects", "deadlines"} and {k for d in example["deadlines"] for k in d} <= {"date", "title", "obj", "vis", "known", "status", "reveal", "delta", "note"}
+    for word in ("`deadlines`", "`counter`", "`fx`", "`count`", "`reveal`", str(locmaps.MAX_DEADLINES)):
+        assert word in text, word
     assert any("shape" in o for o in example["objects"]) and "`shape`" in text and "`play`" in text and str(locmaps.MAX_SHAPE) in text
     for tag in ("mask", "foreignObject", "script", "image"):
         assert tag not in locmaps.ALLOWED_TAGS

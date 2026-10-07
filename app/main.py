@@ -390,10 +390,59 @@ def delete_locmap_object(map_id: str, obj_id: str, request: Request):
 
 @app.post("/api/gm/locmaps/{map_id}/import")
 def import_locmap_objects(map_id: str, request: Request, data: dict = Body(...)):
-    """Метки пачкой из JSON (по короткой подписи: обновляются, новые скрыты от игроков, если мастер не выбрал открыть их сразу)."""
+    """Метки и сроки пачкой из JSON (по короткой подписи: обновляются, новые скрыты от игроков, если мастер не выбрал открыть их сразу)."""
     v = _gm_only(request)
-    report = locmaps.import_objects(v, map_id, data.get("objects"), open_new=data.get("open") is True)
+    report = locmaps.import_objects(v, map_id, data.get("objects"), open_new=data.get("open") is True, deadlines=data.get("deadlines"), counter=data.get("counter"))
     return {"report": report, "state": logic.state_for(v)}
+
+
+@app.post("/api/gm/locmaps/{map_id}/deadlines")
+def save_locmap_deadline(map_id: str, request: Request, data: dict = Body(...)):
+    v = _gm_only(request)
+    msg, deadline = locmaps.save_deadline(v, map_id, data)
+    return {"msg": msg, "deadline": deadline, "state": logic.state_for(v)}
+
+
+@app.post("/api/gm/locmaps/{map_id}/deadlines/{deadline_id}/delete")
+def delete_locmap_deadline(map_id: str, deadline_id: str, request: Request):
+    v = _gm_only(request)
+    return _answer(v, locmaps.delete_deadline(v, map_id, deadline_id))
+
+
+@app.post("/api/gm/locmaps/{map_id}/deadlines/{deadline_id}/apply")
+def apply_locmap_deadline(map_id: str, deadline_id: str, request: Request, data: dict = Body(default={})):
+    v = _gm_only(request)
+    return _answer(v, locmaps.apply_deadline(v, map_id, deadline_id, apply=data.get("apply") is not False))
+
+
+@app.post("/api/gm/locmaps/{map_id}/counter")
+def bump_locmap_counter(map_id: str, request: Request, data: dict = Body(...)):
+    v = _gm_only(request)
+    return _answer(v, locmaps.bump_counter(v, map_id, data.get("delta")))
+
+
+@app.post("/api/gm/locmaps/{map_id}/log/{log_id}/undo")
+def undo_locmap_action(map_id: str, log_id: int, request: Request):
+    v = _gm_only(request)
+    return _answer(v, locmaps.undo(v, map_id, log_id))
+
+
+@app.post("/api/gm/locmaps/{map_id}/pins/{pin_id}/answer")
+def answer_locmap_pin(map_id: str, pin_id: int, request: Request, data: dict = Body(...)):
+    v = _gm_only(request)
+    return _answer(v, locmaps.answer_pin(v, map_id, pin_id, data.get("text"), data.get("notify") is True))
+
+
+@app.post("/api/locmaps/{map_id}/party")
+def set_locmap_party(map_id: str, request: Request, data: dict = Body(...)):
+    v = viewer(request)
+    return _answer(v, locmaps.set_party(v, map_id, data.get("x"), data.get("y")))
+
+
+@app.post("/api/locmaps/{map_id}/party/clear")
+def clear_locmap_party(map_id: str, request: Request):
+    v = viewer(request)
+    return _answer(v, locmaps.clear_party(v, map_id))
 
 
 @app.post("/api/gm/locmaps/{map_id}/feed")
@@ -419,7 +468,7 @@ def mark_locmap_object(map_id: str, obj_id: str, request: Request, data: dict = 
 @app.post("/api/locmaps/{map_id}/pins")
 def add_locmap_pin(map_id: str, request: Request, data: dict = Body(...)):
     v = viewer(request)
-    return _answer(v, locmaps.add_pin(v, map_id, data.get("text"), data.get("x"), data.get("y"), data.get("char")))
+    return _answer(v, locmaps.add_pin(v, map_id, data.get("text"), data.get("x"), data.get("y"), data.get("char"), data.get("kind", "note")))
 
 
 @app.post("/api/locmaps/{map_id}/pins/{pin_id}/delete")

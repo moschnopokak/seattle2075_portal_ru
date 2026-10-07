@@ -338,17 +338,22 @@ def locmap_visible(m, v):
 
 def locmaps_for(v):
     """Карты локаций для списка: название, описание, место на городской карте, какие рисунки есть. Метки, рисунки и заметки мастера
-    отдельным запросом (api/locmaps/<номер>), игроку без заметок мастера и без рисунка мастера."""
+    отдельным запросом (api/locmaps/<номер>), игроку без заметок мастера и без рисунка мастера. Для значка «новое»: игроку номера свежих
+    записей ленты, мастеру число наступивших сроков и неотвеченных вопросов."""
+    from . import locmaps
     visible_places = {p["id"] for p in places_for(v)}
+    maps = [m for m in db.items("locmaps") if locmap_visible(m, v)]
+    info = locmaps.badge_info(v, maps)
     out = []
-    for m in db.items("locmaps"):
-        if not locmap_visible(m, v):
-            continue
+    for m in maps:
         dw = m.get("dw", {})
         card = {"id": m["id"], "name": m["name"], "note": m.get("note", ""), "place": m.get("place", "") if v.gm or m.get("place") in visible_places else "",
                 "dw": dw if v.gm else {k: x for k, x in dw.items() if k == "player"}}
         if v.gm:
-            card.update(vis=m.get("vis", "мастер"), known=m.get("known", []), gm_note=m.get("gm_note", ""), count=len(m.get("objects", [])))
+            card.update(vis=m.get("vis", "мастер"), known=m.get("known", []), gm_note=m.get("gm_note", ""), count=len(m.get("objects", [])),
+                        counter=m.get("counter", ""), due=info[m["id"]]["due"], open_q=info[m["id"]]["open_q"])
+        else:
+            card["fresh"] = info[m["id"]]["fresh"]
         out.append(card)
     return out
 
@@ -892,6 +897,9 @@ def gm_time(v, b):
             audit.record(v, "time", "time", "", "Время в игре", before=before, after=after)
         db.bump()
     notify.pin_status(status_text())
+    if after["date"] != before["date"]:
+        from . import locmaps
+        locmaps.notify_due(before["date"], after["date"])
     return "Сохранено"
 
 
@@ -1141,7 +1149,8 @@ def _normalize(kind, b):
         if place and not any(p["id"] == place for p in db.items("places")):
             bad("Место на городской карте не найдено.")
         return {"name": _title(b, "name", 80, "Укажите название карты."), "note": clean(b.get("note"), 2000, True),
-                "gm_note": clean(b.get("gm_note"), 4000, True), "vis": vis, "known": known if vis == "знают" else [], "place": place}
+                "gm_note": clean(b.get("gm_note"), 4000, True), "vis": vis, "known": known if vis == "знают" else [], "place": place,
+                "counter": clean(b.get("counter"), 30)}
     if kind == "places":
         x, y = to_int(b.get("x"), "Не указано место на карте."), to_int(b.get("y"), "Не указано место на карте.")
         mw, mh = map_size()
@@ -1247,8 +1256,8 @@ def save_item(v, kind, b):
         if kind == "past" and old and old.get("plan_id"):
             item["plan_id"] = old["plan_id"]
         if kind == "locmaps":                          # метки и сведения о рисунках правятся отдельно, форма карты их не трогает
-            item["objects"] = (old or {}).get("objects", [])
-            item["dw"] = (old or {}).get("dw", {})
+            for k, empty in MAP_KEPT.items():
+                item[k] = (old or {}).get(k, empty() if callable(empty) else empty)
         if kind == "windows":
             for w in items:
                 if w is not old and not (item["to"] < w["from"] or item["from"] > w["to"]):
@@ -1275,10 +1284,13 @@ def save_item(v, kind, b):
     return "Сохранено" if old else "Добавлено"
 
 
+MAP_KEPT = {"objects": list, "dw": dict, "deadlines": list, "party": dict}      # что у карты локации правится отдельно от формы карты
+
+
 def _audit_view(kind, item):
     """Что попадает в журнал: у карты локации без меток (их может быть сотни, а правится в журнале только описание карты)."""
     if kind == "locmaps" and item:
-        return {k: x for k, x in item.items() if k not in ("objects", "dw")}
+        return {k: x for k, x in item.items() if k not in MAP_KEPT}
     return item
 
 
@@ -1437,7 +1449,7 @@ def revert_change(v, audit_id):
             if not current:
                 bad("Эта запись удалена: сначала восстановите её из корзины.", 409)
             restored = dict(before)
-            for k in ("img", "file", "size", "fname", "uploaded", "plan_id", "objects", "dw"):     # ссылки на файлы и метки не откатываются
+            for k in ("img", "file", "size", "fname", "uploaded", "plan_id", *MAP_KEPT):     # ссылки на файлы и метки не откатываются
                 if k in current:
                     restored[k] = current[k]
                 else:

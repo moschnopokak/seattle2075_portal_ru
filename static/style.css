@@ -702,3 +702,33 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
   .lm .seg button+button{border-left:1px solid var(--line)}
   .lm-map{height:min(62vh,520px)}
 }
+
+/* ===== Карты: то, что помогает на игре ===== */
+.lm-info{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center;margin:2px 0 8px;font-size:15px}
+.lm-info:empty{display:none}
+.lm-prog-line{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lm-prog{width:140px;height:10px;accent-color:var(--grow)}
+.lm-party-line b{font-weight:600}
+.lm-party span{position:absolute;left:0;top:-38px;transform:translateX(-50%);white-space:nowrap;padding:3px 10px;border-radius:13px;font:700 13px/1.2 var(--sans);background:var(--ink);color:var(--bg);box-shadow:0 2px 6px var(--shade)}
+.lm-party span::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0;border-top-color:var(--ink)}
+.lm-cnt{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:9px;background:var(--ink);color:var(--bg);font-size:11px}
+.lm-pin span{gap:0}
+.lm-note.lm-n-danger span{background:color-mix(in srgb,var(--vow) 22%,var(--raise));border-color:var(--vow)}
+.lm-note.lm-n-find span{background:color-mix(in srgb,var(--grow) 20%,var(--raise));border-color:var(--grow)}
+.lm-note.lm-n-question span{background:color-mix(in srgb,var(--deal) 22%,var(--raise));border-color:var(--deal)}
+.lm-pk-danger{border-left:3px solid var(--vow);padding-left:8px}
+.lm-pk-find{border-left:3px solid var(--grow);padding-left:8px}
+.lm-pk-question{border-left:3px solid var(--deal);padding-left:8px}
+.lm-answer{margin:4px 0 6px;padding:6px 10px;border-radius:4px;background:var(--raise);border:1px solid var(--line)}
+.lm-dl{padding:9px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.lm-dl.lm-done{opacity:.6}
+.lm-dl.lm-late{border-left:3px solid var(--sodium);padding-left:8px}
+.lm-dlacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.lm-dlbar{margin:0 0 8px}
+.lm-feed.lm-done{opacity:.6}
+.lm-counter{margin:12px 0 4px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.lm-cval{min-width:2.2em;text-align:center;font-size:18px}
+.lm-bump{display:inline-flex;align-items:center;gap:6px}
+.lm-entries{margin:6px 0 10px;font-size:15px}
+.lm-entries summary{cursor:pointer;color:var(--muted)}
+.lm-export{display:block;max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px;margin:8px 0}

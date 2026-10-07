@@ -48,9 +48,10 @@ function lmMapsFor(maps,preview,chars){
 function lmPlayerView(data,chars,horizon){
   const sees=x=>x.vis==='стол'||(x.vis==='знают'&&(x.known||[]).some(c=>(chars||[]).includes(c)));
   return Object.assign({},data,{
-    objects:(data.objects||[]).filter(sees).map(o=>({id:o.id,key:o.key,name:o.name,kind:o.kind,status:o.status,note:o.note,play:o.play===true,by:o.by||'',date:o.date||'',at:o.at&&o.at.player?{player:o.at.player}:{},shape:o.shape&&o.shape.player?{player:o.shape.player}:{}})),
+    objects:(data.objects||[]).filter(sees).map(o=>({id:o.id,key:o.key,name:o.name,kind:o.kind,status:o.status,note:o.note,play:o.play===true,by:o.by||'',date:o.date||'',links:o.links||[],at:o.at&&o.at.player?{player:o.at.player}:{},shape:o.shape&&o.shape.player?{player:o.shape.player}:{}})),
+    deadlines:(data.deadlines||[]).filter(d=>d.vis!=='мастер'&&sees(d)&&!(horizon&&d.date>horizon)).map(d=>({id:d.id,date:d.date,title:d.title,obj:(data.objects||[]).some(o=>o.id===d.obj&&sees(o))?d.obj:'',done:d.done})),
     feed:(data.feed||[]).filter(f=>(!f.vis||sees(f))&&!(horizon&&f.date>horizon)).map(f=>({id:f.id,ts:f.ts,date:f.date,obj:f.obj,text:f.text})),
-    dw:data.dw&&data.dw.player?{player:data.dw.player}:{},gm_note:undefined,vis:undefined,known:undefined});
+    dw:data.dw&&data.dw.player?{player:data.dw.player}:{},gm_note:undefined,vis:undefined,known:undefined,log:undefined,counter:undefined});
 }
 /* Высота окна карты: по форме рисунка, но не выше доли экрана и не ниже минимума. */
 function lmHeight(width,size,vw,vh){
@@ -88,29 +89,40 @@ function rMaps(){
   }
   if(!LM.id||!list.some(m=>m.id===LM.id))LM.id=list[0].id;
   const cur=list.find(m=>m.id===LM.id);
-  const tools=lmGM()
-    ?`<button type="button" class="btn" data-act="lm-mode" data-v="mark" aria-pressed="${LM.mode==='mark'}">Поставить метку</button>`
-    :(!lmPreview()?`<button type="button" class="btn" data-act="lm-mode" data-v="pin" aria-pressed="${LM.mode==='pin'}">Добавить пометку</button>`:'');
   return `<div class="lm">${lmBarHTML(list)}
     ${list.length>1?`<h2 class="lm-title">${esc(cur.name)}</h2>`:''}${cur.note?`<p class="note lm-note-text">${esc(cur.note)}</p>`:''}
+    <div id="lm-info" class="lm-info">${lmInfoHTML(LM.data)}</div>
     <div id="lm-map" class="lm-map${LM.mode?' lm-adding':''}" role="application" aria-label="Карта: ${esc(cur.name)}"></div>
-    <div class="lm-tools">${tools}${lmModeTools()}</div>
-    <div class="seg lm-tabs" role="group" aria-label="Что показать">
-      <button type="button" data-act="lm-tab" data-v="marks" aria-pressed="${LM.tab==='marks'}">Метки</button>
-      <button type="button" data-act="lm-tab" data-v="feed" aria-pressed="${LM.tab==='feed'}">Что изменилось</button>
-      <button type="button" data-act="lm-tab" data-v="pins" aria-pressed="${LM.tab==='pins'}">Пометки группы</button></div>
+    <div class="lm-tools" id="lm-tools">${lmToolsHTML()}</div>
+    ${lmEntriesHTML()}
+    <div class="seg lm-tabs" role="group" aria-label="Что показать">${lmTabButtons(cur)}</div>
     <div id="lm-tab">${lmTabHTML()}</div></div>`;
 }
+/* Кнопки под картой: поставить метку или пометку, «Мы здесь», картинка карты, счётчик мастера. Данные карты приходят позже страницы, поэтому строка обновляется. */
+function lmToolsHTML(){
+  const main=lmGM()
+    ?`<button type="button" class="btn" data-act="lm-mode" data-v="mark" aria-pressed="${LM.mode==='mark'}">Поставить метку</button>`
+    :(!lmPreview()?`<button type="button" class="btn" data-act="lm-mode" data-v="pin" aria-pressed="${LM.mode==='pin'}">Добавить пометку</button>`:'');
+  return `${main}${lmPartyTools()}${lmModeTools()}<button type="button" class="btn small" data-act="lm-export">Картинка карты</button>${lmBumpTools()}`;
+}
+function lmToolsRefresh(){const n=document.getElementById('lm-tools');if(n)n.innerHTML=lmToolsHTML();}
 /* Что показать рядом с кнопками, пока мастер расставляет метку, переставляет её или рисует контур зоны. */
 function lmModeTools(){
   if(!LM.mode)return '';
   if(LM.mode==='shape')return `<span class="muted small lm-shapeinfo">${esc(lmShapeHint())}</span><button type="button" class="btn small primary" data-act="lm-shape-done" ${LM.pts.length<3?'disabled':''}>Готово</button><button type="button" class="btn small" data-act="lm-shape-undo" ${LM.pts.length?'':'disabled'}>Убрать точку</button><button type="button" class="btn small plain" data-act="lm-mode" data-v="">Отмена</button>`;
-  return `<span class="muted small">${LM.mode==='move'?'Щёлкните по карте: сюда встанет метка.':'Щёлкните по карте в нужной точке.'}</span><button type="button" class="btn small plain" data-act="lm-mode" data-v="">Отмена</button>`;
+  return `<span class="muted small">${LM.mode==='move'?'Щёлкните по карте: сюда встанет метка.':LM.mode==='party'?'Щёлкните по карте: здесь сейчас группа.':'Щёлкните по карте в нужной точке.'}</span><button type="button" class="btn small plain" data-act="lm-mode" data-v="">Отмена</button>`;
+}
+/* Вкладки под картой; у вкладки «Сроки» и «Пометки группы» мастер видит, сколько дел ждёт его. */
+function lmTabButtons(cur){
+  const gm=lmGM(),tabs=[['marks','Метки'],['feed','Что изменилось'],['pins','Пометки группы'+(gm&&cur.open_q?` (${cur.open_q})`:'')],['deadlines','Сроки'+(gm&&cur.due?` (${cur.due})`:'')]];
+  if(gm)tabs.push(['log','Журнал']);
+  return tabs.map(([k,t])=>`<button type="button" data-act="lm-tab" data-v="${k}" aria-pressed="${LM.tab===k}">${t}</button>`).join('');
 }
 function lmTabHTML(){
   const d=LM.data;
   if(!d||d.id!==LM.id||LM.as!==V)return '<p class="muted">Загружаю…</p>';
-  return LM.tab==='feed'?lmFeedHTML(d):LM.tab==='pins'?lmPinsHTML(d):lmMarksHTML(d);
+  if(LM.tab==='log'&&!lmGM())LM.tab='marks';
+  return LM.tab==='feed'?lmFeedHTML(d):LM.tab==='pins'?lmPinsHTML(d):LM.tab==='deadlines'?lmDeadlinesHTML(d):LM.tab==='log'?lmLogHTML(d):lmMarksHTML(d);
 }
 function lmMarksHTML(d){
   const gm=lmGM();
@@ -131,7 +143,12 @@ function lmFeedHTML(d){
 function lmPinsHTML(d){
   const me=!lmGM()&&!lmPreview();
   if(!d.pins.length)return `<p class="muted">Пометок пока нет.${me?' Нажмите «Добавить пометку» над картой и щёлкните по рисунку.':''}</p>`;
-  return d.pins.map(p=>`<div class="lm-feed"><b>${esc(CN[p.char]||'')}</b>: ${esc(p.text)} ${(lmGM()||(me&&S.me.chars.includes(p.char)))?`<button type="button" class="btn small plain" data-act="lm-pin-del" data-id="${p.id}">Убрать</button>`:''}</div>`).join('');
+  return d.pins.map(p=>{
+    const own=lmGM()||(me&&S.me.chars.includes(p.char)),kind=LM_PIN_KINDS[p.kind]?p.kind:'note';
+    return `<div class="lm-feed lm-pk-${kind}"><span class="muted small">${esc(LM_PIN_KINDS[kind])}</span> <b>${esc(CN[p.char]||'')}</b>: ${esc(LM_PIN_GLYPH[kind])}${esc(p.text)}
+      ${p.answer?`<div class="lm-answer"><b>Мастер:</b> ${esc(p.answer)}</div>`:(kind==='question'?'<div class="muted small">Мастер пока не ответил.</div>':'')}
+      ${lmGM()&&kind==='question'?`<button type="button" class="btn small" data-act="lm-answer" data-id="${p.id}">${p.answer?'Изменить ответ':'Ответить'}</button> `:''}${own?`<button type="button" class="btn small plain" data-act="lm-pin-del" data-id="${p.id}">Убрать</button>`:''}</div>`;
+  }).join('');
 }
 
 /* --- карта --- */
@@ -153,6 +170,7 @@ async function lmLoad(seq){
   LM.data=lmPreview()?lmPlayerView(j,viewChars(),hzPreview()):j;
   LM.ver=S.version;LM.as=V;                                                   // данные собраны для этого взгляда: при смене «Вида» загружаются заново
   const t=document.getElementById('lm-tab');if(t)t.innerHTML=lmTabHTML();
+  lmInfoRefresh();lmToolsRefresh();lmMarkSeen(id);
 }
 function lmDraw(){
   const el=document.getElementById('lm-map'),d=LM.data;
@@ -189,15 +207,18 @@ function lmMarkers(){
   }
   for(const o of LM.data.objects){
     const at=lmLabelAt(o,role);if(!at)continue;
-    const m=L.marker(lmLL(at[0],at[1]),{title:o.name,keyboard:true,riseOnHover:true,icon:L.divIcon({className:lmPinClass(o,gm)+(lmShape(o,role)?' lm-zlabel':''),html:`<span>${esc(lmLabel(o))}</span>`,iconSize:[0,0]})});
+    const cnt=gm&&o.count!==null&&o.count!==undefined?`<b class="lm-cnt" title="${esc(lmCur().counter||'Счётчик')}">${o.count}</b>`:'';
+    const m=L.marker(lmLL(at[0],at[1]),{title:o.name,keyboard:true,riseOnHover:true,icon:L.divIcon({className:lmPinClass(o,gm)+(lmShape(o,role)?' lm-zlabel':''),html:`<span>${esc(lmLabel(o))}${cnt}</span>`,iconSize:[0,0]})});
     m.on('click',e=>hit(e,()=>lmObject(o.id)));
     LM.group.addLayer(m);
   }
   if(role==='player')for(const p of LM.data.pins){
-    const m=L.marker(lmLL(p.x,p.y),{title:p.text,icon:L.divIcon({className:'lm-note',html:`<span>${esc(p.text)}</span>`,iconSize:[0,0]})});
+    const kind=LM_PIN_KINDS[p.kind]?p.kind:'note';
+    const m=L.marker(lmLL(p.x,p.y),{title:p.text,icon:L.divIcon({className:'lm-note lm-n-'+kind,html:`<span>${esc(LM_PIN_GLYPH[kind])}${esc(p.text)}</span>`,iconSize:[0,0]})});
     m.on('click',e=>hit(e,()=>lmPinCard(p.id)));
     LM.group.addLayer(m);
   }
+  lmPartyLayer();
   lmDraftDraw();
   lmSelect(LM.sel);
 }
@@ -229,6 +250,7 @@ async function lmClickAt(latlng){
   const x=Math.round(latlng.lng),y=Math.round(-latlng.lat);
   if(!size||x<0||y<0||x>size.w||y>size.h)return;
   if(LM.mode==='shape'){LM.pts.push([x,y]);lmDraftDraw();lmDraftInfo();return;}
+  if(LM.mode==='party'){LM.mode='';render(true);lmPartyPlace(x,y);return;}
   const mode=LM.mode,o=mode==='move'?lmFind(LM.moveId):null;
   LM.mode='';LM.moveId=null;render(true);
   if(mode==='mark')lmObjectForm(null,{role,x,y});
@@ -269,13 +291,15 @@ function lmObject(id){
   if(!gm&&o.play){
     h+=lmPlayBox(o);
   }
-  h+=lmHistory(o);
+  h+=lmLinksHTML(o)+lmHistory(o);
   if(gm){
+    h+=lmCounterHTML(o);
     h+=o.gm_note?`<h3 class="lm-h">Заметка мастера</h3><p class="lm-notebody">${esc(o.gm_note)}</p>`:'';
     h+=`<p class="muted small">${o.play?'Игроки могут отмечать состояние.':'Игроки не могут отмечать состояние.'} <button type="button" class="btn small plain" data-act="lm-play" data-id="${esc(o.id)}">${o.play?'Запретить':'Разрешить игрокам отмечать'}</button></p>
       <div class="seg lm-quick" role="group" aria-label="Состояние">${Object.entries(LM_STATUS).filter(([k])=>k).map(([k,t])=>`<button type="button" data-act="lm-status" data-id="${esc(o.id)}" data-v="${k}" aria-pressed="${o.status===k}">${t}</button>`).join('')}<button type="button" data-act="lm-status" data-id="${esc(o.id)}" data-v="" aria-pressed="${!o.status}">без отметки</button></div>
       <div class="dl-acts"><button type="button" class="btn primary" data-act="lm-obj-edit" data-id="${esc(o.id)}">Править</button>
       <button type="button" class="btn" data-act="lm-move" data-id="${esc(o.id)}">${lmAt(o,role)?'Переставить':'Поставить на этом рисунке'}</button>
+      <button type="button" class="btn" data-act="lm-links" data-id="${esc(o.id)}">Связи с досье</button>
       <button type="button" class="btn" data-act="lm-shape" data-id="${esc(o.id)}">${zone?'Перерисовать зону':'Нарисовать зону'}</button>${zone?`<button type="button" class="btn plain" data-act="lm-shape-del" data-id="${esc(o.id)}">Убрать зону</button>`:''}
       <button type="button" class="btn" data-act="lm-obj-show" data-id="${esc(o.id)}">${o.vis==='мастер'?'Показать игрокам':'Скрыть от игроков'}</button>
       <button type="button" class="btn plain" data-act="lm-obj-del" data-id="${esc(o.id)}">Удалить</button></div>`;
@@ -309,6 +333,8 @@ function lmObjectForm(id,pos){
     <label class="field">Заметка мастера<textarea name="gm_note" rows="3" maxlength="2000">${v(o&&o.gm_note)}</textarea><span class="sub">Игроки её не видят.</span></label>
     <p class="muted small">Положение: ${['player','gm'].map(r=>at(r)?`на ${roleName[r]} (${at(r)[0]}, ${at(r)[1]})`:`не стоит на ${roleName[r]}`).join('; ')}. Контур зоны: ${['player','gm'].map(r=>o&&lmShape(o,r)?`есть на ${roleName[r]}`:`нет на ${roleName[r]}`).join('; ')}. Переставить метку и нарисовать зону можно в её карточке.</p>
     <input type="hidden" name="at_player" value="${at('player')?at('player').join(','):''}"><input type="hidden" name="at_gm" value="${at('gm')?at('gm').join(','):''}">
+    <div class="lm-line"><label class="field">${esc(lmCur().counter||'Счётчик мастера')}<input type="number" name="count" min="-999" max="9999" value="${o&&o.count!==null&&o.count!==undefined?o.count:''}" placeholder="не задан"><span class="sub">Игроки его не видят.</span></label>
+    <label class="field">Когда зона расчищена, изменить<input name="fx" maxlength="120" value="${v(o&&lmFxText(o.fx))}" placeholder="этой −2; Сердце −1"><span class="sub">Чей счётчик и на сколько.</span></label></div>
     <label class="lm-ck"><input type="checkbox" name="play" ${o&&o.play?'checked':''}> игроки могут отмечать состояние (расчистили, опасно)</label>
     <label class="lm-ck"><input type="checkbox" name="announce" checked> записать в ленту, если метка открыта игрокам или изменила состояние</label>
     <label class="lm-ck"><input type="checkbox" name="notify"> написать об этом игрокам в Telegram</label>
@@ -325,6 +351,7 @@ function lmMapForm(id){
     <label class="field">Название<input name="name" maxlength="80" value="${v(m&&m.name)}"></label>
     <label class="field">Описание для игроков<textarea name="note" rows="3" maxlength="2000">${v(m&&m.note)}</textarea></label>
     <label class="field">Заметка мастера<textarea name="gm_note" rows="3" maxlength="4000">${v(m&&m.gm_note)}</textarea></label>
+    <label class="field">Счётчик мастера (необязательно)<input name="counter" maxlength="30" value="${v(m&&m.counter)}" placeholder="Например: Фон"><span class="sub">Число у каждой зоны, видно только вам: фон, тревога, время до стражи.</span></label>
     <fieldset class="vis"><legend>Кто видит карту</legend>${Object.entries({'мастер':'только мастер','стол':'все игроки','знают':'выбранные игроки'}).map(([k,t])=>`<label><input type="radio" name="vis" value="${k}" ${(m?m.vis:'мастер')===k?'checked':''}> ${t}</label>`).join('')}</fieldset>
     <div class="lm-chars" ${m&&m.vis==='знают'?'':'hidden'}>${CHARS.map(c=>`<label><input type="checkbox" name="known" value="${esc(c.id)}" ${m&&(m.known||[]).includes(c.id)?'checked':''}> ${esc(c.name)}</label>`).join('')}</div>
     <label class="field">Место на городской карте<select name="place"><option value="">не привязана</option>${(S.places||[]).map(p=>`<option value="${esc(p.id)}" ${m&&m.place===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select><span class="sub">У места появится кнопка «Открыть карту места».</span></label>
@@ -344,7 +371,7 @@ function lmFilesPanel(){
 function lmImportPanel(){
   if(!lmGM())return;
   curKey=null;
-  showPanel(`<p class="kind">Карта</p><h2>Метки из JSON</h2><p class="note">Вставьте список меток: <code>{"objects":[{"key":"О1","name":"Ворота","kind":"area","note":"…","gm_note":"…","at":{"player":[470,95],"gm":[420,205]}}]}</code>. Зона на карте задаётся контуром: <code>"shape":{"player":[[x,y],[x,y],[x,y]]}</code>, а <code>"play":true</code> разрешает игрокам отмечать её состояние. Метка с такой же подписью обновляется (видимость и состояние не меняются).</p>
+  showPanel(`<p class="kind">Карта</p><h2>Метки из JSON</h2><p class="note">Вставьте список меток: <code>{"objects":[{"key":"О1","name":"Ворота","kind":"area","note":"…","gm_note":"…","at":{"player":[470,95],"gm":[420,205]}}]}</code>. Зона на карте задаётся контуром: <code>"shape":{"player":[[x,y],[x,y],[x,y]]}</code>, а <code>"play":true</code> разрешает игрокам отмечать её состояние. Можно прислать и <code>"counter":"Фон"</code>, у меток <code>"count"</code> и <code>"fx"</code>, а также <code>"deadlines"</code> (срок: <code>date</code>, <code>title</code>, метка по подписи в <code>obj</code>). Метка с такой же подписью обновляется (видимость и состояние не меняются).</p>
     <form class="lm-form" data-lm="import" novalidate><label class="field"><span class="sr-only">JSON</span><textarea name="json" rows="10" maxlength="400000" placeholder='{"objects":[...]}'></textarea></label>
     <label class="lm-ck"><input type="checkbox" name="open"> открыть новые метки игрокам сразу (иначе они скрыты, и вы открываете их по одной)</label><p class="err" id="form-err" role="alert"></p>
     <div class="dl-acts"><button type="submit" class="btn primary">Загрузить</button><button type="button" class="btn" data-act="close">Закрыть</button></div></form>`);
@@ -352,7 +379,7 @@ function lmImportPanel(){
 function lmPinForm(x,y){
   curKey=null;
   showPanel(`<p class="kind">Карта</p><h2>Пометка группы</h2><p class="note">Короткая заметка на карте. Её увидят все игроки и мастер.</p>
-    <form class="lm-form" data-lm="pin" data-x="${x}" data-y="${y}" novalidate><label class="field"><span class="sr-only">Пометка</span><input name="text" maxlength="120" placeholder="Например: тропы врут"></label><p class="err" id="form-err" role="alert"></p>
+    <form class="lm-form" data-lm="pin" data-x="${x}" data-y="${y}" novalidate>${lmPinKindRadios()}<label class="field"><span class="sr-only">Пометка</span><input name="text" maxlength="120" placeholder="Например: тропы врут"></label><p class="err" id="form-err" role="alert"></p>
     <div class="dl-acts"><button type="submit" class="btn primary">Добавить</button><button type="button" class="btn" data-act="close">Отмена</button></div></form>`);
 }
 function lmPinCard(id){
@@ -372,6 +399,7 @@ async function lmPost(path,body,err){
 }
 async function lmAct(a,b){
   const id=b.dataset.id,v=b.dataset.v;
+  if(await lmPlayAct(a,b))return;
   if(a==='lm-open'){closePanel();LM.id=id;LM.data=null;LM.view=null;LM.mode='';UI.section='maps';render();window.scrollTo(0,0);return;}
   if(a==='lm-tab'){LM.tab=v;const t=document.getElementById('lm-tab');if(t)t.innerHTML=lmTabHTML();document.querySelectorAll('.lm-tabs [data-act]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.v===LM.tab)));return;}
   if(a==='lm-role'){LM.role=v;LM.view=null;render(true);return;}
@@ -407,17 +435,20 @@ const lmChecked=(f,name)=>[...f.querySelectorAll(`input[name="${name}"]:checked`
 const lmPoint=s=>{const p=String(s||'').split(',').map(Number);return p.length===2&&p.every(Number.isFinite)?p:null;};
 async function lmSubmit(f){
   const err=m=>{const n=f.querySelector('.err')||document.getElementById('form-err');if(n)n.textContent=m;};
+  if(await lmPlaySubmit(f))return;
   const kind=f.dataset.lm,val=n=>(f.elements.namedItem(n)||{}).value||'';
   if(kind==='obj'){
+    const fx=lmParseFx(val('fx'));
+    if(fx.error){err(fx.error);return;}
     const body={name:val('name'),key:val('key'),kind:val('kind'),status:val('status'),vis:lmChecked(f,'vis')[0]||'мастер',known:lmChecked(f,'known'),note:val('note'),gm_note:val('gm_note'),
-      at:{},play:f.elements.namedItem('play').checked,announce:f.elements.namedItem('announce').checked,notify:f.elements.namedItem('notify').checked};
+      at:{},fx:fx.fx,count:val('count')===''?null:+val('count'),play:f.elements.namedItem('play').checked,announce:f.elements.namedItem('announce').checked,notify:f.elements.namedItem('notify').checked};
     if(lmPoint(val('at_player')))body.at.player=lmPoint(val('at_player'));
     if(lmPoint(val('at_gm')))body.at.gm=lmPoint(val('at_gm'));
     if(f.dataset.id)body.id=f.dataset.id;
     const j=await lmPost(`/api/gm/locmaps/${LM.id}/objects`,body,err);
     if(j){closePanel();lmRefresh(j.msg);}
   }else if(kind==='map'){
-    const body={name:val('name'),note:val('note'),gm_note:val('gm_note'),vis:lmChecked(f,'vis')[0]||'мастер',known:lmChecked(f,'known'),place:val('place')};
+    const body={name:val('name'),note:val('note'),gm_note:val('gm_note'),vis:lmChecked(f,'vis')[0]||'мастер',known:lmChecked(f,'known'),place:val('place'),counter:val('counter')};
     if(f.dataset.id)body.id=f.dataset.id;
     const before=new Set((S.locmaps||[]).map(m=>m.id));
     const j=await lmPost('/api/gm/items/locmaps',body,err);
@@ -426,16 +457,17 @@ async function lmSubmit(f){
     const j=await lmPost(`/api/gm/locmaps/${LM.id}/feed`,{text:val('text'),vis:val('vis'),known:lmChecked(f,'known'),notify:f.elements.namedItem('notify').checked},err);
     if(j)lmRefresh(j.msg);
   }else if(kind==='pin'){
-    const j=await apiPost(`/api/locmaps/${LM.id}/pins`,{text:val('text'),x:+f.dataset.x,y:+f.dataset.y},err);
+    const j=await apiPost(`/api/locmaps/${LM.id}/pins`,{text:val('text'),x:+f.dataset.x,y:+f.dataset.y,kind:lmChecked(f,'kind')[0]||'note'},err);
     if(j){closePanel();LM.tab='pins';lmRefresh(j.msg);}
   }else if(kind==='import'){
     let data;try{data=JSON.parse(val('json'));}catch(e){err('Это не JSON: проверьте скобки и кавычки.');return;}
     const items=Array.isArray(data)?data:data&&data.objects;
-    const j=await lmPost(`/api/gm/locmaps/${LM.id}/import`,{objects:items,open:f.elements.namedItem('open').checked},err);
+    const j=await lmPost(`/api/gm/locmaps/${LM.id}/import`,{objects:items,deadlines:data&&data.deadlines,counter:data&&data.counter,open:f.elements.namedItem('open').checked},err);
     if(j){
       const r=j.report,bad=r.items.filter(i=>i.status==='error');
       lmRefresh();
-      showPanel(`<p class="kind">Карта</p><h2>Метки загружены</h2><p><b>Добавлено: ${r.add}. Обновлено: ${r.update}. Без изменений: ${r.skip}.${r.error?' Не прошло проверку: '+r.error+'.':''}</b></p>
+      const dl=r.d_add+r.d_update+r.d_skip?`<p>Сроки: добавлено ${r.d_add}, обновлено ${r.d_update}, без изменений ${r.d_skip}.</p>`:'';
+      showPanel(`<p class="kind">Карта</p><h2>Метки загружены</h2><p><b>Добавлено: ${r.add}. Обновлено: ${r.update}. Без изменений: ${r.skip}.${r.error?' Не прошло проверку: '+r.error+'.':''}</b></p>${dl}
         ${bad.map(i=>`<div class="lm-feed"><b>${esc(i.title)}</b>: ${esc(i.msg)}</div>`).join('')}<div class="dl-acts"><button type="button" class="btn primary" data-act="close">Готово</button></div>`);
     }
   }

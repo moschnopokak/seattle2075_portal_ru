@@ -98,7 +98,7 @@ const SECTIONS=[
 /* Метка с числом на вкладке: новые раздатки; у мастера просьбы о пересказе; у игрока готовые ответы на его просьбы. */
 function navBadge(id){
   const manual=S.recap_mode==='gm';
-  const n=id==='handouts'?unseenHandouts():id==='gm'&&manual&&V==='gm'?S.recap_open:id==='chron'&&manual&&!S.me.gm?S.recap_ready:0;
+  const n=id==='handouts'?unseenHandouts():id==='gm'&&manual&&V==='gm'?S.recap_open:id==='chron'&&manual&&!S.me.gm?S.recap_ready:id==='maps'?lmBadge():0;
   return n>0?`<b class="nav-badge" aria-label="новых: ${n}">${n}</b>`:'';
 }
 function renderTop(){

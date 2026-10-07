@@ -138,6 +138,21 @@ def _m9_locmaps(c):
     c.execute("CREATE INDEX IF NOT EXISTS locmap_pins_map ON locmap_pins(map_id)")
 
 
+def _m10_locmap_play(c):
+    """Карты локаций: тип пометки группы и ответ мастера на вопрос, журнал карты для отмены."""
+    cols = {r[1] for r in c.execute("PRAGMA table_info(locmap_pins)")}
+    if "kind" not in cols:
+        c.execute("ALTER TABLE locmap_pins ADD COLUMN kind TEXT NOT NULL DEFAULT 'note'")
+    if "answer" not in cols:
+        c.execute("ALTER TABLE locmap_pins ADD COLUMN answer TEXT NOT NULL DEFAULT ''")
+    if "answered" not in cols:
+        c.execute("ALTER TABLE locmap_pins ADD COLUMN answered REAL")
+    c.execute("""CREATE TABLE IF NOT EXISTS locmap_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, map_id TEXT NOT NULL, ts REAL NOT NULL, gdate TEXT NOT NULL, who TEXT NOT NULL, kind TEXT NOT NULL,
+        obj TEXT NOT NULL DEFAULT '', text TEXT NOT NULL, prev TEXT NOT NULL DEFAULT '{}', undone INTEGER NOT NULL DEFAULT 0)""")
+    c.execute("CREATE INDEX IF NOT EXISTS locmap_log_map ON locmap_log(map_id, id)")
+
+
 MIGRATIONS = [
     (2, "журнал изменений и корзина", _m2_audit_and_trash),
     (3, "очередь уведомлений и настройки пользователей", _m3_outbox_and_prefs),
@@ -147,6 +162,7 @@ MIGRATIONS = [
     (7, "пересказы «Что было раньше»", _m7_recaps),
     (8, "просьбы о пересказе, который готовит мастер", _m8_recap_requests),
     (9, "карты локаций: рисунки, лента обновлений, пометки группы", _m9_locmaps),
+    (10, "карты локаций: вопросы мастеру и журнал карты", _m10_locmap_play),
 ]
 LATEST = MIGRATIONS[-1][0]
 

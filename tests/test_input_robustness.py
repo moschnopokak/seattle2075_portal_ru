@@ -110,6 +110,28 @@ def test_map_endpoints_survive_garbage(gm, rig, sandbox):
     assert not failures, "500 на некорректных данных:\n" + "\n".join(failures[:40])
 
 
+def test_map_play_endpoints_survive_garbage(gm, rig, sandbox):
+    from test_locmaps import SVG, add, make_map, upload
+    mid = make_map(gm, vis="стол")
+    upload(gm, mid, "player", SVG)
+    o = add(gm, mid, key="Н1", name="Своя", vis="стол", play=True, count=3, fx=[{"to": "self", "delta": -1}])
+    card = gm.post("/api/gm/items/dossier", json={"name": "Для связи", "type": "person", "vis": "стол"}).json()["state"]["dossier"][-1]["id"]
+    failures = run(gm, f"/api/gm/locmaps/{mid}/objects", {"id": o["id"], "count": 5, "fx": [{"to": "Н1", "delta": 2}], "links": [{"kind": "dossier", "id": card}], "status": "cleared"})
+    deadline = {"date": "2075-08-05", "title": "Срок", "note": "n", "obj": o["id"], "vis": "знают", "known": ["rig"], "status": "danger", "reveal": True, "delta": 1}
+    made = gm.post(f"/api/gm/locmaps/{mid}/deadlines", json=dict(deadline, title="Для применения"))        # до перебора: он сам набивает карту сроками до предела
+    assert made.status_code == 200, made.text
+    did = made.json()["deadline"]["id"]
+    failures += run(gm, f"/api/gm/locmaps/{mid}/deadlines", deadline)
+    failures += run(gm, f"/api/gm/locmaps/{mid}/import", {"counter": "Фон", "deadlines": [dict(deadline, obj="Н1")]})
+    failures += run(gm, f"/api/gm/locmaps/{mid}/deadlines/{did}/apply", {"apply": True})
+    failures += run(gm, f"/api/gm/locmaps/{mid}/counter", {"delta": 1})
+    failures += run(rig, f"/api/locmaps/{mid}/party", {"x": 10, "y": 10})
+    failures += run(rig, f"/api/locmaps/{mid}/pins", {"text": "Вопрос", "x": 10, "y": 10, "kind": "question", "char": "rig"})
+    pid = gm.get(f"/api/locmaps/{mid}").json()["pins"][0]["id"]
+    failures += run(gm, f"/api/gm/locmaps/{mid}/pins/{pid}/answer", {"text": "ответ", "notify": False})
+    assert not failures, "500 на некорректных данных:\n" + "\n".join(failures[:40])
+
+
 def test_place_import_survives_garbage(gm, sandbox):
     body = {"items": [{"name": "Импорт", "type": "shop", "x": 31000, "y": 41000, "vis": "знают", "known": ["rig"], "note": "n", "gm_note": "g", "bg": True}]}
     failures = run(gm, "/api/gm/places/import", body)

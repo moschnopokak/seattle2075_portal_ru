@@ -21,6 +21,7 @@ d58dd3806217e944  app/config.py
 e9824056924d4c2f  app/config.py
 ebb16172dfb940f1  app/config.py
 19390a51b3c1719b  app/db.py
+199182e61379c636  app/db.py
 219209efa8a317b7  app/db.py
 33c7877fe857b42a  app/db.py
 3adb161fdbeaf42e  app/db.py
@@ -42,6 +43,7 @@ bfe7bc257a2d655f  app/handouts.py
 c5fcd5bdde5a9e4d  app/handouts.py
 d0fa6ccfa76a5082  app/handouts.py
 11e4964cc5679be9  app/locmaps.py
+588a1f8b73162ab4  app/locmaps.py
 b80131c470c31f03  app/locmaps.py
 022870230ef43667  app/logic.py
 0963bdd7b67a869c  app/logic.py
@@ -53,6 +55,7 @@ b80131c470c31f03  app/locmaps.py
 561c5c18226ae1ca  app/logic.py
 60e46da50a2cdd4b  app/logic.py
 a1ef129d06384816  app/logic.py
+aa8cb03b4141aedc  app/logic.py
 b67ada78c204d747  app/logic.py
 b7b09130948420cb  app/logic.py
 b9f3a65e5c4b6597  app/logic.py
@@ -64,6 +67,7 @@ e511d7ddde13be78  app/logic.py
 42f8c68359d23d46  app/main.py
 4961863d660dae70  app/main.py
 5c6662f457a4038b  app/main.py
+5dc0f2587ba25595  app/main.py
 5e6784ae54eb3a6e  app/main.py
 5ea59a6f5245df08  app/main.py
 85bc7726a929816c  app/main.py
@@ -121,6 +125,7 @@ ca2ec1b8371d0b86  app/telegram_bot.py
 614b046dd0411ee3  static/index.html
 63a2fe738dc68a7d  static/index.html
 66f9728af1978376  static/index.html
+8339bcaed189de67  static/index.html
 a28a78b345844612  static/index.html
 a9e8818ffd3fb7f7  static/index.html
 ba3eddcadae11489  static/index.html
@@ -146,6 +151,7 @@ fb8f91d1621f582c  static/js/actions.js
 442269458de0e1f8  static/js/app.js
 8d99018371552612  static/js/app.js
 8df5d499e4ab4d1e  static/js/app.js
+9893a286de8c34d5  static/js/app.js
 99ed7678208fc5f5  static/js/app.js
 b1d9db7ad6afe3fc  static/js/app.js
 b56a8cea7fab9483  static/js/app.js
@@ -183,8 +189,10 @@ f646835ddc097f2c  static/js/handouts.js
 e713e55621b732f7  static/js/history.js
 44948e9d0878d80a  static/js/import.js
 5ab89535f95fff4a  static/js/links.js
+348501fb48522b96  static/js/locmaps.js
 84da9c3351ce0606  static/js/locmaps.js
 c5872c7b4523df94  static/js/locmaps.js
+23c3cbe15f71027c  static/js/locplay.js
 386fa487695e8db0  static/js/map.js
 450130584d3c2468  static/js/map.js
 c4d34b61d0063767  static/js/map.js
@@ -221,6 +229,7 @@ a687a701d3f80735  static/style.css
 c24bb73f90b3d532  static/style.css
 c38c1d4cb99818c9  static/style.css
 caf4cc7955cc0dd5  static/style.css
+e59f2054b2eb3763  static/style.css
 536533cad95838e1  static/vendor/fonts/LICENSE-Jost.txt
 28d2f6e154d48605  static/vendor/fonts/LICENSE-PT-Serif.txt
 7382fb502e2aca1d  static/vendor/fonts/fonts.css
