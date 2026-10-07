@@ -392,6 +392,7 @@ function rGM(){
   <section>${secHead('Этапы','windows','Добавить этап')}<p class="note">Арки и промежуточные арки. Игроки видят название этапа с его первого дня.</p>${S.windows.map(w=>`<div class="gm-item"><span class="wname">${esc(winName(w))}${w.gm&&w.gm!==w.name?`<span class="muted small" style="display:block">игроки видят: ${esc(w.name)}</span>`:''}</span><span class="muted small">${fRange(w.from,w.to)}</span><button type="button" class="btn" data-act="edit-item" data-kind="windows" data-id="${w.id}">Изменить</button></div>`).join('')}</section>
   <section>${secHead('Хроника','past','Добавить событие')}<p class="note">Сыгранные события. Чтобы изменить или удалить событие, откройте его в разделе «Хроника».</p></section>
   ${recapGmHTML()}
+  ${arcSectionHTML()}
   ${gmExtrasHTML()}
   <section><h2>Копия данных для Obsidian</h2><p class="note">Если вы ведёте заметки в программе Obsidian: нажмите кнопку, скопируйте получившийся текст и вставьте его в Obsidian как новую заметку. В нём весь календарь, места, досье и раздатки, в том числе то, что скрыто от игроков.</p><button type="button" class="btn" data-act="export">Собрать текст для копирования</button><textarea id="exp" readonly hidden aria-label="Текст выгрузки"></textarea></section>
   </div>`;

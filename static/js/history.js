@@ -2,7 +2,7 @@
    Списки приходят отдельными запросами (в общее состояние они не входят). Всё, что показывается, экранируется. */
 const H_KIND={money:'запись о деньгах',factions:'фракцию',standing:'репутацию',contacts:'контакт',entry:'запись',dossier:'карточку досье',places:'место',windows:'этап',rhythm:'регулярное событие',clocks:'скрытый таймер',plan:'событие плана',past:'событие хроники',handouts:'раздатку',travel:'вид транспорта',dnote:'описание района',time:'время в игре'};
 const H_KIND_NOM={money:'Запись о деньгах',factions:'Фракция',standing:'Репутация',contacts:'Контакт',entry:'Запись',dossier:'Карточка досье',places:'Место',windows:'Этап',rhythm:'Регулярное событие',clocks:'Скрытый таймер',plan:'Событие плана',past:'Событие хроники',handouts:'Раздатка',travel:'Вид транспорта',dnote:'Описание района',time:'Время'};
-const H_VERB={create:'добавил(а)',edit:'изменил(а)',delete:'удалил(а)',restore:'восстановил(а)',revert:'вернул(а) прежнее:',upload:'загрузил(а) файл:',
+const H_VERB={import:'загрузил(а)',create:'добавил(а)',edit:'изменил(а)',delete:'удалил(а)',restore:'восстановил(а)',revert:'вернул(а) прежнее:',upload:'загрузил(а) файл:',
   'file-delete':'убрал(а) картинку:',time:'изменил(а)',played:'перенёс(ла) в хронику',
   'act:ans':'ответил(а) на приглашение:','act:join':'попросился(лась) в запись:','act:kick':'убрал(а) участника из записи:',
   'act:approve':'подтвердил(а) развитие:','act:reject':'отклонил(а) развитие:','act:outcome':'отметил(а) итог записи:'};
@@ -23,7 +23,7 @@ function hTitle(h){
 }
 function hSentence(h){
   const verb=H_VERB[h.action]||esc(h.action),kind=H_KIND[h.kind]||esc(h.kind);
-  const noKind=['revert','upload','file-delete','played','act:ans','act:join','act:kick','act:approve','act:reject','act:outcome'].includes(h.action);
+  const noKind=['import','revert','upload','file-delete','played','act:ans','act:join','act:kick','act:approve','act:reject','act:outcome'].includes(h.action);
   return `<b>${esc(h.actor)}</b> ${verb} ${noKind?'':kind}${hTitle(h)}`.replace(/\s+/g,' ');
 }
 /* Значение поля для показа: списки номеров персонажей превращаются в имена, пустой список в «пусто». */

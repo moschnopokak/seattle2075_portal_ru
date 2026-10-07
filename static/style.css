@@ -536,6 +536,14 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .recap-prompt{margin-top:8px}
 .recap-prompt summary{cursor:pointer;color:var(--muted);font-size:14px}
 .recap-prompt pre{white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;font:13px/1.45 var(--serif);background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:6px 0}
+.arc-h{margin:18px 0 4px;font-size:16px}
+.arc-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;padding:6px 0;border-top:1px solid var(--line);line-height:1.4}
+.arc-row b,.arc-row .muted{min-width:0;overflow-wrap:anywhere}
+.arc-st{font-size:12.5px;padding:1px 8px;border-radius:9px;border:1px solid var(--line);white-space:nowrap}
+.arc-row.add .arc-st{color:var(--grow);border-color:var(--grow)}
+.arc-row.error .arc-st{color:var(--vow);border-color:var(--vow)}
+.arc-row.skip .arc-st{color:var(--muted)}
+.arc-q{margin:4px 0 0;padding-left:22px;line-height:1.5}
 .roll-ok{color:var(--grow)}
 .roll-fail{color:var(--vow)}
 .err{color:var(--vow);min-height:1.2em;margin:8px 0 0;font-size:14.5px}

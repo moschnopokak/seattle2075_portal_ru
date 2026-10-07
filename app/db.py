@@ -216,12 +216,16 @@ def items(kind):
     return [json.loads(r["data"]) for r in rows]
 
 
-def set_items(kind, values):
-    with tx() as c:
-        c.execute("DELETE FROM items WHERE kind=?", (kind,))
-        for pos, item in enumerate(values):
-            c.execute("INSERT INTO items(kind,id,pos,data) VALUES(?,?,?,?)",
-                      (kind, str(item["id"]), pos, json.dumps(item, ensure_ascii=False)))
+def set_items(kind, values, c=None):
+    """Заменяет все элементы раздела. c: соединение внутри уже начатой транзакции (когда меняется несколько разделов разом)."""
+    if c is None:
+        with tx() as c:
+            set_items(kind, values, c)
+        return
+    c.execute("DELETE FROM items WHERE kind=?", (kind,))
+    for pos, item in enumerate(values):
+        c.execute("INSERT INTO items(kind,id,pos,data) VALUES(?,?,?,?)",
+                  (kind, str(item["id"]), pos, json.dumps(item, ensure_ascii=False)))
 
 
 # ---------- записи и обсуждения ----------

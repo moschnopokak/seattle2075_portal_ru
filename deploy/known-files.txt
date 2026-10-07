@@ -1,4 +1,5 @@
 e3b0c44298fc1c14  app/__init__.py
+2c35ff0939f7310c  app/arcs.py
 e20e9feede360352  app/audit.py
 03d7a264d75e7bb0  app/auth.py
 208a437109995f19  app/auth.py
@@ -24,6 +25,7 @@ ebb16172dfb940f1  app/config.py
 434299442f2de708  app/db.py
 52cf42524436855f  app/db.py
 74b85581dfc42693  app/db.py
+7f275025fcbdacb0  app/db.py
 ea3e8ce781f6048d  app/db.py
 ecd8a65271d67694  app/db.py
 f5e91af175d1c6a7  app/db.py
@@ -53,6 +55,7 @@ e511d7ddde13be78  app/logic.py
 0332a23bfe59703b  app/main.py
 10ae1fd0b94d784b  app/main.py
 232e90a2ef7c0375  app/main.py
+42f8c68359d23d46  app/main.py
 4961863d660dae70  app/main.py
 5c6662f457a4038b  app/main.py
 5e6784ae54eb3a6e  app/main.py
@@ -106,11 +109,13 @@ ca2ec1b8371d0b86  app/telegram_bot.py
 63a2fe738dc68a7d  static/index.html
 66f9728af1978376  static/index.html
 a28a78b345844612  static/index.html
+a9e8818ffd3fb7f7  static/index.html
 ba3eddcadae11489  static/index.html
 e329078fe3c2e060  static/index.html
 e57dfde2ed6eb29f  static/index.html
 0cfe5e6b75def066  static/js/actions.js
 4c67c99620a112e3  static/js/actions.js
+4c69278bb0cb66f8  static/js/actions.js
 52a93dbabcca78b3  static/js/actions.js
 5b708956e41ab357  static/js/actions.js
 9154bb7f60caa2fa  static/js/actions.js
@@ -131,7 +136,9 @@ b1d9db7ad6afe3fc  static/js/app.js
 c8aa5b4056997ec6  static/js/app.js
 d27f0fbcb6b6f034  static/js/app.js
 d43a25e9ef115e1f  static/js/app.js
+d564751879f37696  static/js/app.js
 e03563f3d213174e  static/js/app.js
+e2030a532ff35110  static/js/arcs.js
 5bae8e9fdd007ff2  static/js/boot.js
 b45cb44d1229fcdd  static/js/boot.js
 40850ad80b7d2b05  static/js/diary.js
@@ -147,6 +154,7 @@ bdbd267593e7955b  static/js/dossier.js
 52be1cda2e7be72f  static/js/handouts.js
 578d916ef062e1b8  static/js/handouts.js
 f646835ddc097f2c  static/js/handouts.js
+06659653f6e3c50e  static/js/history.js
 4aab5e77bfb77448  static/js/history.js
 7e888ed756489149  static/js/history.js
 95feda8867db9140  static/js/history.js
@@ -180,6 +188,7 @@ be5ce0298bf84ebe  static/js/recap.js
 5fc49451debfcff7  static/style.css
 6b5611f600f6824e  static/style.css
 97968ab6199096bb  static/style.css
+a687a701d3f80735  static/style.css
 c24bb73f90b3d532  static/style.css
 c38c1d4cb99818c9  static/style.css
 536533cad95838e1  static/vendor/fonts/LICENSE-Jost.txt

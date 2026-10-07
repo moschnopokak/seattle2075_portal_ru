@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
-from . import audit, auth, config, db, diary, handouts, logic, notify, outbox, portraits, recap, scheduler, startup, telegram_bot, trash
+from . import arcs, audit, auth, config, db, diary, handouts, logic, notify, outbox, portraits, recap, scheduler, startup, telegram_bot, trash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("portal")
@@ -333,6 +333,21 @@ def my_recap_requests(request: Request):
         return {"items": recap.mine(v)}
     except recap.RecapError as ex:
         raise HTTPException(ex.code, ex.message)
+
+
+@app.post("/api/gm/arc/preview")
+def gm_arc_preview(request: Request, data: dict = Body(...)):
+    """Разбор арки из другого чата: что будет добавлено, что пропущено и почему. Ничего не записывает."""
+    v = _gm_only(request)
+    return {"report": arcs.preview(v, data.get("data"))}
+
+
+@app.post("/api/gm/arc/import")
+def gm_arc_import(request: Request, data: dict = Body(...)):
+    """Загрузка разбора арки одной операцией: всё, что прошло проверку, добавляется, остальное называется в отчёте."""
+    v = _gm_only(request)
+    msg, report = arcs.commit(v, data.get("data"))
+    return {"msg": msg, "report": report, "state": logic.state_for(v)}
 
 
 @app.get("/api/gm/recap")
