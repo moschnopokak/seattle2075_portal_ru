@@ -52,6 +52,9 @@ def _drop_blobs(kind, item_id):
         portraits.remove(item_id)
     elif kind == "handouts":
         handouts.remove(item_id)
+    elif kind == "locmaps":
+        from . import locmaps                          # поздний импорт: locmaps сам использует logic, а logic использует trash
+        locmaps.remove(item_id)
 
 
 def remove(trash_id, drop_blobs=True):

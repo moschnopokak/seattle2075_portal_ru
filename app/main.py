@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from starlette.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
-from . import arcs, audit, auth, config, db, diary, handouts, logic, notify, outbox, portraits, recap, scheduler, startup, telegram_bot, trash
+from . import arcs, audit, auth, config, db, diary, handouts, locmaps, logic, notify, outbox, portraits, recap, scheduler, startup, telegram_bot, trash
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("portal")
@@ -333,6 +333,91 @@ def my_recap_requests(request: Request):
         return {"items": recap.mine(v)}
     except recap.RecapError as ex:
         raise HTTPException(ex.code, ex.message)
+
+
+# ---------- карты локаций ----------
+
+@app.get("/api/locmaps/{map_id}")
+def locmap_detail(map_id: str, request: Request):
+    """Карта со всем, что видит этот человек: метки, лента обновлений, пометки группы."""
+    return locmaps.detail(viewer(request), map_id)
+
+
+@app.get("/locmap/{map_id}/{role}.svg")
+def locmap_drawing(map_id: str, role: str, request: Request):
+    """Рисунок карты (адрес с ?v=версия, поэтому его можно кэшировать). Рисунок мастера отдаётся только мастеру. Заголовок sandbox: даже при
+    прямом открытии разметка ничего не выполнит."""
+    svg, _version = locmaps.drawing(viewer(request), map_id, role)
+    return Response(svg, media_type="image/svg+xml; charset=utf-8", headers=locmaps.SERVE_HEADERS)
+
+
+@app.post("/api/gm/locmaps/{map_id}/drawing/{role}")
+async def upload_locmap_drawing(map_id: str, role: str, request: Request):
+    """Тело запроса: сам SVG-файл."""
+    v = _gm_only(request)
+    too_big = f"Рисунок больше {locmaps.MAX_SVG_BYTES // 1048576} МБ. Упростите его или сожмите."
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > locmaps.MAX_SVG_BYTES:
+        raise HTTPException(413, too_big)
+    buf = bytearray()
+    async for chunk in request.stream():
+        buf += chunk
+        if len(buf) > locmaps.MAX_SVG_BYTES:
+            raise HTTPException(413, too_big)
+    msg = await run_in_threadpool(locmaps.save_drawing, v, map_id, role, bytes(buf))
+    return _answer(v, msg)
+
+
+@app.post("/api/gm/locmaps/{map_id}/drawing/{role}/delete")
+def delete_locmap_drawing(map_id: str, role: str, request: Request):
+    v = _gm_only(request)
+    return _answer(v, locmaps.delete_drawing(v, map_id, role))
+
+
+@app.post("/api/gm/locmaps/{map_id}/objects")
+def save_locmap_object(map_id: str, request: Request, data: dict = Body(...)):
+    """Добавить или изменить метку. announce: записать открытие и смену состояния в ленту; notify: ещё и написать игрокам в Telegram."""
+    v = _gm_only(request)
+    msg, obj = locmaps.save_object(v, map_id, data, announce=data.get("announce", True) is not False, notify_players=data.get("notify") is True)
+    return {**_answer(v, msg), "object": obj}
+
+
+@app.post("/api/gm/locmaps/{map_id}/objects/{obj_id}/delete")
+def delete_locmap_object(map_id: str, obj_id: str, request: Request):
+    v = _gm_only(request)
+    return _answer(v, locmaps.delete_object(v, map_id, obj_id))
+
+
+@app.post("/api/gm/locmaps/{map_id}/import")
+def import_locmap_objects(map_id: str, request: Request, data: dict = Body(...)):
+    """Метки пачкой из JSON (по короткой подписи: обновляются, новые скрыты от игроков)."""
+    v = _gm_only(request)
+    report = locmaps.import_objects(v, map_id, data.get("objects"))
+    return {"report": report, "state": logic.state_for(v)}
+
+
+@app.post("/api/gm/locmaps/{map_id}/feed")
+def post_locmap_update(map_id: str, request: Request, data: dict = Body(...)):
+    v = _gm_only(request)
+    return _answer(v, locmaps.post_update(v, map_id, data.get("text"), data.get("vis", "стол"), data.get("known"), data.get("notify") is True))
+
+
+@app.post("/api/gm/locmaps/{map_id}/feed/{feed_id}/delete")
+def delete_locmap_update(map_id: str, feed_id: int, request: Request):
+    v = _gm_only(request)
+    return _answer(v, locmaps.delete_update(v, map_id, feed_id))
+
+
+@app.post("/api/locmaps/{map_id}/pins")
+def add_locmap_pin(map_id: str, request: Request, data: dict = Body(...)):
+    v = viewer(request)
+    return _answer(v, locmaps.add_pin(v, map_id, data.get("text"), data.get("x"), data.get("y"), data.get("char")))
+
+
+@app.post("/api/locmaps/{map_id}/pins/{pin_id}/delete")
+def delete_locmap_pin(map_id: str, pin_id: int, request: Request):
+    v = viewer(request)
+    return _answer(v, locmaps.delete_pin(v, map_id, pin_id))
 
 
 @app.post("/api/gm/horizon")

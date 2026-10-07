@@ -83,7 +83,7 @@ def hag(players):
     return players["hag"]
 
 
-KINDS = ("windows", "rhythm", "clocks", "plan", "past", "places", "dossier", "handouts", "travel", "money", "factions", "standing", "contacts")
+KINDS = ("windows", "rhythm", "clocks", "plan", "past", "places", "dossier", "handouts", "travel", "money", "factions", "standing", "contacts", "locmaps")
 
 
 @pytest.fixture

@@ -235,6 +235,7 @@ def state_for(v):
         "trash": trash.count() if v.gm else None,
         "clocks": db.items("clocks") if v.gm else [],
         "entries": entries,
+        "locmaps": locmaps_for(v),
         "horizon": horizon_info(v, today),
         "characters": p["characters"],
         "players": [{"name": pl["name"], "chars": pl["chars"]} for pl in p["players"]],
@@ -324,6 +325,30 @@ def dossier_for(v):
         if c.get("last_place") in visible_places:
             card["last_place"] = c["last_place"]
         card["facts"] = facts
+        out.append(card)
+    return out
+
+
+def locmap_visible(m, v):
+    """Видна ли карта локации игроку: «все», «знают» (его персонажи в списке) или не видна («мастер»). Мастеру видны все."""
+    if v.gm:
+        return True
+    return m.get("vis") == "стол" or (m.get("vis") == "знают" and bool(set(v.chars) & set(m.get("known", []))))
+
+
+def locmaps_for(v):
+    """Карты локаций для списка: название, описание, место на городской карте, какие рисунки есть. Метки, рисунки и заметки мастера
+    отдельным запросом (api/locmaps/<номер>), игроку без заметок мастера и без рисунка мастера."""
+    visible_places = {p["id"] for p in places_for(v)}
+    out = []
+    for m in db.items("locmaps"):
+        if not locmap_visible(m, v):
+            continue
+        dw = m.get("dw", {})
+        card = {"id": m["id"], "name": m["name"], "note": m.get("note", ""), "place": m.get("place", "") if v.gm or m.get("place") in visible_places else "",
+                "dw": dw if v.gm else {k: x for k, x in dw.items() if k == "player"}}
+        if v.gm:
+            card.update(vis=m.get("vis", "мастер"), known=m.get("known", []), gm_note=m.get("gm_note", ""), count=len(m.get("objects", [])))
         out.append(card)
     return out
 
@@ -898,10 +923,10 @@ def plan_played(v, plan_id):
 # ---------- редактирование этапов, регулярных событий, таймеров, плана и хроники ----------
 
 KINDS = {"windows": "w", "rhythm": "r", "clocks": "c", "plan": "g", "past": "p", "places": "m", "dossier": "n", "handouts": "h", "travel": "t",
-         "money": "y", "factions": "f", "standing": "s", "contacts": "k"}
+         "money": "y", "factions": "f", "standing": "s", "contacts": "k", "locmaps": "l"}
 MAX_TRAVEL = 12
 # Лист персонажа (Shadowrun): нуйены (записи о доходах и расходах), фракции, репутация персонажа у фракции, контакты. Пишет только мастер.
-MAX_ITEMS = {"money": 3000, "factions": 60, "standing": 600, "contacts": 300, "places": 1500}
+MAX_ITEMS = {"money": 3000, "factions": 60, "standing": 600, "contacts": 300, "places": 1500, "locmaps": 40}
 IMPORT_PLACES_AT_ONCE = 600
 FACTION_KINDS = {"corp", "gang", "gov", "org", "other"}
 STANDING_RANGE = (-5, 5)
@@ -1107,6 +1132,16 @@ def _normalize(kind, b):
                 "met": listed(b.get("met"), chars),
                 "last_date": last_date, "last_place": last_place, "last_note": clean(b.get("last_note"), 200),
                 "facts": facts, "gm_note": clean(b.get("gm_note"), 4000, True)}
+    if kind == "locmaps":
+        vis = b.get("vis") if b.get("vis") in ("стол", "знают", "мастер") else "мастер"
+        known = listed(b.get("known"), chars)
+        if vis == "знают" and not known:
+            bad("Отметьте, какие персонажи знают об этой карте.")
+        place = str(b.get("place") or "")
+        if place and not any(p["id"] == place for p in db.items("places")):
+            bad("Место на городской карте не найдено.")
+        return {"name": _title(b, "name", 80, "Укажите название карты."), "note": clean(b.get("note"), 2000, True),
+                "gm_note": clean(b.get("gm_note"), 4000, True), "vis": vis, "known": known if vis == "знают" else [], "place": place}
     if kind == "places":
         x, y = to_int(b.get("x"), "Не указано место на карте."), to_int(b.get("y"), "Не указано место на карте.")
         mw, mh = map_size()
@@ -1211,6 +1246,9 @@ def save_item(v, kind, b):
         _rotate_if_narrowed(kind, old, item)
         if kind == "past" and old and old.get("plan_id"):
             item["plan_id"] = old["plan_id"]
+        if kind == "locmaps":                          # метки и сведения о рисунках правятся отдельно, форма карты их не трогает
+            item["objects"] = (old or {}).get("objects", [])
+            item["dw"] = (old or {}).get("dw", {})
         if kind == "windows":
             for w in items:
                 if w is not old and not (item["to"] < w["from"] or item["from"] > w["to"]):
@@ -1222,7 +1260,8 @@ def save_item(v, kind, b):
         if kind in ("windows", "plan", "past"):
             items.sort(key=lambda x: x["from"])
         db.set_items(kind, items)
-        audit.record(v, "edit" if old else "create", kind, item["id"], _item_title(item), before=old, after=item)
+        audit.record(v, "edit" if old else "create", kind, item["id"], _item_title(item),
+                     before=_audit_view(kind, old), after=_audit_view(kind, item))
         db.bump()
     if kind == "handouts":
         handout_notify(old, item)
@@ -1234,6 +1273,13 @@ def save_item(v, kind, b):
         targets = cover["who"] or list(char_map())
         notify.to_characters(targets, f"Общее событие, {when}: {cover['title']}. На это время лучше не планировать других дел.", "cal", kind="cover")
     return "Сохранено" if old else "Добавлено"
+
+
+def _audit_view(kind, item):
+    """Что попадает в журнал: у карты локации без меток (их может быть сотни, а правится в журнале только описание карты)."""
+    if kind == "locmaps" and item:
+        return {k: x for k, x in item.items() if k not in ("objects", "dw")}
+    return item
 
 
 def _delete_item_locked(v, kind, item_id):
@@ -1391,7 +1437,7 @@ def revert_change(v, audit_id):
             if not current:
                 bad("Эта запись удалена: сначала восстановите её из корзины.", 409)
             restored = dict(before)
-            for k in ("img", "file", "size", "fname", "uploaded", "plan_id"):     # ссылки на файлы не откатываются
+            for k in ("img", "file", "size", "fname", "uploaded", "plan_id", "objects", "dw"):     # ссылки на файлы и метки не откатываются
                 if k in current:
                     restored[k] = current[k]
                 else:

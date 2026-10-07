@@ -44,7 +44,7 @@ h1,h2,h3{font-weight:400;margin:0}
 .brand{font-weight:300;font-size:21px;letter-spacing:.07em;white-space:nowrap}
 #nav{display:flex;gap:2px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none}
 #nav::-webkit-scrollbar{display:none}
-#nav button{background:none;border:0;padding:8px 12px;font-size:15.5px;cursor:pointer;white-space:nowrap;border-radius:3px}
+#nav button{background:none;border:0;padding:8px 10px;font-size:15.5px;cursor:pointer;white-space:nowrap;border-radius:3px}
 #nav button[aria-current="page"]{box-shadow:inset 0 -2px 0 var(--sodium)}
 #nav button:hover{background:var(--surface)}
 .viewas{font-size:14px;color:var(--muted);display:flex;gap:8px;align-items:center;white-space:nowrap}
@@ -438,7 +438,7 @@ body.hv-open #toast{z-index:1600}
 .overlay[hidden]{display:none}
 .panel{width:min(500px,100%);height:100%;background:var(--surface);overflow-y:auto;padding:calc(22px + env(safe-area-inset-top,0px)) 24px calc(30px + env(safe-area-inset-bottom,0px));border-left:1px solid var(--line);animation:slide .18s ease-out}
 @keyframes slide{from{transform:translateX(24px);opacity:.4}to{transform:none;opacity:1}}
-.panel h2{font-size:28px;font-weight:300;line-height:1.15;margin:4px 0 16px}
+.panel h2{font-size:28px;font-weight:300;line-height:1.15;margin:4px 0 16px;overflow-wrap:anywhere}
 .panel h3{font-size:15px;color:var(--muted);margin:20px 0 6px}
 .panel .x{float:right;margin:-4px -8px 0 0}
 .kind{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;color:var(--muted);font-size:14.5px}
@@ -552,8 +552,8 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:4px;font-size:15px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1}
 
-/* Вкладки и кнопки шапки вместе занимают около 1280 px: на планшете и в узком окне меню уходит на вторую строку, а не прячется за край */
-@media (max-width:1279px){
+/* Вкладки и кнопки шапки вместе занимают около 1340 px (у мастера девять вкладок): на планшете и в узком окне меню уходит на вторую строку, а не прячется за край */
+@media (max-width:1339px){
   .top{gap:8px 14px}
   #nav{order:3;flex-basis:100%;margin:0 -6px}
   .who-box{margin-left:auto}
@@ -635,3 +635,53 @@ legend{font-size:14.5px;color:var(--muted);padding:0;margin-bottom:6px}
 .hist-ch td{vertical-align:top;padding:3px 8px 3px 0;word-break:break-word;max-width:260px}
 .hist-ch .was{color:var(--vow)}.hist-ch .now{color:var(--grow)}
 .hist-row .acts{margin-top:8px}
+
+/* ===== Карты локаций ===== */
+.lm{max-width:1100px;margin:0 auto;padding-top:14px}
+.lm-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:6px}
+.lm-title{font-size:26px;font-weight:300;margin:0;min-width:0;overflow-wrap:anywhere}
+.lm-pick select{max-width:100%}
+.lm-gmbtn{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.lm-note-text{margin:6px 0 10px}
+.lm-map{position:relative;z-index:0;isolation:isolate;height:min(68vh,660px);min-height:300px;background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.lm-map.lm-adding,.lm-map.lm-adding .leaflet-interactive{cursor:crosshair}
+.lm-empty{padding:24px 16px;margin:0}
+.lm-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}
+.lm-tools:empty{display:none}
+.lm-tabs{margin:12px 0 10px}
+.lm-pin span{position:absolute;left:-14px;top:-14px;min-width:28px;height:28px;padding:0 4px;border-radius:14px;display:grid;place-items:center;font:600 12px/1 var(--sans);background:var(--surface);color:var(--ink);border:2px solid var(--pc,var(--plan));box-shadow:0 1px 4px var(--shade);cursor:pointer;white-space:nowrap}
+.lm-chip{display:inline-block;position:relative;flex:none;width:34px;height:28px}
+.lm-chip span{left:0;top:0;position:absolute}
+.lm-k-area{--pc:var(--plan)}.lm-k-thing{--pc:var(--sodium-ink)}.lm-k-danger{--pc:var(--vow)}.lm-k-creature{--pc:var(--deal)}.lm-k-place{--pc:var(--meet)}.lm-k-note{--pc:var(--muted)}
+.lm-s-cleared span{background:color-mix(in srgb,var(--grow) 28%,var(--surface))}
+.lm-s-danger span{background:color-mix(in srgb,var(--vow) 30%,var(--surface))}
+.lm-s-found span{background:color-mix(in srgb,var(--sodium) 38%,var(--surface))}
+.lm-s-lost span{opacity:.55;text-decoration:line-through}
+.lm-s-scouted span{border-style:dashed}
+.lm-hid span{border-style:dotted;opacity:.8}
+.lm-note span{position:absolute;left:-6px;top:-10px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;border-radius:4px;font-size:12.5px;line-height:1.2;background:color-mix(in srgb,var(--sodium) 30%,var(--raise));color:var(--ink);border:1px solid var(--sodium);box-shadow:0 1px 4px var(--shade);cursor:pointer}
+.lm-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 2px;cursor:pointer}
+.lm-row:hover{background:var(--raise)}
+.lm-rname{min-width:0;overflow-wrap:anywhere}
+.lm-feed{padding:8px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.lm-feedform{margin-bottom:10px}
+.lm-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.lm-line .field{flex:1 1 140px;margin:6px 0}
+.lm-chars{display:flex;flex-wrap:wrap;gap:6px 16px;margin:6px 0}
+.lm-chars label,.lm-ck{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.lm-ck{display:flex;margin:6px 0;font-size:14.5px}
+.lm-notebody{white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0}
+.lm-state{margin:0;color:var(--muted);font-size:14.5px}
+.lm-h{margin-top:18px}
+.lm-quick{display:flex;flex-wrap:wrap;gap:6px;border:0;overflow:visible;margin:12px 0}
+.lm-quick button{border:1px solid var(--line)!important;border-radius:4px}
+.lm-file{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 0;border-top:1px solid var(--line)}
+@media (max-width:760px){
+  .lm{padding-top:8px}
+  .lm-title{font-size:22px}
+  .lm-gmbtn{margin-left:0}
+  .lm .seg{display:flex;flex-wrap:wrap;gap:6px;border:0;overflow:visible;width:100%}
+  .lm .seg button{border:1px solid var(--line);border-radius:4px}
+  .lm .seg button+button{border-left:1px solid var(--line)}
+  .lm-map{height:min(62vh,520px)}
+}

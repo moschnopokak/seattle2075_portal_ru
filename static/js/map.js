@@ -143,6 +143,7 @@ function openPlace(id,keep){
   <dl><dt>Район</dt><dd>${DNAMES[d]||'—'}</dd><dt>Квадрат</dt><dd>${square(p.x,p.y)}</dd>${V==='gm'&&p.vis==='знают'?`<dt>Знают</dt><dd>${esc(joinNames((p.known||[]).map(c=>CN[c]||c)))}</dd>`:''}</dl>
   ${p.note?`<p class="prose">${rich(p.note)}</p>`:''}${V==='gm'&&p.gm_note?`<h3>Заметка мастера</h3><p class="prose" style="margin-top:0">${rich(p.gm_note)}</p>`:''}
   ${(()=>{const seen=dossierVisible().filter(c=>c.last_place===p.id);return seen.length?`<h3>Видели здесь</h3>`+seen.map(c=>`<button type="button" class="row" data-open="n:${c.id}"><span class="rt">${esc(c.name)}</span><span class="rs">${c.last_date?fDate(c.last_date):''}</span></button>`).join(''):'';})()}
+  ${(()=>{const ms=lmList().filter(m=>m.place===p.id);return ms.length?`<h3>Карты места</h3>`+ms.map(m=>`<button type="button" class="row" data-act="lm-open" data-id="${esc(m.id)}"><span class="rt">${esc(m.name)}</span><span class="rs">открыть карту</span></button>`).join(''):'';})()}
   <h3>Записи календаря</h3>${es.length?es.map(e=>entryRow(e,fFull(e.from))).join(''):'<p class="muted" style="margin:0">Записей с этим местом пока нет.</p>'}
   <div class="acts">${acts}</div>`,keep);
 }

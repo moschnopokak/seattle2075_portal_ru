@@ -21,6 +21,7 @@ d58dd3806217e944  app/config.py
 e9824056924d4c2f  app/config.py
 ebb16172dfb940f1  app/config.py
 19390a51b3c1719b  app/db.py
+219209efa8a317b7  app/db.py
 33c7877fe857b42a  app/db.py
 3adb161fdbeaf42e  app/db.py
 434299442f2de708  app/db.py
@@ -40,6 +41,7 @@ ab287cb41ff89d9e  app/handouts.py
 bfe7bc257a2d655f  app/handouts.py
 c5fcd5bdde5a9e4d  app/handouts.py
 d0fa6ccfa76a5082  app/handouts.py
+11e4964cc5679be9  app/locmaps.py
 022870230ef43667  app/logic.py
 0963bdd7b67a869c  app/logic.py
 0edd0fadeab2c31d  app/logic.py
@@ -50,6 +52,7 @@ d0fa6ccfa76a5082  app/handouts.py
 561c5c18226ae1ca  app/logic.py
 60e46da50a2cdd4b  app/logic.py
 a1ef129d06384816  app/logic.py
+b67ada78c204d747  app/logic.py
 b7b09130948420cb  app/logic.py
 b9f3a65e5c4b6597  app/logic.py
 cd6ee247a616d256  app/logic.py
@@ -61,6 +64,7 @@ e511d7ddde13be78  app/logic.py
 4961863d660dae70  app/main.py
 5c6662f457a4038b  app/main.py
 5e6784ae54eb3a6e  app/main.py
+5ea59a6f5245df08  app/main.py
 85bc7726a929816c  app/main.py
 98697cdba0749982  app/main.py
 9e4bb1fb99476e3e  app/main.py
@@ -78,6 +82,7 @@ fef4cb5535bbc6f7  app/main.py
 211b0689463cfb35  app/notify.py
 5ec93186f3a110e2  app/notify.py
 6a3f63a8dda91cd6  app/notify.py
+8053f230d0c758bf  app/notify.py
 947d9607d588036b  app/notify.py
 addfa8a709f2efa6  app/notify.py
 c54d8abef618e338  app/notify.py
@@ -104,7 +109,9 @@ a07e00f0d9bed154  app/reminders.py
 f54c6afcdd9d8ba2  app/startup.py
 ca2ec1b8371d0b86  app/telegram_bot.py
 0ee6dce0036b0af6  app/trash.py
+0fb489ae866cc1f3  app/trash.py
 0cd6b1a6dceee024  static/index.html
+1072223f113cf2c1  static/index.html
 2a1044302bcc2076  static/index.html
 33feb584d3111c1f  static/index.html
 3bdbf319b3a6542b  static/index.html
@@ -122,6 +129,7 @@ e57dfde2ed6eb29f  static/index.html
 4c69278bb0cb66f8  static/js/actions.js
 52a93dbabcca78b3  static/js/actions.js
 5b708956e41ab357  static/js/actions.js
+64e658ececc7ba80  static/js/actions.js
 9154bb7f60caa2fa  static/js/actions.js
 9849d46b0a4e95f7  static/js/actions.js
 b4f92cc66224438a  static/js/actions.js
@@ -138,6 +146,7 @@ fb8f91d1621f582c  static/js/actions.js
 8df5d499e4ab4d1e  static/js/app.js
 99ed7678208fc5f5  static/js/app.js
 b1d9db7ad6afe3fc  static/js/app.js
+b56a8cea7fab9483  static/js/app.js
 c8aa5b4056997ec6  static/js/app.js
 d27f0fbcb6b6f034  static/js/app.js
 d43a25e9ef115e1f  static/js/app.js
@@ -163,6 +172,7 @@ f70ee189694fcdd9  static/js/dossier.js
 578d916ef062e1b8  static/js/handouts.js
 ab792421d6706155  static/js/handouts.js
 f646835ddc097f2c  static/js/handouts.js
+030ae139202019d4  static/js/history.js
 06659653f6e3c50e  static/js/history.js
 4587a4ed46c3caaf  static/js/history.js
 4aab5e77bfb77448  static/js/history.js
@@ -171,10 +181,12 @@ f646835ddc097f2c  static/js/handouts.js
 e713e55621b732f7  static/js/history.js
 44948e9d0878d80a  static/js/import.js
 5ab89535f95fff4a  static/js/links.js
+84da9c3351ce0606  static/js/locmaps.js
 386fa487695e8db0  static/js/map.js
 450130584d3c2468  static/js/map.js
 c4d34b61d0063767  static/js/map.js
 d8a7797cb79b138e  static/js/map.js
+f89e655d514a1a0f  static/js/map.js
 8ab8427e6da65578  static/js/measure.js
 5147b899c79738c8  static/js/prefs.js
 988add4dbb434226  static/js/prefs.js
@@ -192,6 +204,7 @@ be5ce0298bf84ebe  static/js/recap.js
 080898aeb8a86d8b  static/style.css
 0a1de591c1416344  static/style.css
 250dde515aac2c19  static/style.css
+26e923a6f722a3ae  static/style.css
 2a3c976fdce7e25f  static/style.css
 2f2bf46ae560499a  static/style.css
 41bbd42a571752e4  static/style.css

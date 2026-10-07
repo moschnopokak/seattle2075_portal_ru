@@ -78,7 +78,7 @@ def _background(fn, *args):
     threading.Thread(target=run, daemon=True).start()
 
 
-SECTIONS = {"now", "cal", "chron", "dossier", "handouts", "map", "gm"}
+SECTIONS = {"now", "cal", "chron", "dossier", "handouts", "map", "maps", "gm"}
 
 
 def _keyboard():

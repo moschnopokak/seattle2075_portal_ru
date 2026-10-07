@@ -1,7 +1,7 @@
 /* ===== Корзина и история изменений (только мастер) =====
    Списки приходят отдельными запросами (в общее состояние они не входят). Всё, что показывается, экранируется. */
-const H_KIND={money:'запись о деньгах',factions:'фракцию',standing:'репутацию',contacts:'контакт',entry:'запись',dossier:'карточку досье',places:'место',windows:'этап',rhythm:'регулярное событие',clocks:'скрытый таймер',plan:'событие плана',past:'событие хроники',handouts:'раздатку',travel:'вид транспорта',dnote:'описание района',time:'время в игре'};
-const H_KIND_NOM={money:'Запись о деньгах',factions:'Фракция',standing:'Репутация',contacts:'Контакт',entry:'Запись',dossier:'Карточка досье',places:'Место',windows:'Этап',rhythm:'Регулярное событие',clocks:'Скрытый таймер',plan:'Событие плана',past:'Событие хроники',handouts:'Раздатка',travel:'Вид транспорта',dnote:'Описание района',time:'Время'};
+const H_KIND={money:'запись о деньгах',factions:'фракцию',standing:'репутацию',contacts:'контакт',entry:'запись',dossier:'карточку досье',places:'место',windows:'этап',rhythm:'регулярное событие',clocks:'скрытый таймер',plan:'событие плана',past:'событие хроники',handouts:'раздатку',travel:'вид транспорта',dnote:'описание района',time:'время в игре',locmaps:'карту места'};
+const H_KIND_NOM={money:'Запись о деньгах',factions:'Фракция',standing:'Репутация',contacts:'Контакт',entry:'Запись',dossier:'Карточка досье',places:'Место',windows:'Этап',rhythm:'Регулярное событие',clocks:'Скрытый таймер',plan:'Событие плана',past:'Событие хроники',handouts:'Раздатка',travel:'Вид транспорта',dnote:'Описание района',time:'Время',locmaps:'Карта места'};
 const H_VERB={setting:'изменил(а) настройку',import:'загрузил(а)',create:'добавил(а)',edit:'изменил(а)',delete:'удалил(а)',restore:'восстановил(а)',revert:'вернул(а) прежнее:',upload:'загрузил(а) файл:',
   'file-delete':'убрал(а) картинку:',time:'изменил(а)',played:'перенёс(ла) в хронику',
   'act:ans':'ответил(а) на приглашение:','act:join':'попросился(лась) в запись:','act:kick':'убрал(а) участника из записи:',
@@ -95,7 +95,7 @@ document.addEventListener('input',ev=>{
   histTimer=setTimeout(()=>{UI.histQ=ev.target.value.trim();gmLoadExtras(true);},350);
 });
 async function openItemHistory(kind,id){
-  const lists={entry:S.entries,dossier:S.dossier,places:S.places,windows:S.windows,rhythm:S.rhythm,clocks:S.clocks,plan:S.plan,past:S.past,handouts:S.handouts,travel:S.travel,money:S.money,factions:S.factions,standing:S.standing,contacts:S.contacts};
+  const lists={entry:S.entries,dossier:S.dossier,places:S.places,windows:S.windows,rhythm:S.rhythm,clocks:S.clocks,plan:S.plan,past:S.past,handouts:S.handouts,travel:S.travel,money:S.money,factions:S.factions,standing:S.standing,contacts:S.contacts,locmaps:S.locmaps};
   const it=(lists[kind]||[]).find(x=>x.id===id),title=it?(it.title||it.name):id;
   const h=await getJson(`/api/gm/history?kind=${encodeURIComponent(kind)}&item=${encodeURIComponent(id)}&limit=100`);
   if(!h){toast('Не удалось загрузить историю');return;}

@@ -94,7 +94,7 @@ def test_every_viewer_gets_exactly_the_same_data_as_before(upgraded):
         assert v["status"] == 200, who                                            # входные cookie старой версии принимаются: никто не разлогинен
         assert v["missing"] == [], (who, v)                                       # ни один раздел не пропал
         assert v["changed"] == [], (who, v)                                       # ни один элемент не изменился (версия данных растёт, это нормально)
-        assert set(v["extra"]) <= {"contacts", "factions", "money", "horizon", "recap", "recap_mode", "recap_open", "recap_ready", "standing", "trash", "travel"}, (who, v["extra"])
+        assert set(v["extra"]) <= {"contacts", "factions", "money", "horizon", "locmaps", "recap", "recap_mode", "recap_open", "recap_ready", "standing", "trash", "travel"}, (who, v["extra"])
 
 
 def test_anonymous_still_needs_login(upgraded):

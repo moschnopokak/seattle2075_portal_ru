@@ -17,6 +17,7 @@ document.addEventListener('click',async ev=>{
   if(a.startsWith('hist-')||a.startsWith('trash-')||a==='item-history'){historyAct(a,b);return;}
   if(a==='free-pick'){const f=document.getElementById('entry-form');if(f)freePick(f,b.dataset.d);return;}
   if(a.startsWith('sr-')){srAct(a,b);return;}
+  if(a.startsWith('lm-')){lmAct(a,b);return;}
   if(a==='open-diary'){openDiary();return;}
   if(a==='open-recap'){openRecap();return;}
   if(a==='recap-copy'){copyRecap(b);return;}
@@ -83,6 +84,7 @@ document.addEventListener('submit',async ev=>{
     if(j){openDistrict(f.dataset.slug);toast(j.msg);}
     return;
   }
+  if(ev.target.classList.contains('lm-form')){ev.preventDefault();await lmSubmit(ev.target);return;}
   if(ev.target.id==='handout-form'){ev.preventDefault();await submitHandout(ev.target);return;}
   if(ev.target.id==='prefs-form'){ev.preventDefault();await submitPrefs(ev.target);return;}
   if(ev.target.id==='recap-form'){ev.preventDefault();await submitRecap(ev.target);return;}

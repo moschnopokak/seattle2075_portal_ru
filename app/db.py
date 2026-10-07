@@ -123,6 +123,21 @@ def _m8_recap_requests(c):
     c.execute("CREATE INDEX IF NOT EXISTS recap_requests_who ON recap_requests(tg_id, char, status)")
 
 
+def _m9_locmaps(c):
+    """Карты локаций: рисунки (SVG игроков и мастера), лента общих обновлений и пометки группы. Сами карты и метки лежат в items (раздел locmaps)."""
+    c.execute("""CREATE TABLE IF NOT EXISTS locmap_files (
+        map_id TEXT NOT NULL, role TEXT NOT NULL, svg TEXT NOT NULL, w INTEGER NOT NULL, h INTEGER NOT NULL, updated REAL NOT NULL,
+        PRIMARY KEY (map_id, role))""")
+    c.execute("""CREATE TABLE IF NOT EXISTS locmap_feed (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, map_id TEXT NOT NULL, ts REAL NOT NULL, gdate TEXT NOT NULL, obj TEXT NOT NULL DEFAULT '',
+        text TEXT NOT NULL, vis TEXT NOT NULL DEFAULT 'стол', known TEXT NOT NULL DEFAULT '[]')""")
+    c.execute("CREATE INDEX IF NOT EXISTS locmap_feed_map ON locmap_feed(map_id, id)")
+    c.execute("""CREATE TABLE IF NOT EXISTS locmap_pins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, map_id TEXT NOT NULL, tg_id INTEGER NOT NULL, char TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL,
+        text TEXT NOT NULL, created REAL NOT NULL)""")
+    c.execute("CREATE INDEX IF NOT EXISTS locmap_pins_map ON locmap_pins(map_id)")
+
+
 MIGRATIONS = [
     (2, "журнал изменений и корзина", _m2_audit_and_trash),
     (3, "очередь уведомлений и настройки пользователей", _m3_outbox_and_prefs),
@@ -131,6 +146,7 @@ MIGRATIONS = [
     (6, "броски кубов в обсуждении", _m6_dice_rolls),
     (7, "пересказы «Что было раньше»", _m7_recaps),
     (8, "просьбы о пересказе, который готовит мастер", _m8_recap_requests),
+    (9, "карты локаций: рисунки, лента обновлений, пометки группы", _m9_locmaps),
 ]
 LATEST = MIGRATIONS[-1][0]
 

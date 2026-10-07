@@ -40,7 +40,7 @@ def at_width(browser, live_url, gm):
 
 
 @pytest.mark.parametrize("tg_id", [GM, MAX, RIG], ids=["мастер", "игрок с двумя персонажами", "игрок"])
-@pytest.mark.parametrize("width", [761, 800, 900, 1024, 1100, 1280, 1440])
+@pytest.mark.parametrize("width", [761, 800, 900, 1024, 1100, 1280, 1340, 1360, 1440])
 def test_no_tab_is_hidden_on_tablets_and_laptops(at_width, tg_id, width):
     page = at_width(tg_id, width)
     assert page.evaluate(HIDDEN_TABS) == [], f"при ширине {width} px вкладки не помещаются"

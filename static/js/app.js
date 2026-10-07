@@ -92,6 +92,7 @@ function chatMark(e){const n=(e.chat||[]).length;return n?`<span class="cc" titl
 const SECTIONS=[
   {id:'now',name:'Сегодня'},{id:'cal',name:'Календарь'},{id:'chron',name:'Хроника'},
   {id:'dossier',name:'Досье'},{id:'handouts',name:'Раздатки'},{id:'sheet',name:'Лист',needChar:true},{id:'map',name:'Карта'},
+  {id:'maps',name:'Локации',show:()=>V==='gm'||lmList().length>0},
   {id:'gm',name:'Панель мастера',gm:true}
 ];
 /* Метка с числом на вкладке: новые раздатки; у мастера просьбы о пересказе; у игрока готовые ответы на его просьбы. */
@@ -101,7 +102,7 @@ function navBadge(id){
   return n>0?`<b class="nav-badge" aria-label="новых: ${n}">${n}</b>`:'';
 }
 function renderTop(){
-  document.getElementById('nav').innerHTML=SECTIONS.filter(s=>(!s.gm||V==='gm')&&(!s.needChar||V==='gm'||(viewChars()||[]).length)).map(s=>
+  document.getElementById('nav').innerHTML=SECTIONS.filter(s=>(!s.gm||V==='gm')&&(!s.needChar||V==='gm'||(viewChars()||[]).length)&&(!s.show||s.show())).map(s=>
     `<button type="button" data-nav="${s.id}" ${UI.section===s.id?'aria-current="page"':''}>${s.name}${navBadge(s.id)}</button>`).join('');
   let who='';
   if(S.me.gm){
@@ -120,6 +121,7 @@ function renderTop(){
 }
 function render(keepScroll){
   if(!S)return;
+  if(UI.section!=='maps')lmDispose();
   if(UI.section==='map'){
     renderTop();document.body.classList.add('on-map');
     const tb=document.getElementById('app-top');document.documentElement.style.setProperty('--top-h',(tb?tb.offsetHeight:60)+'px');
@@ -132,7 +134,7 @@ function render(keepScroll){
   if(UI.section==='gm'&&V!=='gm')UI.section='now';
   const lw=document.getElementById('lanes-wrap'),sl=lw?lw.scrollLeft:0,sy=window.scrollY;
   renderTop();
-  const f={now:rNow,cal:rCal,chron:rChron,gm:rGM,dossier:rDossier,handouts:rHandouts,sheet:rSheet}[UI.section];
+  const f={now:rNow,cal:rCal,chron:rChron,gm:rGM,dossier:rDossier,handouts:rHandouts,sheet:rSheet,maps:rMaps}[UI.section];
   const dqEl=document.getElementById('dq'),dqFocus=!!dqEl&&document.activeElement===dqEl,dqPos=dqFocus?dqEl.selectionStart:0;
   const rqf=recapFocus();
   const html=f(),sec=SECTIONS.find(x=>x.id===UI.section);
@@ -140,6 +142,7 @@ function render(keepScroll){
   if(dqFocus){const n=document.getElementById('dq');if(n){n.focus();try{n.setSelectionRange(dqPos,dqPos);}catch(e){}}}
   recapRefocus(rqf);
   if(UI.section==='gm')gmLoadExtras();
+  if(UI.section==='maps')lmMount();
   if(UI.section==='cal'&&UI.cal==='lanes'){fitLanes();if(keepScroll){const w=document.getElementById('lanes-wrap');if(w)w.scrollLeft=sl;}else scrollToNow();}
   if(keepScroll)window.scrollTo(0,sy);
 }

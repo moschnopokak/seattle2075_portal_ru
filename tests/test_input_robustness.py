@@ -31,6 +31,7 @@ ITEM_BODIES = {
     "factions": {"name": "Фракция", "kind": "gang", "vis": "знают", "known": ["rig"], "note": "n", "gm_note": "g"},
     "standing": {"char": "rig", "faction": "ПОДСТАВИТЬ", "value": 3, "note": "n", "gm_note": "g"},
     "contacts": {"char": "rig", "name": "Контакт", "card": "n1", "connection": 5, "loyalty": 3, "services": "s", "note": "n", "gm_note": "g"},
+    "locmaps": {"name": "Карта", "note": "n", "gm_note": "g", "vis": "знают", "known": ["rig"], "place": "m1"},
 }
 
 
@@ -88,6 +89,21 @@ def test_gm_item_endpoints_survive_garbage(gm, sandbox, kind):
         made = gm.post("/api/gm/items/factions", json={"name": "Для репутации", "vis": "стол"}).json()["state"]["factions"]
         body["faction"] = made[-1]["id"]
     failures = run(gm, f"/api/gm/items/{kind}", body)
+    assert not failures, "500 на некорректных данных:\n" + "\n".join(failures[:40])
+
+
+def test_map_endpoints_survive_garbage(gm, rig, sandbox):
+    from test_locmaps import SVG, add, make_map, upload
+    mid = make_map(gm, vis="стол")
+    upload(gm, mid, "player", SVG)
+    upload(gm, mid, "gm", SVG)
+    add(gm, mid, key="Н1", name="Своя", vis="стол")
+    mark = {"name": "Метка", "key": "М1", "kind": "area", "status": "found", "vis": "знают", "known": ["rig"], "note": "n", "gm_note": "g",
+            "at": {"player": [10, 10], "gm": [20, 20]}, "announce": True, "notify": False}
+    failures = run(gm, f"/api/gm/locmaps/{mid}/objects", mark)
+    failures += run(gm, f"/api/gm/locmaps/{mid}/import", {"objects": [{k: v for k, v in mark.items() if k not in ("announce", "notify")}]})
+    failures += run(gm, f"/api/gm/locmaps/{mid}/feed", {"text": "объявление", "vis": "знают", "known": ["rig"], "notify": False})
+    failures += run(rig, f"/api/locmaps/{mid}/pins", {"text": "пометка", "x": 100, "y": 100, "char": "rig"})
     assert not failures, "500 на некорректных данных:\n" + "\n".join(failures[:40])
 
 
